@@ -11,6 +11,21 @@
 #define BUTTON_DEBOUNCE_MS 200
 #define ENCODER_DEBOUNCE_COUNT 4
 
+
+
+enum EncoderState { ENGINE_SELECT,
+                   VOLUME_ADJUST,
+                   ATTACK_ADJUST,
+                   RELEASE_ADJUST,
+                   FILTER_TOGGLE,
+                   MIDI_MOD,
+                   CV_MOD1,
+                   CV_MOD2,
+                   MIDI_CH,
+                   SCOPE_TOGGLE,
+                   ENCODER_STATE_NUM };
+
+
 struct Encoder {
   uint8_t clk;
   uint8_t dt;
@@ -20,10 +35,53 @@ struct Encoder {
   PinStatus sw_status;
   unsigned long last_sw_time;
   unsigned long last_encoder_activity;
+  volatile EncoderState state;
 };
 
+
 #define EncoderNew(clk_, dt_, sw_) \
-  { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .sw_status = HIGH, .last_sw_time = 0, .last_encoder_activity = 0 }
+  { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .sw_status = HIGH, .last_sw_time = 0, .last_encoder_activity = 0, .state = ENGINE_SELECT  }
+
+
+enum ResolutionMode {
+  RES_RAW,
+  RES_CATCHUP,
+  RES_ATTENUATOR
+};
+
+enum PotMode {
+  POT_NORMAL,
+  POT_KINETIC
+};
+
+struct Parameter {
+  volatile float value;
+  uint8_t gpio;
+  PotMode mode;
+  ResolutionMode resolution_mode;
+  uint8_t last_value;
+  bool midi_locked;
+  struct {
+    float velocity;
+    float damping;
+    float stiffness;
+  } kinetic_params;
+  struct {
+    uint8_t min;
+    uint8_t center;
+    uint8_t max;
+  } attenuator_params;
+};
+
+#define ParameterNew(gpio_) \
+  { \
+    .value = 0, .gpio = gpio_, mode = POT_NORMAL, resolution_mode = RES_RAM, .last_value = 0, .midi_locked = false, \
+    .kinetic_params = { .velocity = 0, .damping = 0.5, .stiffness = 0.5 }, \
+    .attenuator_params = {.min = 0, \
+                          .center = 64, \
+                          .max = 127 } \
+  }
+
 
 inline int8_t encoder_decode_step(Encoder *encoder) {
   const uint8_t state = (digitalRead(encoder->clk) << 1) | digitalRead(encoder->dt);
