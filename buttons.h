@@ -53,33 +53,6 @@ enum PotMode {
   POT_KINETIC
 };
 
-struct Parameter {
-  volatile float value;
-  uint8_t gpio;
-  PotMode mode;
-  ResolutionMode resolution_mode;
-  uint8_t last_value;
-  bool midi_locked;
-  struct {
-    float velocity;
-    float damping;
-    float stiffness;
-  } kinetic_params;
-  struct {
-    uint8_t min;
-    uint8_t center;
-    uint8_t max;
-  } attenuator_params;
-};
-
-#define ParameterNew(gpio_) \
-  { \
-    .value = 0, .gpio = gpio_, mode = POT_NORMAL, resolution_mode = RES_RAM, .last_value = 0, .midi_locked = false, \
-    .kinetic_params = { .velocity = 0, .damping = 0.5, .stiffness = 0.5 }, \
-    .attenuator_params = {.min = 0, \
-                          .center = 64, \
-                          .max = 127 } \
-  }
 
 
 inline int8_t encoder_decode_step(Encoder *encoder) {

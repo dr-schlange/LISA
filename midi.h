@@ -17,6 +17,18 @@
 #define IS_MIDI_NOTE_ON(status) ((status & 0xF0) == 0x90)
 #define IS_MIDI_CC(status) ((status & 0xF0) == 0xB0)
 
+#define MIDI_MASTER_VOL 7
+#define MIDI_ENGINE_SEL 8
+#define MIDI_TIMBRE 9
+#define MIDI_COLOR 10
+#define MIDI_ATTACK 11
+#define MIDI_RELEASE 12
+#define MIDI_RESONANCE 71
+#define MIDI_CUTOFF 74
+#define MIDI_FM_MOD 15
+#define MIDI_TIMBRE_MOD 16
+#define MIDI_COLOR_MOD 17
+#define MIDI_DEV 127
 
 static Adafruit_USBD_MIDI usb_midi;
 static uint32_t global_age = 0;
@@ -80,6 +92,28 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   cc_value = (expected_len == 2) ? data_bytes[1] : 0;
   data_idx = 0;
   has_msg = true;
+#else  // USB MIDI
+  uint8_t packet[4];
+  if (!usb_midi.readPacket(packet)) return;
+
+  uint8_t cin = packet[0] & 0x0F;
+  if (cin < 0x8 || cin > 0xE) return;
+
+  status = packet[1];
+  pitch_or_cc = packet[2];
+  cc_value = packet[3];
+  has_msg = true;
+#endif
+
+  if (millis() - gstate->last_param_change > 1.f) {
+    gstate->color_locked = false;
+    gstate->timbre_locked = false;
+    SCHEDULE_REFRESH(gstate);
+  }
+
+  if (!has_msg) return;
+  if ((status & 0x80) == 0) return;
+  if ((status & 0x0F) != (gstate->midi_ch - 1)) return;
 
   // --- Special CC64 sustain handling ---
   if (IS_MIDI_CC(status) && pitch_or_cc == 64) {
@@ -97,23 +131,6 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     return;
   }
 
-#else  // USB MIDI
-  uint8_t packet[4];
-  if (!usb_midi.readPacket(packet)) return;
-
-  uint8_t cin = packet[0] & 0x0F;
-  if (cin < 0x8 || cin > 0xE) return;
-
-  status = packet[1];
-  pitch_or_cc = packet[2];
-  cc_value = packet[3];
-  has_msg = true;
-#endif
-
-  if (!has_msg) return;
-  if ((status & 0x80) == 0) return;
-  if ((status & 0x0F) != (gstate->midi_ch - 1)) return;
-
   if (IS_MIDI_NOTE_OFF(status, cc_value)) {
     int i = find_voice_by_pitch(voices, pitch_or_cc);
     if (i >= 0) {
@@ -125,42 +142,56 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         voices[i].sustained = false;
       }
     }
-  } else if (IS_MIDI_NOTE_ON(status)) {
+    return;
+  }
+
+  if (IS_MIDI_NOTE_ON(status)) {
     int i = find_free_voice(voices);
     voices[i].pitch = pitch_or_cc;
     voices[i].velocity = cc_value / 127.f;
     voices[i].active = true;
     voices[i].age = global_age++;
-  } else if (IS_MIDI_CC(status)) {
+    return;
+  }
+
+  if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
-      case 7: gstate->master_volume = cc_value / 127.f; break;
-      case 8: gstate->engine_idx = map(cc_value, 0, 127, 0, NUM_ENGINES - 1); break;
-      case 9:  // Timbre
+      case MIDI_MASTER_VOL:
+        gstate->master_volume = cc_value / 127.f;
+        break;
+      case MIDI_ENGINE_SEL:
+        gstate->engine_idx = map(cc_value, 0, 127, 0, NUM_ENGINES - 1);
+        break;
+      case MIDI_TIMBRE:
         gstate->timbre_in = cc_value / 127.f;
-        gstate->filter_midi_owned = true;
         gstate->timbre_locked = true;
-        gstate->last_midi_lock_time = millis();
         break;
-      case 10:  // Color
+      case MIDI_COLOR:
         gstate->color_in = cc_value / 127.f;
-        gstate->filter_midi_owned = true;
         gstate->color_locked = true;
-        gstate->last_midi_lock_time = millis();
         break;
-      case 11: gstate->env_attack_s = 0.01f + (cc_value / 127.f) * 2.f; break;
-      case 12: gstate->env_release_s = 0.01f + (cc_value / 127.f) * 3.f; break;
-      case 71:
-        gstate->filter_resonance_cc = cc_value;
-        gstate->filter_midi_owned = true;
+      case MIDI_ATTACK:
+        gstate->env_attack_s = 0.01f + (cc_value / 127.f) * 2.f;
         break;
-      case 74:
-        gstate->filter_cutoff_cc = cc_value;
-        gstate->filter_midi_owned = true;
+      case MIDI_RELEASE:
+        gstate->env_release_s = 0.01f + (cc_value / 127.f) * 3.f;
         break;
-      case 15: gstate->fm_mod = cc_value / 127.f; break;
-      case 16: gstate->timb_mod_midi = cc_value / 127.f; break;
-      case 17: gstate->color_mod_midi = cc_value / 127.f; break;
-      case 127:
+      case MIDI_RESONANCE:
+        gstate->filter_resonance = cc_value / 127.f;
+        break;
+      case MIDI_CUTOFF:
+        gstate->filter_cutoff = cc_value / 127.f;
+        break;
+      case MIDI_FM_MOD:
+        gstate->fm_mod = cc_value / 127.f;
+        break;
+      case MIDI_TIMBRE_MOD:
+        gstate->timb_mod_midi = cc_value / 127.f;
+        break;
+      case MIDI_COLOR_MOD:
+        gstate->color_mod_midi = cc_value / 127.f;
+        break;
+      case MIDI_DEV:
         if (cc_value == 127) reset_usb_boot(0, 0);
         if (cc_value == 126) watchdog_reboot(0, 0, 0);
         break;
@@ -168,4 +199,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     SCHEDULE_REFRESH(gstate);
     gstate->last_param_change = millis();
   }
+}
+
+static inline void midi_cc_forward(RuntimeState *gstate, uint8_t cc, uint8_t raw_value) {
+  if (gstate->controller_mode == CONTROLLER_BOTH || gstate->controller_mode == CONTROLLER_ONLY)
+    send_midi_cc(cc, raw_value, gstate->midi_ch);
 }

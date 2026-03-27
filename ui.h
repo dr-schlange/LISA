@@ -166,7 +166,7 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
     case FILTER_TOGGLE: sprintf(menuBuf, "FLT:%s", gstate->filter_enabled ? "ON" : "OFF"); break;
     case CV_MOD1: sprintf(menuBuf, "CV1:%s", gstate->cv_mod1 ? "ON" : "OFF"); break;
     case CV_MOD2: sprintf(menuBuf, "CV2:%s", gstate->cv_mod2 ? "ON" : "OFF"); break;
-    case MIDI_MOD: sprintf(menuBuf, "MIDI:%s", gstate->midi_mod ? "ON" : "OFF"); break;
+    case MIDI_MOD: sprintf(menuBuf, "MIDI:%s", gstate->midi_enabled ? "ON" : "OFF"); break;
     case MIDI_CH:
       sprintf(menuBuf, "MIDICH:%d", gstate->midi_ch);
       SCHEDULE_REFRESH(gstate);

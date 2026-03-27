@@ -13,6 +13,12 @@ enum DisplayMode { ENGINE_SELECT_MODE,
                    ENGINE_SETTINGS_CONFIG,
                    OSCILLOSCOPE_MODE };
 
+
+enum MidiControllerMode { CONTROLLER_MODE_OFF,
+                          CONTROLLER_BOTH,
+                          CONTROLLER_ONLY
+};
+
 #define REFRESH_IS_SCHEDULED(runtime) (runtime)->engine_updated
 #define SCHEDULE_REFRESH(runtime) (runtime)->engine_updated = true
 #define CLEAR_REFRESH(runtime) (runtime)->engine_updated = false
@@ -51,9 +57,8 @@ struct RuntimeState {
   bool engine_updated;
   volatile bool env_params_changed;
   unsigned long last_param_change;
-  unsigned long last_midi_lock_time;
 
-  volatile bool midi_mod;
+  volatile bool midi_enabled;
   volatile bool cv_mod1;
   volatile bool cv_mod2;
 
@@ -62,9 +67,8 @@ struct RuntimeState {
 
   volatile bool filter_enabled;
   float filter_mix;
-  volatile uint8_t filter_cutoff_cc;
-  bool filter_midi_owned;
-  volatile uint8_t filter_resonance_cc;
+  volatile float filter_cutoff;
+  volatile float filter_resonance;
 
   bool show_saved_flag;
   unsigned long saved_start_time;
@@ -75,6 +79,9 @@ struct RuntimeState {
   Encoder encoder;
   float pot_timbre;
   float pot_color;
+
+  // MIDI controller mode
+  MidiControllerMode controller_mode;
 
   volatile bool system_ready;
 };
@@ -101,17 +108,15 @@ struct RuntimeState {
     .engine_updated = true, \
     .env_params_changed = true, \
     .last_param_change = 0, \
-    .last_midi_lock_time = 0, \
-    .midi_mod = true, \
+    .midi_enabled = true, \
     .cv_mod1 = false, \
     .cv_mod2 = false, \
     .timbre_locked = false, \
     .color_locked = false, \
     .filter_enabled = true, \
     .filter_mix = 1.0f, \
-    .filter_cutoff_cc = 64, \
-    .filter_midi_owned = false, \
-    .filter_resonance_cc = 32, \
+    .filter_cutoff = 0.5f, \
+    .filter_resonance = 0.25f, \
     .show_saved_flag = false, \
     .saved_start_time = 0, \
     .display_state = ENGINE_SELECT_MODE, \
@@ -119,5 +124,42 @@ struct RuntimeState {
     .encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW), \
     .pot_timbre = 0.5f, \
     .pot_color = 0.5f, \
+    .controller_mode = CONTROLLER_BOTH, \
     .system_ready = false, \
   };
+
+
+struct Parameter {
+  volatile float value;
+  uint8_t gpio;
+  PotMode mode;
+  ResolutionMode resolution_mode;
+  uint8_t last_value;
+  bool midi_locked;
+  struct {
+    float velocity;
+    float damping;
+    float stiffness;
+  } kinetic_params;
+  struct {
+    uint8_t min;
+    uint8_t center;
+    uint8_t max;
+  } attenuator_params;
+};
+
+#define ParameterNew(gpio_) \
+  { \
+    .value = 0, .gpio = gpio_, mode = POT_NORMAL, resolution_mode = RES_RAM, .last_value = 0, .midi_locked = false, \
+    .kinetic_params = { .velocity = 0, .damping = 0.5, .stiffness = 0.5 }, \
+    .attenuator_params = {.min = 0, \
+                          .center = 64, \
+                          .max = 127 } \
+  }
+
+
+
+static inline void set_parameter(RuntimeState *gstate, volatile float *field, float val) {
+  if (gstate->controller_mode == CONTROLLER_BOTH || gstate->controller_mode == CONTROLLER_MODE_OFF)
+    *field = val;
+}

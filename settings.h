@@ -19,7 +19,7 @@ typedef struct __attribute__((packed)) {
   float timbre_in, color_in, timb_mod_cv, color_mod_cv;
   int engine_idx;
   uint8_t midi_ch;
-  uint8_t filter_enabled, midi_mod, cv_mod1, cv_mod2;
+  uint8_t filter_enabled, midi_enabled, cv_mod1, cv_mod2;
   uint8_t oscilloscope_enabled;
   uint8_t enc_state;
 } SettingsSnapshot;
@@ -29,7 +29,7 @@ static inline SettingsSnapshot snapshot_from(const RuntimeState *s) {
     s->master_volume, s->env_attack_s, s->env_release_s,
     s->timbre_in, s->color_in, s->timb_mod_cv, s->color_mod_cv,
     s->engine_idx, s->midi_ch,
-    s->filter_enabled, s->midi_mod, s->cv_mod1, s->cv_mod2,
+    s->filter_enabled, s->midi_enabled, s->cv_mod1, s->cv_mod2,
     s->oscilloscope_enabled, (uint8_t)s->encoder.state
   };
 }
@@ -51,7 +51,7 @@ inline bool save_settings(const RuntimeState *gstate) {
   doc["rel"] = gstate->env_release_s;
   doc["eng"] = gstate->engine_idx;
   doc["filt"] = gstate->filter_enabled;
-  doc["mod"] = gstate->midi_mod;
+  doc["mod"] = gstate->midi_enabled;
   doc["cv1"] = gstate->cv_mod1;
   doc["cv2"] = gstate->cv_mod2;
   doc["timb"] = gstate->timbre_in;
@@ -89,7 +89,7 @@ inline void load_settings(RuntimeState *gstate) {
   gstate->env_release_s = doc["rel"] | 0.03f;
   gstate->engine_idx = doc["eng"] | 1;
   gstate->filter_enabled = doc["filt"] | true;
-  gstate->midi_mod = doc["mod"] | true;
+  gstate->midi_enabled = doc["mod"] | true;
   gstate->cv_mod1 = doc["cv1"] | false;
   gstate->cv_mod2 = doc["cv2"] | false;
   gstate->timbre_in = doc["timb"] | 0.4f;

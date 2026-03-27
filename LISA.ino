@@ -78,7 +78,7 @@ static I2S i2s_output(OUTPUT);
 static braids::Svf global_filter;
 
 // Audio engine
-void __not_in_flash_func(updateAudio)() {
+void __not_in_flash_func(update_audio)() {
 
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
     braids::MacroOscillatorShape shape =
@@ -102,7 +102,7 @@ void __not_in_flash_func(updateAudio)() {
   static float timb_slew = 0.0f;
   static float color_slew = 0.0f;
 
-  if (runtime_state.midi_mod) {
+  if (runtime_state.midi_enabled) {
     runtime_state.fm_target = runtime_state.fm_mod;
   } else if (runtime_state.cv_mod1) {
     runtime_state.fm_target = 0.0f;
@@ -112,13 +112,13 @@ void __not_in_flash_func(updateAudio)() {
     runtime_state.fm_target = runtime_state.fm_mod;
   }
 
-  float timb_target = runtime_state.midi_mod  ? runtime_state.timb_mod_midi
-                      : runtime_state.cv_mod1 ? runtime_state.timb_mod_cv
-                                              : 0.0f;
+  float timb_target = runtime_state.midi_enabled ? runtime_state.timb_mod_midi
+                      : runtime_state.cv_mod1    ? runtime_state.timb_mod_cv
+                                                 : 0.0f;
 
-  float color_target = runtime_state.midi_mod  ? runtime_state.color_mod_midi
-                       : runtime_state.cv_mod1 ? runtime_state.color_mod_cv
-                                               : 0.0f;
+  float color_target = runtime_state.midi_enabled ? runtime_state.color_mod_midi
+                       : runtime_state.cv_mod1    ? runtime_state.color_mod_cv
+                                                  : 0.0f;
 
   auto apply_stable_slew = [](float &current, float target, float coefficient) {
     float diff = target - current;
@@ -182,8 +182,8 @@ void __not_in_flash_func(updateAudio)() {
   static float res_slew = 0.0f;
   static float mix_slew = 0.0f;
 
-  float cut_t = runtime_state.filter_cutoff_cc * (32767.0f / 127.0f);
-  float res_t = runtime_state.filter_resonance_cc * (32767.0f / 127.0f);
+  float cut_t = runtime_state.filter_cutoff * 32767;
+  float res_t = runtime_state.filter_resonance * 32767.f;
   float mix_t = runtime_state.filter_enabled ? 1.0f : 0.0f;
 
   cut_slew += (cut_t - cut_slew) * 0.05f;
@@ -241,7 +241,7 @@ void handle_control(RuntimeState *gstate) {
     int valT = (int)(gstate->pot_timbre * 127.0f + 0.5f);
     int valC = (int)(gstate->pot_color * 127.0f + 0.5f);
 
-    if (!gstate->midi_mod) {
+    if (!gstate->midi_enabled) {
       gstate->timbre_locked = false;
       gstate->color_locked = false;
       SCHEDULE_REFRESH(gstate);
@@ -266,45 +266,37 @@ void handle_control(RuntimeState *gstate) {
       gstate->color_in = 0.5f;
       SCHEDULE_REFRESH(gstate);
 
-    } else if (gstate->midi_mod) {
+    } else if (gstate->midi_enabled) {
       smoothT += (rT - smoothT) * 0.15f;
       smoothC += (rC - smoothC) * 0.15f;
 
-      // TIMBRE
-      if (gstate->timbre_locked) {
+      //
+      static uint8_t last_pot_timbre = 0;
+      static uint8_t last_pot_color = 0;
+      uint8_t new_timbre = (uint8_t)(smoothT * 127.0f);
+      if (new_timbre != last_pot_timbre) {
+        // raw!
+        set_parameter(gstate, &(gstate->timbre_in), smoothT);
+        last_pot_timbre = new_timbre;
+        midi_cc_forward(gstate, MIDI_TIMBRE, new_timbre);
         // catchup!
         // if (fabsf(smoothT - gstate->timbre_in) < 0.02f) {
         //   gstate->timbre_locked = false;
         // }
-        // raw!
-        static uint8_t last_pot_timbre = 0;
-        uint8_t new_timbre = (uint8_t)(smoothT * 127.0f);
-        if (new_timbre != last_pot_timbre) {
-          gstate->timbre_locked = false;
-          last_pot_timbre = new_timbre;
-        }
-      }
-      if (!gstate->timbre_locked) {
-        gstate->timbre_in = smoothT;
       }
 
-      // COLOR
-      if (gstate->color_locked) {
+      uint8_t new_color = (uint8_t)(smoothC * 127.0f);
+      if (new_color != last_pot_color) {
+        // raw!
+        set_parameter(gstate, &(gstate->color_in), smoothC);
+        last_pot_color = new_color;
+        midi_cc_forward(gstate, MIDI_COLOR, new_color);
         // catchup!
         // if (fabsf(smoothC - gstate->color_in) < 0.02f) {
         //   gstate->color_locked = false;
         // }
-        // raw!
-        static uint8_t last_pot_color = 0;
-        uint8_t new_color = (uint8_t)(smoothC * 127.0f);
-        if (new_color != last_pot_color) {
-          gstate->color_locked = false;
-          last_pot_color = new_color;
-        }
       }
-      if (!gstate->color_locked) {
-        gstate->color_in = smoothC;
-      }
+
       SCHEDULE_REFRESH(gstate);
     }
 
@@ -317,20 +309,22 @@ void handle_control(RuntimeState *gstate) {
       static uint8_t last_pot_res = 0;
       uint8_t new_cut = (uint8_t)(smoothCut * 127.0f);
       if (new_cut != last_pot_cut) {
-        gstate->filter_cutoff_cc = new_cut;
-        gstate->filter_midi_owned = false;
+        set_parameter(gstate, &(gstate->filter_cutoff), smoothCut);
+        midi_cc_forward(gstate, MIDI_CUTOFF, new_cut);
         last_pot_cut = new_cut;
       }
       uint8_t new_res = (uint8_t)(smoothRes * 127.0f);
       if (new_res != last_pot_res) {
-        gstate->filter_resonance_cc = new_res;
-        gstate->filter_midi_owned = false;
+        set_parameter(gstate, &(gstate->filter_resonance), smoothRes);
+#if HAS_4_POTS
+        midi_cc_forward(gstate, MIDI_RESONANCE, new_res);
+#endif
         last_pot_res = new_res;
       }
 
       // --- Keep Timbre and Color pots working as default ---
-      smoothT += (rT - smoothT) * 0.08f;
-      smoothC += (rC - smoothC) * 0.08f;
+      // smoothT += (rT - smoothT) * 0.08f;
+      // smoothC += (rC - smoothC) * 0.08f;
 
       // gstate->timbre_in = smoothT;
       // gstate->color_in = smoothC;
@@ -339,8 +333,6 @@ void handle_control(RuntimeState *gstate) {
       // gstate->timb_mod_cv *= 0.9f;
       // gstate->color_mod_cv *= 0.9f;
 
-      // --- FM is inactive in filter mode ---  <-- not sure why
-      // fm_target = 0.0f;
       SCHEDULE_REFRESH(gstate);
     }
 
@@ -415,7 +407,7 @@ void handle_control(RuntimeState *gstate) {
 
       gstate->timbre_locked = false;
       gstate->color_locked = false;
-    } else if (!gstate->midi_mod) {
+    } else if (!gstate->midi_enabled) {
       smoothT += (rT - smoothT) * 0.08f;
       smoothC += (rC - smoothC) * 0.08f;
       gstate->timbre_in = smoothT;
@@ -461,13 +453,13 @@ void handle_menu(RuntimeState *gstate) {
             break;
           case FILTER_TOGGLE:
             gstate->filter_enabled = !gstate->filter_enabled;
-            // midi_mod = false;
+            // midi_enabled = false;
             gstate->cv_mod1 = false;
             gstate->cv_mod2 = false;
             break;
           case MIDI_MOD:
-            gstate->midi_mod = !gstate->midi_mod;
-            // if (midi_mod) {
+            gstate->midi_enabled = !gstate->midi_enabled;
+            // if (midi_enabled) {
             //   cv_mod1 = false;
             //   cv_mod2 = false;
             // }
@@ -476,13 +468,13 @@ void handle_menu(RuntimeState *gstate) {
             gstate->cv_mod1 = !gstate->cv_mod1;
             gstate->filter_enabled = false;
             gstate->cv_mod2 = false;
-            // if (cv_mod1) midi_mod = false;
+            // if (cv_mod1) midi_enabled = false;
             break;
           case CV_MOD2:
             gstate->cv_mod2 = !gstate->cv_mod2;
             gstate->cv_mod1 = false;
             gstate->filter_enabled = false;
-            // if (cv_mod2) midi_mod = false;
+            // if (cv_mod2) midi_enabled = false;
             break;
           case MIDI_CH:
             gstate->midi_ch = constrain(gstate->midi_ch + step, 1, 16);
@@ -498,7 +490,7 @@ void handle_menu(RuntimeState *gstate) {
             break;
           default:
             SWITCHTO_ENGINE_SELECT_MODE(gstate);
-            gstate->midi_mod = true;
+            gstate->midi_enabled = true;
             gstate->cv_mod1 = false;
             gstate->cv_mod2 = false;
             gstate->filter_enabled = false;
@@ -658,7 +650,7 @@ void setup1() {
 
 void loop1() {
   if (i2s_output.availableForWrite() >= AUDIO_BLOCK * 4) {
-    updateAudio();
+    update_audio();
   }
   SET_SYSTEM_READY(&runtime_state);
 }
