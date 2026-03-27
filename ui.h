@@ -22,16 +22,6 @@
 #define SCREEN_WHITE SH110X_WHITE
 #endif
 
-const char *const engine_names[] = {
-  "CSAW", "/\\-_", "//-_", "FOLD", "uuuu", "SUB-", "SUB/", "SYN-", "SYN/",
-  "//x3", "-_x3", "/\\x3", "SIx3", "RING", "////", "//uu", "TOY*", "ZLPF", "ZPKF",
-  "ZBPF", "ZHPF", "VOSM", "VOWL", "VFOF", "HARM", "-FM-", "FBFM", "WTFM",
-  "PLUK", "BOWD", "BLOW", "FLUT", "BELL", "DRUM", "KICK", "CYMB", "SNAR",
-  "WTBL", "WMAP", "WLIN", "WTx4", "NOIS", "TWNQ", "CLKN", "CLOU", "PRTC",
-  "QPSK", "????"
-};
-
-constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
 // Splash screen
 const uint8_t lisa_logo_bitmap[] PROGMEM = {

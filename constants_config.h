@@ -9,6 +9,16 @@
 #define LISA_VERSION "v0.0.1"
 #define SETTINGS_FILE "/lisa_settings.json"
 
+const char *const engine_names[] = {
+  "CSAW", "/\\-_", "//-_", "FOLD", "uuuu", "SUB-", "SUB/", "SYN-", "SYN/",
+  "//x3", "-_x3", "/\\x3", "SIx3", "RING", "////", "//uu", "TOY*", "ZLPF", "ZPKF",
+  "ZBPF", "ZHPF", "VOSM", "VOWL", "VFOF", "HARM", "-FM-", "FBFM", "WTFM",
+  "PLUK", "BOWD", "BLOW", "FLUT", "BELL", "DRUM", "KICK", "CYMB", "SNAR",
+  "WTBL", "WMAP", "WLIN", "WTx4", "NOIS", "TWNQ", "CLKN", "CLOU", "PRTC",
+  "QPSK", "????"
+};
+constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
+
 
 #define USE_UART_MIDI 0  // 0 = USB MIDI, 1 = UART MIDI
 

@@ -595,6 +595,18 @@ static inline bool setup_LittleFS() {
   return true;
 }
 
+static inline void handle_save(RuntimeState *gstate) {
+  // handle long press at global level (whatever the display mode)
+  if (encoder_sw_longpressed(&(gstate->encoder), LONG_PRESS_MS))
+    if (save_settings(gstate)) {
+      gstate->show_saved_flag = true;
+      gstate->saved_start_time = millis();
+    }
+#if USE_SCREEN
+  check_saved_feedback(gstate);
+#endif
+}
+
 void setup() {
 #if DEBUG
   setup_debug_serial();
@@ -616,6 +628,8 @@ void loop() {
     return;
   }
 
+  // We need to update first the state for SW
+  encoder_update_sw(&(runtime_state.encoder));
   handle_save(&runtime_state);
   handle_control(&runtime_state);
   handle_menu(&runtime_state);

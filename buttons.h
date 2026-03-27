@@ -28,6 +28,7 @@ struct Encoder {
   uint8_t sw;
   int8_t _count;
   uint8_t last_state;
+  PinStatus prev_sw_status;
   PinStatus sw_status;
   bool sw_longpress_handled;
   unsigned long last_sw_time;
@@ -38,7 +39,7 @@ struct Encoder {
 
 
 #define EncoderNew(clk_, dt_, sw_) \
-  { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .sw_status = HIGH, .sw_longpress_handled = false, .last_sw_time = 0, .last_sw_longtime = 0, .last_encoder_activity = 0, .state = ENGINE_SELECT }
+  { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .prev_sw_status = HIGH, .sw_status = HIGH, .sw_longpress_handled = false, .last_sw_time = 0, .last_sw_longtime = 0, .last_encoder_activity = 0, .state = ENGINE_SELECT }
 
 
 enum ResolutionMode {
@@ -114,9 +115,8 @@ inline int8_t encoder_decode_step(Encoder *encoder) {
 }
 
 static inline bool encoder_sw_pressed(Encoder *encoder) {
-  const PinStatus last = encoder->sw_status;
-  const PinStatus current = digitalRead(encoder->sw);
-  encoder->sw_status = current;
+  const PinStatus last = encoder->prev_sw_status;
+  const PinStatus current = encoder->sw_status;
 
   if (last == HIGH && current == LOW && (millis() - encoder->last_sw_time) > BUTTON_DEBOUNCE_MS) {
     encoder->last_sw_time = millis();
@@ -127,9 +127,8 @@ static inline bool encoder_sw_pressed(Encoder *encoder) {
 }
 
 static inline bool encoder_sw_longpressed(Encoder *encoder, unsigned long threshold_ms) {
-  const PinStatus last = encoder->sw_status;
-  const PinStatus current = digitalRead(encoder->sw);
-  encoder->sw_status = current;
+  const PinStatus last = encoder->prev_sw_status;
+  const PinStatus current = encoder->sw_status;
 
   if (current == LOW && last == HIGH) {  // first clic
     encoder->last_sw_longtime = millis();
@@ -145,4 +144,9 @@ static inline bool encoder_sw_longpressed(Encoder *encoder, unsigned long thresh
     encoder->sw_longpress_handled = false;
   }
   return false;
+}
+
+static inline void encoder_update_sw(Encoder *encoder) {
+  encoder->prev_sw_status = encoder->sw_status;
+  encoder->sw_status = digitalRead(encoder->sw);
 }
