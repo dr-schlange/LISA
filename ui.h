@@ -3,21 +3,14 @@
 
   Copyright (c) 2025 Dr Schlange
   Licensed under GNU GPLv3
+
+  Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
+#include <pico/stdlib.h>
+#include <Wire.h>
 #include "global_state.h"
-
-#define USE_SCREEN 1
-#define OLED_SDA 0
-#define OLED_SCL 1
-#define SCOPE_WIDTH 128
-#define SCREEN_REFRESH_TIME 60
-#define IDLETIME_BEFORE_ENGINE_SELECT_MS 5000
-#define IDLETIME_BEFORE_SCOPE_DISPLAY_MS 10000
-#define SAVED_DISPLAY_MS 800
-
-#define SSD1306 1  //ssd1306 display
-// #define SH110X 1// sh110x display
+#include "constants_config.h"
 
 #if SSD1306
 #include <Adafruit_SSD1306.h>
@@ -62,8 +55,9 @@ const uint8_t lisa_logo_bitmap[] PROGMEM = {
 
 
 struct UIState {
-  int last_engine_draw = -1;
-  unsigned long last_draw_time = 0;
+  bool scheduled_refresh;
+  int last_engine_draw;
+  unsigned long last_draw_time;
   volatile bool scope_ready;
   volatile float scope_buffer[SCOPE_WIDTH];
   volatile float scope_buffer_front[SCOPE_WIDTH];
@@ -72,8 +66,12 @@ struct UIState {
 
 #define UIStateNew() \
   { \
-    .last_engine_draw = -1, .last_draw_time = 0, .scope_ready = false, .scope_buffer = { 0 }, .scope_buffer_front = { 0 }, .scope_buffer_back = { 0 } \
+    .scheduled_refresh = true, .last_engine_draw = -1, .last_draw_time = 0, .scope_ready = false, .scope_buffer = { 0 }, .scope_buffer_front = { 0 }, .scope_buffer_back = { 0 } \
   }
+
+#define REFRESH_IS_SCHEDULED(runtime) (runtime)->engine_updated
+#define SCHEDULE_REFRESH(runtime) (runtime)->engine_updated = true
+#define CLEAR_REFRESH(runtime) (runtime)->engine_updated = false
 
 #if USE_SCREEN
 
@@ -84,6 +82,33 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 #if SH110X
 Adafruit_SH1106G display = Adafruit_SH1106G(128, 64, &Wire, -1);
 #endif
+
+void draw_splash() {
+  int16_t x1, y1;
+  uint16_t w, h;
+
+  display.clearDisplay();
+  display.drawBitmap((128 - 32) / 2, 0, lisa_logo_bitmap, 32, 16, SSD1306_WHITE);
+
+  const char *title = "LISA";
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((128 - w) / 2, 18);
+  display.println(title);
+
+  const char *subtitle = "synthesizer";
+  display.setTextSize(1);
+  display.getTextBounds(subtitle, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((128 - w) / 2, 40);
+  display.println(subtitle);
+
+  const char *version = LISA_VERSION;
+  display.getTextBounds(version, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((128 - w) / 2, 54);
+  display.println(version);
+  display.display();
+}
 
 inline void draw_scope(UIState *uistate) {
   if (!uistate->scope_ready) return;
@@ -140,7 +165,7 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
     case MIDI_MOD: sprintf(menuBuf, "MIDI:%s", gstate->midi_mod ? "ON" : "OFF"); break;
     case MIDI_CH:
       sprintf(menuBuf, "MIDICH:%d", gstate->midi_ch);
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
       break;
     case SCOPE_TOGGLE: sprintf(menuBuf, "SCOPE:%s", gstate->oscilloscope_enabled ? "ON" : "OFF"); break;
     default:
@@ -169,46 +194,20 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
 }
 
 
-void draw_splash() {
-  int16_t x1, y1;
-  uint16_t w, h;
-
-  display.clearDisplay();
-  display.drawBitmap((128 - 32) / 2, 0, lisa_logo_bitmap, 32, 16, SSD1306_WHITE);
-
-  const char *title = "LISA";
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
-  display.setCursor((128 - w) / 2, 18);
-  display.println(title);
-
-  const char *subtitle = "synthesizer";
-  display.setTextSize(1);
-  display.getTextBounds(subtitle, 0, 0, &x1, &y1, &w, &h);
-  display.setCursor((128 - w) / 2, 40);
-  display.println(subtitle);
-
-  const char *version = LISA_VERSION;
-  display.getTextBounds(version, 0, 0, &x1, &y1, &w, &h);
-  display.setCursor((128 - w) / 2, 54);
-  display.println(version);
-  display.display();
-}
 
 static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
   if (millis() - uistate->last_draw_time > SCREEN_REFRESH_TIME) {
     uistate->last_draw_time = millis();
     unsigned long idle = millis() - gstate->encoder.last_encoder_activity;
 
-    if (gstate->display_state == SETTINGS_MODE && idle > IDLETIME_BEFORE_ENGINE_SELECT_MS) {
+    if (gstate->display_state == ENGINE_SETTINGS_CONFIG && idle > IDLETIME_BEFORE_ENGINE_SELECT_MS) {
       gstate->display_state = ENGINE_SELECT_MODE;
       gstate->encoder.state = ENGINE_SELECT;
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
       uistate->last_engine_draw = -1;
     } else if (gstate->display_state == ENGINE_SELECT_MODE && idle > IDLETIME_BEFORE_SCOPE_DISPLAY_MS && gstate->oscilloscope_enabled) {
       gstate->display_state = OSCILLOSCOPE_MODE;
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
       uistate->last_engine_draw = -1;
     }
     switch (gstate->display_state) {
@@ -216,8 +215,8 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
         draw_scope(uistate);
         break;
       case ENGINE_SELECT_MODE:
-      case SETTINGS_MODE:
-        if (gstate->engine_updated || gstate->engine_idx != uistate->last_engine_draw) {
+      case ENGINE_SETTINGS_CONFIG:
+        if (REFRESH_IS_SCHEDULED(gstate) || gstate->engine_idx != uistate->last_engine_draw) {
           draw_engine_ui(gstate, uistate);
           uistate->last_engine_draw = gstate->engine_idx;
           gstate->engine_updated = false;
@@ -245,7 +244,7 @@ void check_saved_feedback(RuntimeState *gstate) {
     display.display();
   } else {
     gstate->show_saved_flag = false;
-    ENGINE_UPDATED(gstate);
+    SCHEDULE_REFRESH(gstate);
   }
 }
 

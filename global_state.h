@@ -5,17 +5,27 @@
   Licensed under GNU GPLv3
 */
 #pragma once
+#include <pico/stdlib.h>
 #include "buttons.h"
-
-#define LISA_VERSION "v0.0.1"
+#include "constants_config.h"
 
 enum DisplayMode { ENGINE_SELECT_MODE,
-                   SETTINGS_MODE,
+                   ENGINE_SETTINGS_CONFIG,
                    OSCILLOSCOPE_MODE };
 
+#define SET_SYSTEM_READY(runtime) (runtime)->system_ready = true
+#define SWITCHTO_ENGINE_SELECT_MODE(runtime) (runtime)->display_state = ENGINE_SELECT_MODE
+#define SWITCHTO_ENGINE_SETTINGS_CONFIG(runtime) (runtime)->display_state = ENGINE_SETTINGS_CONFIG
+#define SWITCHTO_OSCILLOSCOPE_MODE(runtime) (runtime)->display_state = OSCILLOSCOPE_MODE
+#define IS_OSCILLOSCOPE_ON(runtime) (runtime)->oscilloscope_enabled
+#define TOGGLE_OSCILLOSCOPE(runtime) ((runtime)->oscilloscope_enabled = !(runtime)->oscilloscope_enabled)
+#define IS_OSCILLOSCOPE_OFF(runtime) (!(runtime)->oscilloscope_enabled)
+#define IS_OSCILLOSCOPE_MODE(runtime) (runtime)->display_state == OSCILLOSCOPE_MODE
+#define IS_ENGINE_SETTINGS_CONFIG(runtime) (runtime)->display_state == ENGINE_SETTINGS_CONFIG
+#define IS_ENGINE_SELECT_MODE(runtime) (runtime)->display_state == ENGINE_SELECT_MODE
 
 struct RuntimeState {
-  volatile uint8_t midi_ch;
+  uint8_t midi_ch;
   volatile int engine_idx;
   int last_engine_idx;
   volatile float timbre_in;
@@ -32,9 +42,9 @@ struct RuntimeState {
   volatile float env_release_s;
   float attackCoef;
   float releaseCoef;
-  volatile bool sustain_enabled;
+  bool sustain_enabled;
 
-  volatile bool engine_updated;
+  bool engine_updated;
   volatile bool env_params_changed;
   unsigned long last_param_change;
   unsigned long last_midi_lock_time;
@@ -43,8 +53,8 @@ struct RuntimeState {
   volatile bool cv_mod1;
   volatile bool cv_mod2;
 
-  volatile bool timbre_locked;
-  volatile bool color_locked;
+  bool timbre_locked;
+  bool color_locked;
 
   volatile bool filter_enabled;
   float filter_mix;
@@ -107,8 +117,3 @@ struct RuntimeState {
     .pot_color = 0.5f, \
     .system_ready = false, \
   };
-
-
-
-#define ENGINE_UPDATED(runtime) (runtime)->engine_updated = true
-#define SET_SYSTEM_READY(runtime) (runtime)->system_ready = true

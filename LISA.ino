@@ -46,21 +46,18 @@
     Copyright (c) 2020 (emilie.o.gillet@gmail.com)
     MIT License
 */
-
-#define LISA_VERSION "v0.0.1"
-
 #include <Arduino.h>
 #include <I2S.h>
-#include <Adafruit_TinyUSB.h>
 #include <STMLIB.h>
 #include <BRAIDS.h>
 #include <pico/stdlib.h>
-#include <Wire.h>
 #include "global_state.h"
 #include "ui.h"
 #include "buttons.h"
 #include "settings.h"
-
+#include "midi.h"
+#include "voices.h"
+#include "constants_config.h"
 
 #define DEBUG false
 #if DEBUG
@@ -69,88 +66,18 @@
 #define DEBUG_PRINTLN(...)
 #endif
 
-#define I2S_DATA_PIN 9
-#define I2S_BCLK_PIN 10
-#define SAMPLE_RATE 32000
-#define AUDIO_BLOCK 32
-#define MAX_VOICES 4
-
-#define INIT_CUTOFF (32767 / 4)
-#define INIT_RESONANCE (32767 / 2)
-
-#define USE_POTS 1
-#define POT_TIMBRE A0      // GPIO26
-#define POT_COLOR A1       // GPIO27
-#define POT_TIMBRE_MOD A2  // GPIO28
-#define POT_COLOR_MOD A3   // GPIO29
-#define HAS_A3 0           // RPI Pico W doen't have GPIO29
-
-#define ENCODER_CLK 2
-#define ENCODER_DT 3
-#define ENCODER_SW 4
-#define LONG_PRESS_MS 1000
-
-#define USE_UART_MIDI 0  // 0 = USB MIDI, 1 = UART MIDI
-#define MIDI_UART_RX 13
-
-// MIDI stuffs
-#define IS_MIDI_NOTE_OFF(status, value) (((status & 0xF0) == 0x80) || ((status & 0xF0) == 0x90 && value == 0))
-#define IS_MIDI_NOTE_ON(status) ((status & 0xF0) == 0x90)
-#define IS_MIDI_CC(status) ((status & 0xF0) == 0xB0)
-
-struct Voice {
-  braids::MacroOscillator osc;
-  int pitch;
-  float velocity;
-  float vel_smoothed;
-  bool active;
-  bool last_trig;
-  float env;
-  int16_t buffer[AUDIO_BLOCK];
-  uint8_t sync_buffer[AUDIO_BLOCK];
-  uint32_t age;
-  bool sustained;
-};
-
-static RuntimeState runtime_state = GlobalStateNew();
-
+// Synth states & global vars
 #if USE_SCREEN
 static UIState ui_state = UIStateNew();
 #endif
 
+static RuntimeState runtime_state = GlobalStateNew();
 static Voice voices[MAX_VOICES];
-uint32_t global_age = 0;
 
-I2S i2s_output(OUTPUT);
+static I2S i2s_output(OUTPUT);
+static braids::Svf global_filter;
 
-braids::Svf global_filter;
-Adafruit_USBD_MIDI usb_midi;
-
-
-
-
-int findFreeVoice() {
-  int oldest = 0;
-  uint32_t old_age = voices[0].age;
-  for (int i = 0; i < MAX_VOICES; i++) {
-    if (!voices[i].active && voices[i].env == 0.f)
-      return i;
-    if (voices[i].age < old_age) {
-      old_age = voices[i].age;
-      oldest = i;
-    }
-  }
-  return oldest;
-}
-
-
-int findVoiceByPitch(int pitch) {
-  for (int i = 0; i < MAX_VOICES; i++)
-    if (voices[i].active && voices[i].pitch == pitch) return i;
-  return -1;
-}
-
-
+// Audio engine
 void __not_in_flash_func(updateAudio)() {
 
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
@@ -296,164 +223,6 @@ void __not_in_flash_func(updateAudio)() {
 }
 
 
-void __not_in_flash_func(handle_MIDI)() {
-  static uint8_t running_status = 0;
-  static uint8_t data_bytes[2] = { 0 };
-  static uint8_t data_idx = 0;
-
-  uint8_t status = 0, pitch_or_cc = 0, cc_value = 0;
-  bool has_msg = false;
-
-#if USE_UART_MIDI
-  if (Serial1.available() == 0) return;
-
-  uint8_t byte = Serial1.read();
-
-  if (byte >= 0xF8) return;
-
-  if (byte & 0x80) {
-    running_status = byte;
-    data_idx = 0;
-    return;
-  }
-
-  if (running_status == 0) return;
-  if (data_idx < 2) data_bytes[data_idx++] = byte;
-  uint8_t type = running_status & 0xF0;
-  uint8_t expected_len = (type == 0xC0 || type == 0xD0) ? 1 : 2;
-
-  if (data_idx < expected_len) return;
-
-  status = running_status;
-  pitch_or_cc = data_bytes[0];
-  d2 = (expected_len == 2) ? data_bytes[1] : 0;
-  data_idx = 0;
-  has_msg = true;
-
-  // --- Special CC64 sustain handling ---
-  if (IS_MIDI_CC(status) && pitch_or_cc == 64) {
-    if (d2 >= 64) {
-      runtime_state.sustain_enabled = true;
-    } else {
-      runtime_state.sustain_enabled = false;
-      for (int i = 0; i < MAX_VOICES; i++) {
-        if (voices[i].sustained) {
-          voices[i].active = false;
-          voices[i].sustained = false;
-        }
-      }
-    }
-    return;
-  }
-
-#else  // USB MIDI
-  uint8_t packet[4];
-  if (!usb_midi.readPacket(packet)) return;
-
-  uint8_t cin = packet[0] & 0x0F;
-  if (cin < 0x8 || cin > 0xE) return;
-
-  status = packet[1];
-  pitch_or_cc = packet[2];
-  cc_value = packet[3];
-  has_msg = true;
-#endif
-
-  if (!has_msg) return;
-  if ((status & 0x80) == 0) return;
-  if ((status & 0x0F) != (runtime_state.midi_ch - 1)) return;
-
-  if (IS_MIDI_NOTE_OFF(status, cc_value)) {
-    int i = findVoiceByPitch(pitch_or_cc);
-    if (i >= 0) {
-      if (runtime_state.sustain_enabled) {
-        voices[i].sustained = true;
-        voices[i].active = false;
-      } else {
-        voices[i].active = false;
-        voices[i].sustained = false;
-      }
-    }
-  } else if (IS_MIDI_NOTE_ON(status)) {
-    int i = findFreeVoice();
-    voices[i].pitch = pitch_or_cc;
-    voices[i].velocity = cc_value / 127.f;
-    voices[i].active = true;
-    voices[i].age = global_age++;
-  } else if (IS_MIDI_CC(status)) {
-    switch (pitch_or_cc) {
-      case 7: runtime_state.master_volume = cc_value / 127.f; break;
-      case 8: runtime_state.engine_idx = map(cc_value, 0, 127, 0, NUM_ENGINES - 1); break;
-      case 9:  // Timbre
-        runtime_state.timbre_in = cc_value / 127.f;
-        runtime_state.filter_midi_owned = true;
-        runtime_state.timbre_locked = true;
-        runtime_state.last_midi_lock_time = millis();
-        break;
-      case 10:  // Color
-        runtime_state.color_in = cc_value / 127.f;
-        runtime_state.filter_midi_owned = true;
-        runtime_state.color_locked = true;
-        runtime_state.last_midi_lock_time = millis();
-        break;
-      case 11: runtime_state.env_attack_s = 0.01f + (cc_value / 127.f) * 2.f; break;
-      case 12: runtime_state.env_release_s = 0.01f + (cc_value / 127.f) * 3.f; break;
-      case 71:
-        runtime_state.filter_resonance_cc = cc_value;
-        runtime_state.filter_midi_owned = true;
-        break;
-      case 74:
-        runtime_state.filter_cutoff_cc = cc_value;
-        runtime_state.filter_midi_owned = true;
-        break;
-      case 15: runtime_state.fm_mod = cc_value / 127.f; break;
-      case 16: runtime_state.timb_mod_midi = cc_value / 127.f; break;
-      case 17: runtime_state.color_mod_midi = cc_value / 127.f; break;
-      case 127:
-        if (cc_value == 127) reset_usb_boot(0, 0);
-        if (cc_value == 126) watchdog_reboot(0, 0, 0);
-        break;
-    }
-    ENGINE_UPDATED(&runtime_state);
-    runtime_state.last_param_change = millis();
-  }
-}
-
-static inline void handle_save(RuntimeState *gstate) {
-  int btn = digitalRead(ENCODER_SW);
-  static int last_btn_state = HIGH;
-  static unsigned long button_press_start = 0;
-  static bool has_saved_this_press = false;
-
-  if (btn == LOW && last_btn_state == HIGH) {
-    button_press_start = millis();
-    has_saved_this_press = false;
-  }
-
-  if (btn == LOW && !has_saved_this_press) {
-    if (millis() - button_press_start >= LONG_PRESS_MS) {
-      // Update struct with current live values
-
-
-      if (save_settings(gstate)) {
-        gstate->show_saved_flag = true;
-        gstate->saved_start_time = millis();
-      }
-      has_saved_this_press = true;
-    }
-  }
-
-  if (btn == HIGH && last_btn_state == LOW) {
-    has_saved_this_press = false;
-  }
-  last_btn_state = btn;
-
-#if USE_SCREEN
-  check_saved_feedback(gstate);
-#endif
-}
-
-
 void handle_control(RuntimeState *gstate) {
   static float smoothT = 0.5f;
   static float smoothC = 0.5f;
@@ -469,7 +238,7 @@ void handle_control(RuntimeState *gstate) {
     float rT = analogRead(POT_TIMBRE) / 1023.0f;
     float rC = analogRead(POT_COLOR) / 1023.0f;
     float srcT = analogRead(POT_TIMBRE_MOD) / 1023.0f;
-#if HAS_A3
+#if HAS_4_POTS
     float srcC = analogRead(POT_COLOR_MOD) / 1023.0f;
 #else
     float srcC = 0.5f;
@@ -491,7 +260,7 @@ void handle_control(RuntimeState *gstate) {
     if (!gstate->midi_mod) {
       gstate->timbre_locked = false;
       gstate->color_locked = false;
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
     }
 
     if (gstate->cv_mod1) {
@@ -511,7 +280,7 @@ void handle_control(RuntimeState *gstate) {
       // --- Set base values for other modes ---
       gstate->timbre_in = 0.5f;
       gstate->color_in = 0.5f;
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
 
     } else if (gstate->midi_mod) {
       smoothT += (rT - smoothT) * 0.15f;
@@ -552,7 +321,7 @@ void handle_control(RuntimeState *gstate) {
       if (!gstate->color_locked) {
         gstate->color_in = smoothC;
       }
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
     }
 
     if (gstate->filter_enabled) {
@@ -588,7 +357,7 @@ void handle_control(RuntimeState *gstate) {
 
       // --- FM is inactive in filter mode ---  <-- not sure why
       // fm_target = 0.0f;
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
     }
 
     else if (gstate->cv_mod2) {
@@ -635,7 +404,7 @@ void handle_control(RuntimeState *gstate) {
           if (new_idx != gstate->engine_idx) {
             gstate->engine_idx = new_idx;
             lockT = smoothTMod;
-            ENGINE_UPDATED(gstate);
+            SCHEDULE_REFRESH(gstate);
           }
         }
       } else {
@@ -675,24 +444,25 @@ void handle_control(RuntimeState *gstate) {
 
       gstate->timbre_locked = false;
       gstate->color_locked = false;
-      ENGINE_UPDATED(gstate);
+      SCHEDULE_REFRESH(gstate);
     }
   }
 }
 
 void handle_menu(RuntimeState *gstate) {
   Encoder *encoder = &(gstate->encoder);
-  const int8_t step = encoder_decode_step(encoder);
 
+  const int8_t step = encoder_decode_step(encoder);
   if (step) {
+    // Encoder rotation reaction depending on display state
     switch (gstate->display_state) {
       case ENGINE_SELECT_MODE:
         gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
-        gstate->engine_updated = true;
+        SCHEDULE_REFRESH(gstate);
         encoder->last_encoder_activity = millis();
         break;
 
-      case SETTINGS_MODE:
+      case ENGINE_SETTINGS_CONFIG:
         switch (encoder->state) {
           case VOLUME_ADJUST:
             gstate->master_volume = constrain(gstate->master_volume + step * 0.01f, 0.f, 1.f);
@@ -734,60 +504,61 @@ void handle_menu(RuntimeState *gstate) {
             gstate->midi_ch = constrain(gstate->midi_ch + step, 1, 16);
             break;
           case SCOPE_TOGGLE:
-            gstate->oscilloscope_enabled = !gstate->oscilloscope_enabled;
-            if (!gstate->oscilloscope_enabled && gstate->display_state == OSCILLOSCOPE_MODE) {
-              gstate->display_state = ENGINE_SELECT_MODE;
+            TOGGLE_OSCILLOSCOPE(gstate);
+            if (IS_OSCILLOSCOPE_OFF(gstate) && IS_OSCILLOSCOPE_MODE(gstate)) {
+              SWITCHTO_ENGINE_SELECT_MODE(gstate);
 #if USE_SCREEN
               ui_state.scope_ready = false;
 #endif
             }
             break;
           default:
-            gstate->display_state = ENGINE_SELECT_MODE;
+            SWITCHTO_ENGINE_SELECT_MODE(gstate);
             gstate->midi_mod = true;
             gstate->cv_mod1 = false;
             gstate->cv_mod2 = false;
             gstate->filter_enabled = false;
-            gstate->engine_updated = true;
+            SCHEDULE_REFRESH(gstate);
             break;
         }
         encoder->last_encoder_activity = millis();
-        gstate->engine_updated = true;
+        SCHEDULE_REFRESH(gstate);
         break;
 
       case OSCILLOSCOPE_MODE:
-        gstate->display_state = ENGINE_SELECT_MODE;
-        gstate->engine_updated = true;
+        SWITCHTO_ENGINE_SELECT_MODE(gstate);
+        SCHEDULE_REFRESH(gstate);
         encoder->last_encoder_activity = millis();
         break;
     }
   }
 
   if (encoder_sw_pressed(encoder)) {
+    // Encoder sw press reaction depending on the mode
     switch (gstate->display_state) {
       case ENGINE_SELECT_MODE:
-        gstate->display_state = SETTINGS_MODE;
+        SWITCHTO_ENGINE_SETTINGS_CONFIG(gstate);
         gstate->encoder.state = ENGINE_SELECT;
-        gstate->engine_updated = true;
+        SCHEDULE_REFRESH(gstate);
         break;
 
-      case SETTINGS_MODE:
+      case ENGINE_SETTINGS_CONFIG:
         gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % (ENCODER_STATE_NUM - 1));
-        gstate->engine_updated = true;
+        SCHEDULE_REFRESH(gstate);
         break;
 
       case OSCILLOSCOPE_MODE:
-        gstate->display_state = SETTINGS_MODE;
+        SWITCHTO_ENGINE_SETTINGS_CONFIG(gstate);
         gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % (ENCODER_STATE_NUM - 1));
-        gstate->engine_updated = true;
+        SCHEDULE_REFRESH(gstate);
         break;
     }
   }
 }
 
-//===============================
+// ===============================
 // Setup and main loop for Core0
-//===============================
+// ==============================
 #if DEBUG
 static inline void setup_debug_serial() {
   Serial.begin(115200);
@@ -805,13 +576,6 @@ static inline void setup_pins() {
   pinMode(ENCODER_SW, INPUT_PULLUP);
 }
 
-static inline void setup_USB() {
-  TinyUSBDevice.setManufacturerDescriptor("dr-schlange");
-  TinyUSBDevice.setProductDescriptor("LISA Synth");
-  TinyUSBDevice.setSerialDescriptor("NLYHW_00");
-
-  usb_midi.begin();
-}
 
 static inline bool setup_LittleFS() {
   bool fs_ready = false;
@@ -855,7 +619,7 @@ void loop() {
   handle_save(&runtime_state);
   handle_control(&runtime_state);
   handle_menu(&runtime_state);
-  handle_MIDI();
+  handle_MIDI(&runtime_state, voices);
 #if USE_SCREEN
   draw_ui(&runtime_state, &ui_state);
 #endif

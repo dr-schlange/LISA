@@ -7,23 +7,19 @@
 #pragma once
 #include <pico/stdlib.h>
 #include <Arduino.h>
-
-#define BUTTON_DEBOUNCE_MS 200
-#define ENCODER_DEBOUNCE_COUNT 4
-
-
+#include "constants_config.h"
 
 enum EncoderState { ENGINE_SELECT,
-                   VOLUME_ADJUST,
-                   ATTACK_ADJUST,
-                   RELEASE_ADJUST,
-                   FILTER_TOGGLE,
-                   MIDI_MOD,
-                   CV_MOD1,
-                   CV_MOD2,
-                   MIDI_CH,
-                   SCOPE_TOGGLE,
-                   ENCODER_STATE_NUM };
+                    VOLUME_ADJUST,
+                    ATTACK_ADJUST,
+                    RELEASE_ADJUST,
+                    FILTER_TOGGLE,
+                    MIDI_MOD,
+                    CV_MOD1,
+                    CV_MOD2,
+                    MIDI_CH,
+                    SCOPE_TOGGLE,
+                    ENCODER_STATE_NUM };
 
 
 struct Encoder {
@@ -33,14 +29,16 @@ struct Encoder {
   int8_t _count;
   uint8_t last_state;
   PinStatus sw_status;
+  bool sw_longpress_handled;
   unsigned long last_sw_time;
+  unsigned long last_sw_longtime;
   unsigned long last_encoder_activity;
   volatile EncoderState state;
 };
 
 
 #define EncoderNew(clk_, dt_, sw_) \
-  { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .sw_status = HIGH, .last_sw_time = 0, .last_encoder_activity = 0, .state = ENGINE_SELECT  }
+  { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .sw_status = HIGH, .sw_longpress_handled = false, .last_sw_time = 0, .last_sw_longtime = 0, .last_encoder_activity = 0, .state = ENGINE_SELECT }
 
 
 enum ResolutionMode {
@@ -115,7 +113,7 @@ inline int8_t encoder_decode_step(Encoder *encoder) {
   return 0;
 }
 
-inline bool encoder_sw_pressed(Encoder *encoder) {
+static inline bool encoder_sw_pressed(Encoder *encoder) {
   const PinStatus last = encoder->sw_status;
   const PinStatus current = digitalRead(encoder->sw);
   encoder->sw_status = current;
@@ -124,6 +122,27 @@ inline bool encoder_sw_pressed(Encoder *encoder) {
     encoder->last_sw_time = millis();
     encoder->last_encoder_activity = millis();
     return true;
+  }
+  return false;
+}
+
+static inline bool encoder_sw_longpressed(Encoder *encoder, unsigned long threshold_ms) {
+  const PinStatus last = encoder->sw_status;
+  const PinStatus current = digitalRead(encoder->sw);
+  encoder->sw_status = current;
+
+  if (current == LOW && last == HIGH) {  // first clic
+    encoder->last_sw_longtime = millis();
+    encoder->sw_longpress_handled = false;
+  }
+  if (current == LOW && !encoder->sw_longpress_handled) {
+    if (millis() - encoder->last_sw_longtime >= threshold_ms) {
+      encoder->sw_longpress_handled = true;
+      return true;
+    }
+  }
+  if (current == HIGH && last == LOW) {
+    encoder->sw_longpress_handled = false;
   }
   return false;
 }

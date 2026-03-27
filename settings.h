@@ -3,14 +3,20 @@
 
   Copyright (c) 2025 Dr Schlange
   Licensed under GNU GPLv3
+
+  Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
+#include <Arduino.h>
+#include <pico/stdlib.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include "global_state.h"
+#include "constants_config.h"
 
-#define SETTINGS_FILE "/lisa_settings.json"
-
+#if USE_SCREEN
+#include "ui.h"
+#endif
 
 typedef struct __attribute__((packed)) {
   float master_volume, env_attack_s, env_release_s;
@@ -99,5 +105,17 @@ inline void load_settings(RuntimeState *gstate) {
   gstate->oscilloscope_enabled = doc["osc"] | true;
 
   last_snapshot = snapshot_from(gstate);
-  ENGINE_UPDATED(gstate);
+  SCHEDULE_REFRESH(gstate);
+}
+
+static inline void handle_save(RuntimeState *gstate) {
+  // handle long press at global level (whatever the display mode)
+  if (encoder_sw_longpressed(&(gstate->encoder), LONG_PRESS_MS))
+    if (save_settings(gstate)) {
+      gstate->show_saved_flag = true;
+      gstate->saved_start_time = millis();
+    }
+#if USE_SCREEN
+  check_saved_feedback(gstate);
+#endif
 }
