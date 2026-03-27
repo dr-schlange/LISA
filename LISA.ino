@@ -174,24 +174,8 @@ void __not_in_flash_func(updateAudio)() {
     }
   }
 
-
 #if USE_SCREEN
-  static int scope_idx = 0;
-  static float scopeSmooth = 0.0f;
-  if (runtime_state.oscilloscope_enabled && !ui_state.scope_ready) {
-    for (int i = 0; i < AUDIO_BLOCK; i += 4) {
-      scopeSmooth += (mix[i] - scopeSmooth) * 0.25f;
-      ui_state.scope_buffer_front[scope_idx++] = scopeSmooth;
-      if (scope_idx >= SCOPE_WIDTH) {
-        memcpy((void *)ui_state.scope_buffer_back,
-               (const void *)ui_state.scope_buffer_front,
-               sizeof(ui_state.scope_buffer_back));
-        ui_state.scope_ready = true;
-        scope_idx = 0;
-        break;
-      }
-    }
-  }
+  scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
 #endif
 
   static float cut_slew = 0.0f;

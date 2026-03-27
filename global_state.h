@@ -13,6 +13,10 @@ enum DisplayMode { ENGINE_SELECT_MODE,
                    ENGINE_SETTINGS_CONFIG,
                    OSCILLOSCOPE_MODE };
 
+#define REFRESH_IS_SCHEDULED(runtime) (runtime)->engine_updated
+#define SCHEDULE_REFRESH(runtime) (runtime)->engine_updated = true
+#define CLEAR_REFRESH(runtime) (runtime)->engine_updated = false
+
 #define SET_SYSTEM_READY(runtime) (runtime)->system_ready = true
 #define SWITCHTO_ENGINE_SELECT_MODE(runtime) (runtime)->display_state = ENGINE_SELECT_MODE
 #define SWITCHTO_ENGINE_SETTINGS_CONFIG(runtime) (runtime)->display_state = ENGINE_SETTINGS_CONFIG

@@ -14,10 +14,6 @@
 #include "global_state.h"
 #include "constants_config.h"
 
-#if USE_SCREEN
-#include "ui.h"
-#endif
-
 typedef struct __attribute__((packed)) {
   float master_volume, env_attack_s, env_release_s;
   float timbre_in, color_in, timb_mod_cv, color_mod_cv;

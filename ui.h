@@ -45,7 +45,6 @@ const uint8_t lisa_logo_bitmap[] PROGMEM = {
 
 
 struct UIState {
-  bool scheduled_refresh;
   int last_engine_draw;
   unsigned long last_draw_time;
   volatile bool scope_ready;
@@ -56,12 +55,9 @@ struct UIState {
 
 #define UIStateNew() \
   { \
-    .scheduled_refresh = true, .last_engine_draw = -1, .last_draw_time = 0, .scope_ready = false, .scope_buffer = { 0 }, .scope_buffer_front = { 0 }, .scope_buffer_back = { 0 } \
+    .last_engine_draw = -1, .last_draw_time = 0, .scope_ready = false, .scope_buffer = { 0 }, .scope_buffer_front = { 0 }, .scope_buffer_back = { 0 } \
   }
 
-#define REFRESH_IS_SCHEDULED(runtime) (runtime)->engine_updated
-#define SCHEDULE_REFRESH(runtime) (runtime)->engine_updated = true
-#define CLEAR_REFRESH(runtime) (runtime)->engine_updated = false
 
 #if USE_SCREEN
 
@@ -97,6 +93,24 @@ void draw_splash() {
   display.getTextBounds(version, 0, 0, &x1, &y1, &w, &h);
   display.setCursor((128 - w) / 2, 54);
   display.println(version);
+  display.display();
+}
+
+static inline void setup_display() {
+  Wire.setSDA(OLED_SDA);
+  Wire.setSCL(OLED_SCL);
+  Wire.begin();
+  Wire.setClock(400000);
+
+#if SSD1306
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+#endif
+#ifdef SH110X
+  display.begin(0x3C, true);
+#endif
+  draw_splash();
+  delay(4000);
+  display.clearDisplay();
   display.display();
 }
 
@@ -238,21 +252,22 @@ void check_saved_feedback(RuntimeState *gstate) {
   }
 }
 
-static inline void setup_display() {
-  Wire.setSDA(OLED_SDA);
-  Wire.setSCL(OLED_SCL);
-  Wire.begin();
-  Wire.setClock(400000);
 
-#if SSD1306
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-#endif
-#ifdef SH110X
-  display.begin(0x3C, true);
-#endif
-  draw_splash();
-  delay(4000);
-  display.clearDisplay();
-  display.display();
+static inline void scope_fill(UIState *uistate, float *mix, bool enabled) {
+  static int scope_idx = 0;
+  static float scopeSmooth = 0.0f;
+  if (!enabled || uistate->scope_ready) return;
+  for (int i = 0; i < AUDIO_BLOCK; i += 4) {
+    scopeSmooth += (mix[i] - scopeSmooth) * 0.25f;
+    uistate->scope_buffer_front[scope_idx++] = scopeSmooth;
+    if (scope_idx >= SCOPE_WIDTH) {
+      memcpy((void *)uistate->scope_buffer_back,
+             (const void *)uistate->scope_buffer_front,
+             sizeof(uistate->scope_buffer_back));
+      uistate->scope_ready = true;
+      scope_idx = 0;
+      break;
+    }
+  }
 }
 #endif

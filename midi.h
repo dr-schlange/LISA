@@ -77,13 +77,13 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
 
   status = running_status;
   pitch_or_cc = data_bytes[0];
-  d2 = (expected_len == 2) ? data_bytes[1] : 0;
+  cc_value = (expected_len == 2) ? data_bytes[1] : 0;
   data_idx = 0;
   has_msg = true;
 
   // --- Special CC64 sustain handling ---
   if (IS_MIDI_CC(status) && pitch_or_cc == 64) {
-    if (d2 >= 64) {
+    if (cc_value >= 64) {
       gstate->sustain_enabled = true;
     } else {
       gstate->sustain_enabled = false;
