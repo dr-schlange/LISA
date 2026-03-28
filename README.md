@@ -15,17 +15,17 @@ Features inherited from **VIJA**:
 - **Internal Filter:** Integrated State Variable Filter (SVF) with Low-Pass and Resonance.
 - **Dual MIDI:** Support for both USB MIDI and classic UART MIDI.
 
-Features added in **LISA** (currently planned):
+Features added in **LISA**:
 
 - **MIDI Controller** Support to send MIDI controls via USB.
 - **MIDI Controller extended configuration** Allows to either repeat the value set by the buttons, or to only send values without interacting with the synth part.
 - **Multiple MIDI/Physical button interaction** Support for 3 different modes of interaction between arriving MIDI messages and manually touching the knobs, configurable by knob:
   - `raw mode`: the button and the MIDI CC value fights to make their value prioritary (first arrived first served).
-  - `catch-up mode`: the button stays "innactive" until the moment it reaches the value set by the MIDI CC value.
-  - `attenuator-mode`: select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition.
-- **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated.
-- **Advanced configuration** Access all synth parameter configuration and more with the physical buttons.
-- **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want.
+  - `catch-up mode`: the button stays "innactive" until the moment it reaches the value set by the MIDI CC value (planned).
+  - `attenuator-mode`: select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition (planned).
+- **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated (planned).
+- **Advanced configuration** Access all synth parameter configuration and more with the physical buttons (planned).
+- **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want with float precision in the message sent/received (planned).
 
 ## Menu System & UI
 

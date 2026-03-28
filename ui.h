@@ -1,7 +1,7 @@
 /*
   LISA (v0.0.1)
 
-  Copyright (c) 2025 Dr Schlange
+  Copyright (c) 2026 Dr Schlange
   Licensed under GNU GPLv3
 
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
