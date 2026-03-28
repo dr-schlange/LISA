@@ -39,6 +39,21 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 #define IDLETIME_BEFORE_SCOPE_DISPLAY_MS 10000
 #define SAVED_DISPLAY_MS 800
 
+// MIDI CCs
+#define MIDI_MASTER_VOL 7
+#define MIDI_ENGINE_SEL 8
+#define MIDI_TIMBRE 9
+#define MIDI_COLOR 10
+#define MIDI_ATTACK 11
+#define MIDI_RELEASE 12
+#define MIDI_RESONANCE 71
+#define MIDI_CUTOFF 74
+#define MIDI_FM_MOD 15
+#define MIDI_TIMBRE_MOD 16
+#define MIDI_COLOR_MOD 17
+#define MIDI_DEV 127
+
+
 // Buttons, Encoders
 #define BUTTON_DEBOUNCE_MS 200
 #define ENCODER_DEBOUNCE_COUNT 4
@@ -68,7 +83,9 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 #define POT_TIMBRE A0      // GPIO26
 #define POT_COLOR A1       // GPIO27
 #define POT_TIMBRE_MOD A2  // GPIO28
+#define POT_CUTOFF A2      // GPIO28
 #define POT_COLOR_MOD A3   // GPIO29
+#define POT_RESONANCE A3   // GPIO29
 // RPI Pico W doen't have GPIO29
 #if defined(ARDUINO_RASPBERRY_PI_PICO) || defined(ARDUINO_RASPBERRY_PI_PICO_W)
 #define HAS_4_POTS 0

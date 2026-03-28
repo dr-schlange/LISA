@@ -5,9 +5,10 @@
   Licensed under GNU GPLv3
 */
 #pragma once
+#include <cstdint>
 #include <pico/stdlib.h>
-#include "buttons.h"
 #include "constants_config.h"
+#include "encoder.h"
 
 enum DisplayMode { ENGINE_SELECT_MODE,
                    ENGINE_SETTINGS_CONFIG,
@@ -18,6 +19,50 @@ enum MidiControllerMode { CONTROLLER_MODE_OFF,
                           CONTROLLER_BOTH,
                           CONTROLLER_ONLY
 };
+
+struct Parameter {
+  volatile float value;
+  uint8_t last_value;
+  float smoothed;
+  uint8_t gpio;
+  PotMode mode;
+  uint8_t midi_cc;
+  ResolutionMode resolution_mode;
+  bool locked;
+  struct {
+    float velocity;
+    float damping;
+    float stiffness;
+  } kinetic_params;
+  struct {
+    uint8_t min;
+    uint8_t center;
+    uint8_t max;
+  } attenuator_params;
+};
+
+#define ParameterNew(gpio_, midi_cc_, val_) \
+  { \
+    .value = 0, \
+    .last_value = 0, \
+    .smoothed = val_, \
+    .gpio = gpio_, \
+    .mode = POT_NORMAL, \
+    .midi_cc = midi_cc_, \
+    .resolution_mode = RES_RAW, \
+    .locked = false, \
+    .kinetic_params = { \
+      .velocity = 0, \
+      .damping = 0.5, \
+      .stiffness = 0.5 \
+    }, \
+    .attenuator_params = { \
+      .min = 0, \
+      .center = 64, \
+      .max = 127 \
+    } \
+  }
+
 
 #define REFRESH_IS_SCHEDULED(runtime) (runtime)->engine_updated
 #define SCHEDULE_REFRESH(runtime) (runtime)->engine_updated = true
@@ -34,24 +79,15 @@ enum MidiControllerMode { CONTROLLER_MODE_OFF,
 #define IS_ENGINE_SETTINGS_CONFIG(runtime) (runtime)->display_state == ENGINE_SETTINGS_CONFIG
 #define IS_ENGINE_SELECT_MODE(runtime) (runtime)->display_state == ENGINE_SELECT_MODE
 
+
 struct RuntimeState {
   uint8_t midi_ch;
   volatile int engine_idx;
   int last_engine_idx;
-  volatile float timbre_in;
-  volatile float color_in;
-  volatile float fm_mod;
-  volatile float timb_mod_midi;
-  volatile float color_mod_midi;
-  volatile float timb_mod_cv;
-  volatile float color_mod_cv;
-  volatile float fm_target;
 
   volatile float master_volume;
   volatile float env_attack_s;
   volatile float env_release_s;
-  float attackCoef;
-  float releaseCoef;
   bool sustain_enabled;
 
   bool engine_updated;
@@ -62,13 +98,8 @@ struct RuntimeState {
   volatile bool cv_mod1;
   volatile bool cv_mod2;
 
-  bool timbre_locked;
-  bool color_locked;
-
   volatile bool filter_enabled;
   float filter_mix;
-  volatile float filter_cutoff;
-  volatile float filter_resonance;
 
   bool show_saved_flag;
   unsigned long saved_start_time;
@@ -83,6 +114,14 @@ struct RuntimeState {
   // MIDI controller mode
   MidiControllerMode controller_mode;
 
+  // Parameters
+  Parameter timbre;
+  Parameter color;
+  Parameter cutoff;
+  Parameter resonance;
+  Parameter timbre_mod;
+  Parameter color_mod;
+  Parameter fm_mod;
   volatile bool system_ready;
 };
 
@@ -91,19 +130,9 @@ struct RuntimeState {
     .midi_ch = 1, \
     .engine_idx = 1, \
     .last_engine_idx = -1, \
-    .timbre_in = 0.4f, \
-    .color_in = 0.3f, \
-    .fm_mod = 0.0f, \
-    .timb_mod_midi = 0.0f, \
-    .color_mod_midi = 0.0f, \
-    .timb_mod_cv = 0.0f, \
-    .color_mod_cv = 0.0f, \
-    .fm_target = 0.0f, \
     .master_volume = 0.7f, \
     .env_attack_s = 0.009f, \
     .env_release_s = 0.01f, \
-    .attackCoef = 0.0f, \
-    .releaseCoef = 0.0f, \
     .sustain_enabled = false, \
     .engine_updated = true, \
     .env_params_changed = true, \
@@ -111,12 +140,8 @@ struct RuntimeState {
     .midi_enabled = true, \
     .cv_mod1 = false, \
     .cv_mod2 = false, \
-    .timbre_locked = false, \
-    .color_locked = false, \
     .filter_enabled = true, \
     .filter_mix = 1.0f, \
-    .filter_cutoff = 0.5f, \
-    .filter_resonance = 0.25f, \
     .show_saved_flag = false, \
     .saved_start_time = 0, \
     .display_state = ENGINE_SELECT_MODE, \
@@ -125,41 +150,12 @@ struct RuntimeState {
     .pot_timbre = 0.5f, \
     .pot_color = 0.5f, \
     .controller_mode = CONTROLLER_BOTH, \
+    .timbre = ParameterNew(POT_TIMBRE, MIDI_TIMBRE, 0.4f), \
+    .color = ParameterNew(POT_COLOR, MIDI_COLOR, 0.3f), \
+    .cutoff = ParameterNew(POT_CUTOFF, MIDI_CUTOFF, 0.5f), \
+    .resonance = ParameterNew(POT_RESONANCE, MIDI_RESONANCE, 0.25f), \
+    .timbre_mod = ParameterNew(POT_TIMBRE, MIDI_TIMBRE_MOD, 0.f), \
+    .color_mod = ParameterNew(POT_COLOR, MIDI_COLOR_MOD, 0.f), \
+    .fm_mod = ParameterNew(POT_CUTOFF, MIDI_FM_MOD, 0.f), \
     .system_ready = false, \
   };
-
-
-struct Parameter {
-  volatile float value;
-  uint8_t gpio;
-  PotMode mode;
-  ResolutionMode resolution_mode;
-  uint8_t last_value;
-  bool midi_locked;
-  struct {
-    float velocity;
-    float damping;
-    float stiffness;
-  } kinetic_params;
-  struct {
-    uint8_t min;
-    uint8_t center;
-    uint8_t max;
-  } attenuator_params;
-};
-
-#define ParameterNew(gpio_) \
-  { \
-    .value = 0, .gpio = gpio_, mode = POT_NORMAL, resolution_mode = RES_RAM, .last_value = 0, .midi_locked = false, \
-    .kinetic_params = { .velocity = 0, .damping = 0.5, .stiffness = 0.5 }, \
-    .attenuator_params = {.min = 0, \
-                          .center = 64, \
-                          .max = 127 } \
-  }
-
-
-
-static inline void set_parameter(RuntimeState *gstate, volatile float *field, float val) {
-  if (gstate->controller_mode == CONTROLLER_BOTH || gstate->controller_mode == CONTROLLER_MODE_OFF)
-    *field = val;
-}

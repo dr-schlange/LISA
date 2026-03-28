@@ -173,9 +173,9 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
       break;
     case SCOPE_TOGGLE: sprintf(menuBuf, "SCOPE:%s", gstate->oscilloscope_enabled ? "ON" : "OFF"); break;
     default:
-      if (gstate->timbre_locked && gstate->color_locked) strcpy(menuBuf, "ALL-MIDI");
-      else if (gstate->timbre_locked) strcpy(menuBuf, "T-MIDI");
-      else if (gstate->color_locked) strcpy(menuBuf, "C-MIDI");
+      if (gstate->timbre.locked && gstate->color.locked) strcpy(menuBuf, "ALL-MIDI");
+      else if (gstate->timbre.locked) strcpy(menuBuf, "T-MIDI");
+      else if (gstate->color.locked) strcpy(menuBuf, "C-MIDI");
       else strcpy(menuBuf, "");
       break;
   }
@@ -186,8 +186,8 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
 
   if (!gstate->cv_mod1) {
     char buf[16];
-    int tVal = int((gstate->timbre_locked ? gstate->timbre_in : gstate->pot_timbre) * 127);
-    int mVal = int((gstate->color_locked ? gstate->color_in : gstate->pot_color) * 127);
+    int tVal = int((gstate->timbre.locked ? gstate->timbre.value : gstate->pot_timbre) * 127);
+    int mVal = int((gstate->color.locked ? gstate->color.value : gstate->pot_color) * 127);
     sprintf(buf, "T:%3d C:%3d", tVal, mVal);
 
     display.getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);

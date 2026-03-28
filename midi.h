@@ -9,7 +9,6 @@
 #pragma once
 #include <pico/stdlib.h>
 #include <Adafruit_TinyUSB.h>
-#include "global_state.h"
 #include "voices.h"
 #include "constants_config.h"
 
@@ -17,18 +16,7 @@
 #define IS_MIDI_NOTE_ON(status) ((status & 0xF0) == 0x90)
 #define IS_MIDI_CC(status) ((status & 0xF0) == 0xB0)
 
-#define MIDI_MASTER_VOL 7
-#define MIDI_ENGINE_SEL 8
-#define MIDI_TIMBRE 9
-#define MIDI_COLOR 10
-#define MIDI_ATTACK 11
-#define MIDI_RELEASE 12
-#define MIDI_RESONANCE 71
-#define MIDI_CUTOFF 74
-#define MIDI_FM_MOD 15
-#define MIDI_TIMBRE_MOD 16
-#define MIDI_COLOR_MOD 17
-#define MIDI_DEV 127
+
 
 static Adafruit_USBD_MIDI usb_midi;
 static uint32_t global_age = 0;
@@ -106,8 +94,8 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
 #endif
 
   if (millis() - gstate->last_param_change > 1.f) {
-    gstate->color_locked = false;
-    gstate->timbre_locked = false;
+    gstate->color.locked = false;
+    gstate->timbre.locked = false;
     SCHEDULE_REFRESH(gstate);
   }
 
@@ -163,12 +151,12 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         gstate->engine_idx = map(cc_value, 0, 127, 0, NUM_ENGINES - 1);
         break;
       case MIDI_TIMBRE:
-        gstate->timbre_in = cc_value / 127.f;
-        gstate->timbre_locked = true;
+        gstate->timbre.value = cc_value / 127.f;
+        gstate->timbre.locked = true;
         break;
       case MIDI_COLOR:
-        gstate->color_in = cc_value / 127.f;
-        gstate->color_locked = true;
+        gstate->color.value = cc_value / 127.f;
+        gstate->color.locked = true;
         break;
       case MIDI_ATTACK:
         gstate->env_attack_s = 0.01f + (cc_value / 127.f) * 2.f;
@@ -177,19 +165,19 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         gstate->env_release_s = 0.01f + (cc_value / 127.f) * 3.f;
         break;
       case MIDI_RESONANCE:
-        gstate->filter_resonance = cc_value / 127.f;
+        gstate->resonance.value = cc_value / 127.f;
         break;
       case MIDI_CUTOFF:
-        gstate->filter_cutoff = cc_value / 127.f;
+        gstate->cutoff.value = cc_value / 127.f;
         break;
       case MIDI_FM_MOD:
-        gstate->fm_mod = cc_value / 127.f;
+        gstate->fm_mod.value = cc_value / 127.f;
         break;
       case MIDI_TIMBRE_MOD:
-        gstate->timb_mod_midi = cc_value / 127.f;
+        gstate->timbre_mod.value = cc_value / 127.f;
         break;
       case MIDI_COLOR_MOD:
-        gstate->color_mod_midi = cc_value / 127.f;
+        gstate->color_mod.value = cc_value / 127.f;
         break;
       case MIDI_DEV:
         if (cc_value == 127) reset_usb_boot(0, 0);
@@ -199,9 +187,4 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     SCHEDULE_REFRESH(gstate);
     gstate->last_param_change = millis();
   }
-}
-
-static inline void midi_cc_forward(RuntimeState *gstate, uint8_t cc, uint8_t raw_value) {
-  if (gstate->controller_mode == CONTROLLER_BOTH || gstate->controller_mode == CONTROLLER_ONLY)
-    send_midi_cc(cc, raw_value, gstate->midi_ch);
 }

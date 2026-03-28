@@ -51,13 +51,14 @@
 #include <STMLIB.h>
 #include <BRAIDS.h>
 #include <pico/stdlib.h>
-#include "global_state.h"
-#include "ui.h"
-#include "buttons.h"
-#include "settings.h"
-#include "midi.h"
-#include "voices.h"
 #include "constants_config.h"
+#include "voices.h"
+#include "encoder.h"
+#include "global_state.h"
+#include "midi.h"
+#include "ui.h"
+#include "controls.h"
+#include "settings.h"
 
 #define DEBUG false
 #if DEBUG
@@ -90,9 +91,11 @@ void __not_in_flash_func(update_audio)() {
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
 
+  static float attackCoef = 0.f;
+  static float releaseCoef = 0.f;
   if (runtime_state.env_params_changed) {
-    runtime_state.attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_attack_s));
-    runtime_state.releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_release_s));
+    attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_attack_s));
+    releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_release_s));
     runtime_state.env_params_changed = false;
   }
 
@@ -101,24 +104,27 @@ void __not_in_flash_func(update_audio)() {
   static float fm_slew = 0.0f;
   static float timb_slew = 0.0f;
   static float color_slew = 0.0f;
+  static float fm_target = 0.f;
 
   if (runtime_state.midi_enabled) {
-    runtime_state.fm_target = runtime_state.fm_mod;
+    fm_target = runtime_state.fm_mod.value;
   } else if (runtime_state.cv_mod1) {
-    runtime_state.fm_target = 0.0f;
+    fm_target = 0.0f;
   } else if (runtime_state.filter_enabled) {
-    runtime_state.fm_target = 0.0f;
+    fm_target = 0.0f;
   } else {
-    runtime_state.fm_target = runtime_state.fm_mod;
+    fm_target = runtime_state.fm_mod.value;
   }
 
-  float timb_target = runtime_state.midi_enabled ? runtime_state.timb_mod_midi
-                      : runtime_state.cv_mod1    ? runtime_state.timb_mod_cv
-                                                 : 0.0f;
+  // float timb_target = runtime_state.midi_enabled ? runtime_state.timbre_mod.value
+  //                     : runtime_state.cv_mod1    ? runtime_state.timbre_mod.value
+  //                                                : 0.0f;
 
-  float color_target = runtime_state.midi_enabled ? runtime_state.color_mod_midi
-                       : runtime_state.cv_mod1    ? runtime_state.color_mod_cv
-                                                  : 0.0f;
+  // float color_target = runtime_state.midi_enabled ? runtime_state.color_mod.value
+  //                      : runtime_state.cv_mod1    ? runtime_state.color_mod.value
+  //                                                 : 0.0f;
+  float timb_target = runtime_state.timbre_mod.value;
+  float color_target = runtime_state.color_mod.value;
 
   auto apply_stable_slew = [](float &current, float target, float coefficient) {
     float diff = target - current;
@@ -136,7 +142,7 @@ void __not_in_flash_func(update_audio)() {
     }
   };
 
-  apply_stable_slew(fm_slew, runtime_state.fm_target, 0.05f);
+  apply_stable_slew(fm_slew, fm_target, 0.05f);
   apply_stable_slew(timb_slew, timb_target, 0.01f);
   apply_stable_slew(color_slew, color_target, 0.01f);
 
@@ -153,8 +159,8 @@ void __not_in_flash_func(update_audio)() {
     float pitch = voice.pitch * 128.0f + fm_slew * 1536.0f;
     voice.osc.set_pitch(pitch);
 
-    float t = constrain(runtime_state.timbre_in + timb_slew, 0.0f, 1.0f);
-    float m = constrain(runtime_state.color_in + color_slew, 0.0f, 1.0f);
+    float t = constrain(runtime_state.timbre.value + timb_slew, 0.0f, 1.0f);
+    float m = constrain(runtime_state.color.value + color_slew, 0.0f, 1.0f);
     voice.osc.set_parameters(t * 32767.0f, m * 32767.0f);
 
     if (voice.active && !voice.last_trig)
@@ -164,7 +170,7 @@ void __not_in_flash_func(update_audio)() {
     voice.osc.Render(voice.sync_buffer, voice.buffer, AUDIO_BLOCK);
 
     float envTarget = (voice.active || voice.sustained) ? 1.0f : 0.0f;
-    float coef = envTarget ? runtime_state.attackCoef : runtime_state.releaseCoef;
+    float coef = envTarget ? attackCoef : releaseCoef;
 
     for (int i = 0; i < AUDIO_BLOCK; i++) {
       voice.env += (envTarget - voice.env) * coef;
@@ -182,8 +188,8 @@ void __not_in_flash_func(update_audio)() {
   static float res_slew = 0.0f;
   static float mix_slew = 0.0f;
 
-  float cut_t = runtime_state.filter_cutoff * 32767;
-  float res_t = runtime_state.filter_resonance * 32767.f;
+  float cut_t = runtime_state.cutoff.value * 32767;
+  float res_t = runtime_state.resonance.value * 32767.f;
   float mix_t = runtime_state.filter_enabled ? 1.0f : 0.0f;
 
   cut_slew += (cut_t - cut_slew) * 0.05f;
@@ -206,6 +212,7 @@ void __not_in_flash_func(update_audio)() {
   }
 }
 
+#define SMOOTH_POT 0.06f
 
 void handle_control(RuntimeState *gstate) {
   static float smoothT = 0.5f;
@@ -216,212 +223,165 @@ void handle_control(RuntimeState *gstate) {
   static float smoothRes = 0.25f;
   static unsigned long last_pot_read = 0;
 
-  if (millis() - last_pot_read > 4) {
-    last_pot_read = millis();
+  if (millis() - last_pot_read <= 4) {
+    return;
+  }
 
-    float rT = analogRead(POT_TIMBRE) / 1023.0f;
-    float rC = analogRead(POT_COLOR) / 1023.0f;
-    float srcT = analogRead(POT_TIMBRE_MOD) / 1023.0f;
+  last_pot_read = millis();
+
+  float rT = analogRead(POT_TIMBRE) / 1023.0f;
+  float rC = analogRead(POT_COLOR) / 1023.0f;
+  float srcT = analogRead(POT_TIMBRE_MOD) / 1023.0f;
 #if HAS_4_POTS
-    float srcC = analogRead(POT_COLOR_MOD) / 1023.0f;
+  float srcC = analogRead(POT_COLOR_MOD) / 1023.0f;
 #else
-    float srcC = 0.5f;
+  float srcC = 0.5f;
 #endif
 
-    const float SMOOTH_POT = 0.06f;
-    gstate->pot_timbre += (rT - gstate->pot_timbre) * SMOOTH_POT;
-    gstate->pot_color += (rC - gstate->pot_color) * SMOOTH_POT;
+  gstate->pot_timbre += (rT - gstate->pot_timbre) * SMOOTH_POT;
+  gstate->pot_color += (rC - gstate->pot_color) * SMOOTH_POT;
 
-    if (gstate->pot_timbre > 0.999f) gstate->pot_timbre = 1.0f;
-    if (gstate->pot_timbre < 0.001f) gstate->pot_timbre = 0.0f;
+  if (gstate->pot_timbre > 0.999f) gstate->pot_timbre = 1.0f;
+  if (gstate->pot_timbre < 0.001f) gstate->pot_timbre = 0.0f;
 
-    if (gstate->pot_color > 0.999f) gstate->pot_color = 1.0f;
-    if (gstate->pot_color < 0.001f) gstate->pot_color = 0.0f;
+  if (gstate->pot_color > 0.999f) gstate->pot_color = 1.0f;
+  if (gstate->pot_color < 0.001f) gstate->pot_color = 0.0f;
 
-    int valT = (int)(gstate->pot_timbre * 127.0f + 0.5f);
-    int valC = (int)(gstate->pot_color * 127.0f + 0.5f);
+  // int valT = (int)(gstate->pot_timbre * 127.0f + 0.5f);
+  // int valC = (int)(gstate->pot_color * 127.0f + 0.5f);
 
-    if (!gstate->midi_enabled) {
-      gstate->timbre_locked = false;
-      gstate->color_locked = false;
-      SCHEDULE_REFRESH(gstate);
-    }
+  if (!gstate->midi_enabled) {
+    gstate->timbre.locked = false;
+    gstate->color.locked = false;
+    gstate->cutoff.locked = false;
+    gstate->resonance.locked = false;
+    SCHEDULE_REFRESH(gstate);
+  }
 
-    if (gstate->cv_mod1) {
+  if (gstate->cv_mod1) {
+    // --- Smooth the potentiometer inputs (depth controls) ---
+    smoothT += (rT - smoothT) * 0.15f;
+    smoothC += (rC - smoothC) * 0.15f;
 
-      // --- Smooth the potentiometer inputs (depth controls) ---
-      smoothT += (rT - smoothT) * 0.15f;
-      smoothC += (rC - smoothC) * 0.15f;
+    // --- Smooth the modulation sources ---
+    smoothTMod += (srcT - smoothTMod) * 0.1f;  // slower smoothing
+    smoothCMod += (srcC - smoothCMod) * 0.1f;
 
-      // --- Smooth the modulation sources ---
-      smoothTMod += (srcT - smoothTMod) * 0.1f;  // slower smoothing
-      smoothCMod += (srcC - smoothCMod) * 0.1f;
+    // --- Apply modulation depth with soft scaling ---
+    gstate->timbre_mod.value += ((smoothT * smoothTMod) - gstate->timbre_mod.value) * 0.05f;
+    gstate->color_mod.value += ((smoothC * smoothCMod) - gstate->color_mod.value) * 0.05f;
 
-      // --- Apply modulation depth with soft scaling ---
-      gstate->timb_mod_cv += ((smoothT * smoothTMod) - gstate->timb_mod_cv) * 0.05f;
-      gstate->color_mod_cv += ((smoothC * smoothCMod) - gstate->color_mod_cv) * 0.05f;
+    // --- Set base values for other modes ---
+    gstate->timbre.value = 0.5f;
+    gstate->color.value = 0.5f;
+    SCHEDULE_REFRESH(gstate);
 
-      // --- Set base values for other modes ---
-      gstate->timbre_in = 0.5f;
-      gstate->color_in = 0.5f;
-      SCHEDULE_REFRESH(gstate);
+  } else if (gstate->midi_enabled) {
+    handle_pot_parameter(&(gstate->timbre), gstate);
+    handle_pot_parameter(&(gstate->color), gstate);
+    SCHEDULE_REFRESH(gstate);
+  }
 
-    } else if (gstate->midi_enabled) {
-      smoothT += (rT - smoothT) * 0.15f;
-      smoothC += (rC - smoothC) * 0.15f;
-
-      //
-      static uint8_t last_pot_timbre = 0;
-      static uint8_t last_pot_color = 0;
-      uint8_t new_timbre = (uint8_t)(smoothT * 127.0f);
-      if (new_timbre != last_pot_timbre) {
-        // raw!
-        set_parameter(gstate, &(gstate->timbre_in), smoothT);
-        last_pot_timbre = new_timbre;
-        midi_cc_forward(gstate, MIDI_TIMBRE, new_timbre);
-        // catchup!
-        // if (fabsf(smoothT - gstate->timbre_in) < 0.02f) {
-        //   gstate->timbre_locked = false;
-        // }
-      }
-
-      uint8_t new_color = (uint8_t)(smoothC * 127.0f);
-      if (new_color != last_pot_color) {
-        // raw!
-        set_parameter(gstate, &(gstate->color_in), smoothC);
-        last_pot_color = new_color;
-        midi_cc_forward(gstate, MIDI_COLOR, new_color);
-        // catchup!
-        // if (fabsf(smoothC - gstate->color_in) < 0.02f) {
-        //   gstate->color_locked = false;
-        // }
-      }
-
-      SCHEDULE_REFRESH(gstate);
-    }
-
-    if (gstate->filter_enabled) {
-      // --- Update filter CVs from modulation pots ---
-      smoothCut += (srcT - smoothCut) * 0.1f;
-      smoothRes += (srcC - smoothRes) * 0.1f;
-
-      static uint8_t last_pot_cut = 0;
-      static uint8_t last_pot_res = 0;
-      uint8_t new_cut = (uint8_t)(smoothCut * 127.0f);
-      if (new_cut != last_pot_cut) {
-        set_parameter(gstate, &(gstate->filter_cutoff), smoothCut);
-        midi_cc_forward(gstate, MIDI_CUTOFF, new_cut);
-        last_pot_cut = new_cut;
-      }
-      uint8_t new_res = (uint8_t)(smoothRes * 127.0f);
-      if (new_res != last_pot_res) {
-        set_parameter(gstate, &(gstate->filter_resonance), smoothRes);
+  if (gstate->filter_enabled) {
+    handle_pot_parameter(&(gstate->cutoff), gstate);
 #if HAS_4_POTS
-        midi_cc_forward(gstate, MIDI_RESONANCE, new_res);
+    handle_pot_parameter(&(gstate->resonance), gstate);
 #endif
-        last_pot_res = new_res;
+    // gstate->timbre_mod.value *= 0.9f;
+    // gstate->color_mod.value *= 0.9f;
+    SCHEDULE_REFRESH(gstate);
+  }
+
+  else if (gstate->cv_mod2) {
+    smoothT += (rT - smoothT) * 0.08f;
+    smoothC += (rC - smoothC) * 0.08f;
+    gstate->timbre.value = smoothT;
+    gstate->color.value = smoothC;
+
+    gstate->color.value = smoothC;
+
+    // --- 2. Rolling Average Filter ---
+    static float historyT[16];
+    static float historyC[16];
+    static int histIdx = 0;
+
+    historyT[histIdx] = srcT;
+    historyC[histIdx] = srcC;
+    histIdx = (histIdx + 1) % 16;
+
+    float avgT = 0, avgC = 0;
+    for (int i = 0; i < 16; i++) {
+      avgT += historyT[i];
+      avgC += historyC[i];
+    }
+    avgT /= 16.0f;
+    avgC /= 16.0f;
+
+    smoothTMod += (avgT - smoothTMod) * 0.05f;
+    smoothCMod += (avgC - smoothCMod) * 0.05f;
+
+    // --- 3. Strict Deadzone ---
+    const float CV_DEADZONE = 0.15f;
+    bool cvT_active = (smoothTMod > CV_DEADZONE);
+    bool cvC_active = (smoothCMod > CV_DEADZONE);
+
+    // --- 4. Large-Band Hysteresis for Engines ---
+    static float lockT = -1.0f;
+    const float ENG_HYST = 0.10f;
+
+    if (cvT_active) {
+      if (fabsf(smoothTMod - lockT) > ENG_HYST) {
+        float norm = (smoothTMod - CV_DEADZONE) / (1.0f - CV_DEADZONE);
+        int new_idx = (int)(norm * (float)NUM_ENGINES);
+        new_idx = constrain(new_idx, 0, NUM_ENGINES - 1);
+
+        if (new_idx != gstate->engine_idx) {
+          gstate->engine_idx = new_idx;
+          lockT = smoothTMod;
+          SCHEDULE_REFRESH(gstate);
+        }
       }
-
-      // --- Keep Timbre and Color pots working as default ---
-      // smoothT += (rT - smoothT) * 0.08f;
-      // smoothC += (rC - smoothC) * 0.08f;
-
-      // gstate->timbre_in = smoothT;
-      // gstate->color_in = smoothC;
-
-      // --- Decay any modulation CV influence smoothly ---
-      // gstate->timb_mod_cv *= 0.9f;
-      // gstate->color_mod_cv *= 0.9f;
-
-      SCHEDULE_REFRESH(gstate);
+    } else {
+      lockT = -1.0f;
     }
 
-    else if (gstate->cv_mod2) {
-      smoothT += (rT - smoothT) * 0.08f;
-      smoothC += (rC - smoothC) * 0.08f;
-      gstate->timbre_in = smoothT;
-      gstate->color_in = smoothC;
+    // --- 5. Large-Band Hysteresis for FM ---
+    static float lockC = 0.0f;
+    const float FM_HYST = 0.1f;
 
-      // --- 2. Rolling Average Filter ---
-      static float historyT[16];
-      static float historyC[16];
-      static int histIdx = 0;
-
-      historyT[histIdx] = srcT;
-      historyC[histIdx] = srcC;
-      histIdx = (histIdx + 1) % 16;
-
-      float avgT = 0, avgC = 0;
-      for (int i = 0; i < 16; i++) {
-        avgT += historyT[i];
-        avgC += historyC[i];
+    if (cvC_active) {
+      if (fabsf(smoothCMod - lockC) > FM_HYST) {
+        float target_fm = (smoothCMod - CV_DEADZONE) / (1.0f - CV_DEADZONE);
+        gstate->fm_mod.value = constrain(target_fm, 0.0f, 1.0f);
+        lockC = smoothCMod;
       }
-      avgT /= 16.0f;
-      avgC /= 16.0f;
-
-      smoothTMod += (avgT - smoothTMod) * 0.05f;
-      smoothCMod += (avgC - smoothCMod) * 0.05f;
-
-      // --- 3. Strict Deadzone ---
-      const float CV_DEADZONE = 0.15f;
-      bool cvT_active = (smoothTMod > CV_DEADZONE);
-      bool cvC_active = (smoothCMod > CV_DEADZONE);
-
-      // --- 4. Large-Band Hysteresis for Engines ---
-      static float lockT = -1.0f;
-      const float ENG_HYST = 0.10f;
-
-      if (cvT_active) {
-        if (fabsf(smoothTMod - lockT) > ENG_HYST) {
-          float norm = (smoothTMod - CV_DEADZONE) / (1.0f - CV_DEADZONE);
-          int new_idx = (int)(norm * (float)NUM_ENGINES);
-          new_idx = constrain(new_idx, 0, NUM_ENGINES - 1);
-
-          if (new_idx != gstate->engine_idx) {
-            gstate->engine_idx = new_idx;
-            lockT = smoothTMod;
-            SCHEDULE_REFRESH(gstate);
-          }
-        }
-      } else {
-        lockT = -1.0f;
+    } else {
+      gstate->fm_mod.value *= 0.5f;
+      if (gstate->fm_mod.value < 0.01f) {
+        gstate->fm_mod.value = 0.0f;
+        lockC = 0.0f;
       }
-
-      // --- 5. Large-Band Hysteresis for FM ---
-      static float lockC = 0.0f;
-      const float FM_HYST = 0.1f;
-
-      if (cvC_active) {
-        if (fabsf(smoothCMod - lockC) > FM_HYST) {
-          float target_fm = (smoothCMod - CV_DEADZONE) / (1.0f - CV_DEADZONE);
-          gstate->fm_mod = constrain(target_fm, 0.0f, 1.0f);
-          lockC = smoothCMod;
-        }
-      } else {
-        gstate->fm_mod *= 0.5f;
-        if (gstate->fm_mod < 0.01f) {
-          gstate->fm_mod = 0.0f;
-          lockC = 0.0f;
-        }
-      }
-
-      gstate->timbre_locked = false;
-      gstate->color_locked = false;
-    } else if (!gstate->midi_enabled) {
-      smoothT += (rT - smoothT) * 0.08f;
-      smoothC += (rC - smoothC) * 0.08f;
-      gstate->timbre_in = smoothT;
-      gstate->color_in = smoothC;
-
-      // Zero out all CV-related variables
-      gstate->timb_mod_cv = 0.0f;
-      gstate->color_mod_cv = 0.0f;
-      gstate->fm_mod = 0.0f;
-
-      gstate->timbre_locked = false;
-      gstate->color_locked = false;
-      SCHEDULE_REFRESH(gstate);
     }
+
+    gstate->timbre.locked = false;
+    gstate->color.locked = false;
+  } else if (!gstate->midi_enabled) {
+    smoothT += (rT - smoothT) * 0.08f;
+    smoothC += (rC - smoothC) * 0.08f;
+    gstate->timbre.value = smoothT;
+    gstate->color.value = smoothC;
+    gstate->color.value = smoothC;
+
+    // Zero out all CV-related variables
+    // gstate->timbre.value = 0.0f;
+    // gstate->color_mod.value = 0.0f;
+    // gstate->fm_mod = 0.0f;
+
+    gstate->timbre.locked = false;
+    gstate->color.locked = false;
+    gstate->resonance.locked = false;
+    gstate->cutoff.locked = false;
+    SCHEDULE_REFRESH(gstate);
   }
 }
 

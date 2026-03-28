@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include "constants_config.h"
 
+
 enum EncoderState { ENGINE_SELECT,
                     VOLUME_ADJUST,
                     ATTACK_ADJUST,
