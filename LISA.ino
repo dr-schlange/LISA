@@ -94,8 +94,8 @@ void __not_in_flash_func(update_audio)() {
   static float attackCoef = 0.f;
   static float releaseCoef = 0.f;
   if (runtime_state.env_params_changed) {
-    attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_attack_s));
-    releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_release_s));
+    attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_attack.value));
+    releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_release.value));
     runtime_state.env_params_changed = false;
   }
 
@@ -146,7 +146,7 @@ void __not_in_flash_func(update_audio)() {
   apply_stable_slew(timb_slew, timb_target, 0.01f);
   apply_stable_slew(color_slew, color_target, 0.01f);
 
-  const float block_gain = runtime_state.master_volume * 0.25f;
+  const float block_gain = runtime_state.master_volume.value * 0.25f;
 
   for (int v = 0; v < MAX_VOICES; v++) {
     Voice &voice = voices[v];
@@ -401,14 +401,14 @@ void handle_menu(RuntimeState *gstate) {
       case ENGINE_SETTINGS_CONFIG:
         switch (encoder->state) {
           case VOLUME_ADJUST:
-            gstate->master_volume = constrain(gstate->master_volume + step * 0.01f, 0.f, 1.f);
+            gstate->master_volume.value = constrain(gstate->master_volume.value + step * 0.01f, 0.f, 1.f);
             break;
           case ATTACK_ADJUST:
-            gstate->env_attack_s = constrain(gstate->env_attack_s + step * 0.01f, 0.001f, 1.f);
+            gstate->env_attack.value = constrain(gstate->env_attack.value + step * 0.01f, 0.001f, 1.f);
             gstate->env_params_changed = true;
             break;
           case RELEASE_ADJUST:
-            gstate->env_release_s = constrain(gstate->env_release_s + step * 0.01f, 0.01f, 2.f);
+            gstate->env_release.value = constrain(gstate->env_release.value + step * 0.01f, 0.01f, 2.f);
             gstate->env_params_changed = true;
             break;
           case FILTER_TOGGLE:

@@ -160,9 +160,9 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
   display.setTextSize(1);
   char menuBuf[32] = "";
   switch (gstate->encoder.state) {
-    case VOLUME_ADJUST: sprintf(menuBuf, "VOL:%3d", int(gstate->master_volume * 100)); break;
-    case ATTACK_ADJUST: sprintf(menuBuf, "A:%.2f", gstate->env_attack_s); break;
-    case RELEASE_ADJUST: sprintf(menuBuf, "R:%.2f", gstate->env_release_s); break;
+    case VOLUME_ADJUST: sprintf(menuBuf, "VOL:%3d", int(gstate->master_volume.value * 100)); break;
+    case ATTACK_ADJUST: sprintf(menuBuf, "A:%.2f", gstate->env_attack.value); break;
+    case RELEASE_ADJUST: sprintf(menuBuf, "R:%.2f", gstate->env_release.value); break;
     case FILTER_TOGGLE: sprintf(menuBuf, "FLT:%s", gstate->filter_enabled ? "ON" : "OFF"); break;
     case CV_MOD1: sprintf(menuBuf, "CV1:%s", gstate->cv_mod1 ? "ON" : "OFF"); break;
     case CV_MOD2: sprintf(menuBuf, "CV2:%s", gstate->cv_mod2 ? "ON" : "OFF"); break;

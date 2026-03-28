@@ -15,7 +15,7 @@
 #include "constants_config.h"
 
 typedef struct __attribute__((packed)) {
-  float master_volume, env_attack_s, env_release_s;
+  float master_volume, env_attack, env_release;
   float timbre, color, timb_mod, color_mod;
   float cutoff, resonance;
   int engine_idx;
@@ -27,7 +27,7 @@ typedef struct __attribute__((packed)) {
 
 static inline SettingsSnapshot snapshot_from(const RuntimeState *s) {
   return (SettingsSnapshot){
-    s->master_volume, s->env_attack_s, s->env_release_s,
+    s->master_volume.value, s->env_attack.value, s->env_release.value,
     s->timbre.value, s->color.value, s->timbre_mod.value, s->color_mod.value,
     s->cutoff.value, s->resonance.value,
     s->engine_idx, s->midi_ch,
@@ -48,9 +48,9 @@ inline bool save_settings(const RuntimeState *gstate) {
   if (!LittleFS.begin()) return false;
 
   JsonDocument doc;
-  doc["vol"] = gstate->master_volume;
-  doc["atk"] = gstate->env_attack_s;
-  doc["rel"] = gstate->env_release_s;
+  doc["vol"] = gstate->master_volume.value;
+  doc["atk"] = gstate->env_attack.value;
+  doc["rel"] = gstate->env_release.value;
   doc["eng"] = gstate->engine_idx;
   doc["filt"] = gstate->filter_enabled;
   doc["mod"] = gstate->midi_enabled;
@@ -88,9 +88,9 @@ inline void load_settings(RuntimeState *gstate) {
   f.close();
   if (err) return;
 
-  gstate->master_volume = doc["vol"] | 0.7f;
-  gstate->env_attack_s = doc["atk"] | 0.001f;
-  gstate->env_release_s = doc["rel"] | 0.03f;
+  gstate->master_volume.value = doc["vol"] | 0.7f;
+  gstate->env_attack.value = doc["atk"] | 0.001f;
+  gstate->env_release.value = doc["rel"] | 0.03f;
   gstate->engine_idx = doc["eng"] | 1;
   gstate->filter_enabled = doc["filt"] | true;
   gstate->midi_enabled = doc["mod"] | true;

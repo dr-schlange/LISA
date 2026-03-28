@@ -145,7 +145,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
       case MIDI_MASTER_VOL:
-        gstate->master_volume = cc_value / 127.f;
+        gstate->master_volume.value = cc_value / 127.f;
         break;
       case MIDI_ENGINE_SEL:
         gstate->engine_idx = map(cc_value, 0, 127, 0, NUM_ENGINES - 1);
@@ -159,10 +159,10 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         gstate->color.locked = true;
         break;
       case MIDI_ATTACK:
-        gstate->env_attack_s = 0.01f + (cc_value / 127.f) * 2.f;
+        gstate->env_attack.value = 0.01f + (cc_value / 127.f) * 2.f;
         break;
       case MIDI_RELEASE:
-        gstate->env_release_s = 0.01f + (cc_value / 127.f) * 3.f;
+        gstate->env_release.value = 0.01f + (cc_value / 127.f) * 3.f;
         break;
       case MIDI_RESONANCE:
         gstate->resonance.value = cc_value / 127.f;

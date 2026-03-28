@@ -85,10 +85,6 @@ struct RuntimeState {
   volatile int engine_idx;
   int last_engine_idx;
 
-  volatile float master_volume;
-  volatile float env_attack_s;
-  volatile float env_release_s;
-  bool sustain_enabled;
 
   bool engine_updated;
   volatile bool env_params_changed;
@@ -98,6 +94,7 @@ struct RuntimeState {
   volatile bool cv_mod1;
   volatile bool cv_mod2;
 
+  bool sustain_enabled;
   volatile bool filter_enabled;
   float filter_mix;
 
@@ -122,6 +119,9 @@ struct RuntimeState {
   Parameter timbre_mod;
   Parameter color_mod;
   Parameter fm_mod;
+  Parameter master_volume;
+  Parameter env_attack;
+  Parameter env_release;
   volatile bool system_ready;
 };
 
@@ -130,16 +130,13 @@ struct RuntimeState {
     .midi_ch = 1, \
     .engine_idx = 1, \
     .last_engine_idx = -1, \
-    .master_volume = 0.7f, \
-    .env_attack_s = 0.009f, \
-    .env_release_s = 0.01f, \
-    .sustain_enabled = false, \
     .engine_updated = true, \
     .env_params_changed = true, \
     .last_param_change = 0, \
     .midi_enabled = true, \
     .cv_mod1 = false, \
     .cv_mod2 = false, \
+    .sustain_enabled = false, \
     .filter_enabled = true, \
     .filter_mix = 1.0f, \
     .show_saved_flag = false, \
@@ -157,5 +154,8 @@ struct RuntimeState {
     .timbre_mod = ParameterNew(POT_TIMBRE, MIDI_TIMBRE_MOD, 0.f), \
     .color_mod = ParameterNew(POT_COLOR, MIDI_COLOR_MOD, 0.f), \
     .fm_mod = ParameterNew(POT_CUTOFF, MIDI_FM_MOD, 0.f), \
+    .master_volume = ParameterNew(POT_CUTOFF, MIDI_MASTER_VOL, 0.7f), \
+    .env_attack = ParameterNew(POT_TIMBRE, MIDI_ATTACK, 0.009f), \
+    .env_release = ParameterNew(POT_COLOR, MIDI_RELEASE, 0.01f), \
     .system_ready = false, \
   };
