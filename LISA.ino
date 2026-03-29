@@ -216,7 +216,6 @@ void handle_menu(RuntimeState *gstate) {
       case ENGINE_SELECT_MODE:
         gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
         SCHEDULE_REFRESH(gstate);
-        encoder->last_encoder_activity = millis();
         break;
 
       case ENGINE_SETTINGS_CONFIG:
@@ -271,14 +270,12 @@ void handle_menu(RuntimeState *gstate) {
             SCHEDULE_REFRESH(gstate);
             break;
         }
-        encoder->last_encoder_activity = millis();
         SCHEDULE_REFRESH(gstate);
         break;
 
       case OSCILLOSCOPE_MODE:
         SWITCHTO_ENGINE_SELECT_MODE(gstate);
         SCHEDULE_REFRESH(gstate);
-        encoder->last_encoder_activity = millis();
         break;
     }
   }

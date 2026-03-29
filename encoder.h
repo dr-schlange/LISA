@@ -99,9 +99,11 @@ inline int8_t encoder_decode_step(Encoder *encoder) {
   }
   if (encoder->_count >= ENCODER_DEBOUNCE_COUNT) {
     encoder->_count = 0;
+    encoder->last_encoder_activity = millis();
     return -1;
   } else if (encoder->_count <= -ENCODER_DEBOUNCE_COUNT) {
     encoder->_count = 0;
+    encoder->last_encoder_activity = millis();
     return 1;
   }
   return 0;
