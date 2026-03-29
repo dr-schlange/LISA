@@ -11,8 +11,8 @@
 #include <pico/stdlib.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
-#include "global_state.h"
 #include "constants_config.h"
+#include "global_state.h"
 
 typedef struct __attribute__((packed)) {
   float master_volume, env_attack, env_release;
@@ -20,7 +20,7 @@ typedef struct __attribute__((packed)) {
   float cutoff, resonance;
   int engine_idx;
   uint8_t midi_ch;
-  uint8_t filter_enabled, midi_enabled, cv_mod1, cv_mod2;
+  uint8_t filter_enabled, midi_enabled, cv_mod1_enabled, cv_mod2_enabled;
   uint8_t oscilloscope_enabled;
   uint8_t enc_state;
 } SettingsSnapshot;
@@ -31,7 +31,7 @@ static inline SettingsSnapshot snapshot_from(const RuntimeState *s) {
     s->timbre.value, s->color.value, s->timbre_mod.value, s->color_mod.value,
     s->cutoff.value, s->resonance.value,
     s->engine_idx, s->midi_ch,
-    s->filter_enabled, s->midi_enabled, s->cv_mod1, s->cv_mod2,
+    s->filter_enabled, s->midi_enabled, s->cv_mod1_enabled, s->cv_mod2_enabled,
     s->oscilloscope_enabled, (uint8_t)s->encoder.state
   };
 }
@@ -54,8 +54,8 @@ inline bool save_settings(const RuntimeState *gstate) {
   doc["eng"] = gstate->engine_idx;
   doc["filt"] = gstate->filter_enabled;
   doc["mod"] = gstate->midi_enabled;
-  doc["cv1"] = gstate->cv_mod1;
-  doc["cv2"] = gstate->cv_mod2;
+  doc["cv1"] = gstate->cv_mod1_enabled;
+  doc["cv2"] = gstate->cv_mod2_enabled;
   doc["timb"] = gstate->timbre.value;
   doc["color"] = gstate->color.value;
   doc["tmod"] = gstate->timbre_mod.value;
@@ -94,8 +94,8 @@ inline void load_settings(RuntimeState *gstate) {
   gstate->engine_idx = doc["eng"] | 1;
   gstate->filter_enabled = doc["filt"] | true;
   gstate->midi_enabled = doc["mod"] | true;
-  gstate->cv_mod1 = doc["cv1"] | false;
-  gstate->cv_mod2 = doc["cv2"] | false;
+  gstate->cv_mod1_enabled = doc["cv1"] | false;
+  gstate->cv_mod2_enabled = doc["cv2"] | false;
   gstate->timbre.value = doc["timb"] | 0.4f;
   gstate->color.value = doc["color"] | 0.3f;
   gstate->timbre_mod.value = doc["tmod"] | 0.0f;
@@ -108,4 +108,35 @@ inline void load_settings(RuntimeState *gstate) {
 
   last_snapshot = snapshot_from(gstate);
   SCHEDULE_REFRESH(gstate);
+}
+
+static inline bool setup_LittleFS() {
+  bool fs_ready = false;
+  LittleFS.format();
+  if (!LittleFS.begin()) {
+    DEBUG_PRINTLN("LittleFS Mount Failed. Attempting to format...");
+    LittleFS.format();
+    if (LittleFS.begin()) {
+      DEBUG_PRINTLN("LittleFS Formatted and Mounted successfully.");
+      return true;
+    } else {
+      DEBUG_PRINTLN("LittleFS Critical Error: Hardware issue or Flash size not set!");
+      return false;
+    }
+  }
+  DEBUG_PRINTLN("LittleFS Mounted.");
+  return true;
+}
+
+#include "ui.h"
+static inline void handle_save(RuntimeState *gstate) {
+  // handle long press at global level (whatever the display mode)
+  if (encoder_sw_longpressed(&(gstate->encoder), LONG_PRESS_MS))
+    if (save_settings(gstate)) {
+      gstate->show_saved_flag = true;
+      gstate->saved_start_time = millis();
+    }
+#if USE_SCREEN
+  saved_feedback(gstate);
+#endif
 }

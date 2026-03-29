@@ -43,19 +43,6 @@ struct Encoder {
   { .clk = clk_, .dt = dt_, .sw = sw_, ._count = 0, .last_state = 0, .prev_sw_status = HIGH, .sw_status = HIGH, .sw_longpress_handled = false, .last_sw_time = 0, .last_sw_longtime = 0, .last_encoder_activity = 0, .state = ENGINE_SELECT }
 
 
-enum ResolutionMode {
-  RES_RAW,
-  RES_CATCHUP,
-  RES_ATTENUATOR
-};
-
-enum PotMode {
-  POT_NORMAL,
-  POT_KINETIC
-};
-
-
-
 inline int8_t encoder_decode_step(Encoder *encoder) {
   const uint8_t state = (digitalRead(encoder->clk) << 1) | digitalRead(encoder->dt);
   const uint8_t combined = (encoder->last_state << 2) | state;

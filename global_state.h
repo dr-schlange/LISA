@@ -20,6 +20,18 @@ enum MidiControllerMode { CONTROLLER_MODE_OFF,
                           CONTROLLER_ONLY
 };
 
+
+enum ResolutionMode {
+  RES_RAW,
+  RES_CATCHUP,
+  RES_ATTENUATOR
+};
+
+enum PotMode {
+  POT_NORMAL,
+  POT_KINETIC
+};
+
 struct Parameter {
   volatile float value;
   uint8_t last_value;
@@ -91,8 +103,8 @@ struct RuntimeState {
   unsigned long last_param_change;
 
   volatile bool midi_enabled;
-  volatile bool cv_mod1;
-  volatile bool cv_mod2;
+  volatile bool cv_mod1_enabled;
+  volatile bool cv_mod2_enabled;
 
   bool sustain_enabled;
   volatile bool filter_enabled;
@@ -105,8 +117,6 @@ struct RuntimeState {
   volatile bool oscilloscope_enabled;
 
   Encoder encoder;
-  float pot_timbre;
-  float pot_color;
 
   // MIDI controller mode
   MidiControllerMode controller_mode;
@@ -134,8 +144,8 @@ struct RuntimeState {
     .env_params_changed = true, \
     .last_param_change = 0, \
     .midi_enabled = true, \
-    .cv_mod1 = false, \
-    .cv_mod2 = false, \
+    .cv_mod1_enabled = false, \
+    .cv_mod2_enabled = false, \
     .sustain_enabled = false, \
     .filter_enabled = true, \
     .filter_mix = 1.0f, \
@@ -144,8 +154,6 @@ struct RuntimeState {
     .display_state = ENGINE_SELECT_MODE, \
     .oscilloscope_enabled = true, \
     .encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW), \
-    .pot_timbre = 0.5f, \
-    .pot_color = 0.5f, \
     .controller_mode = CONTROLLER_BOTH, \
     .timbre = ParameterNew(POT_TIMBRE, MIDI_TIMBRE, 0.4f), \
     .color = ParameterNew(POT_COLOR, MIDI_COLOR, 0.3f), \

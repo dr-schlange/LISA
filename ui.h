@@ -164,8 +164,8 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
     case ATTACK_ADJUST: sprintf(menuBuf, "A:%.2f", gstate->env_attack.value); break;
     case RELEASE_ADJUST: sprintf(menuBuf, "R:%.2f", gstate->env_release.value); break;
     case FILTER_TOGGLE: sprintf(menuBuf, "FLT:%s", gstate->filter_enabled ? "ON" : "OFF"); break;
-    case CV_MOD1: sprintf(menuBuf, "CV1:%s", gstate->cv_mod1 ? "ON" : "OFF"); break;
-    case CV_MOD2: sprintf(menuBuf, "CV2:%s", gstate->cv_mod2 ? "ON" : "OFF"); break;
+    case CV_MOD1: sprintf(menuBuf, "CV1:%s", gstate->cv_mod1_enabled ? "ON" : "OFF"); break;
+    case CV_MOD2: sprintf(menuBuf, "CV2:%s", gstate->cv_mod2_enabled ? "ON" : "OFF"); break;
     case MIDI_MOD: sprintf(menuBuf, "MIDI:%s", gstate->midi_enabled ? "ON" : "OFF"); break;
     case MIDI_CH:
       sprintf(menuBuf, "MIDICH:%d", gstate->midi_ch);
@@ -184,11 +184,11 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
     display.print(menuBuf);
   }
 
-  if (!gstate->cv_mod1) {
+  if (!gstate->cv_mod1_enabled) {
     char buf[16];
-    int tVal = int((gstate->timbre.locked ? gstate->timbre.value : gstate->pot_timbre) * 127);
-    int mVal = int((gstate->color.locked ? gstate->color.value : gstate->pot_color) * 127);
-    sprintf(buf, "T:%3d C:%3d", tVal, mVal);
+    int tVal = gstate->timbre.value * 127;
+    int cVal = gstate->color.value * 127;
+    sprintf(buf, "T:%3d C:%3d", tVal, cVal);
 
     display.getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
     display.setCursor(128 - w - 2, 55);
@@ -230,7 +230,7 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
   }
 }
 
-void check_saved_feedback(RuntimeState *gstate) {
+void saved_feedback(RuntimeState *gstate) {
   if (!gstate->show_saved_flag) return;
 
   unsigned long now = millis();

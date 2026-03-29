@@ -33,12 +33,16 @@ static inline void set_parameter_(Parameter *param, volatile float val, MidiCont
   }
 }
 
-static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate) {
+static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, float smoothing_factor) {
   const uint8_t old_value = param->last_value;
   float new_value = analogRead(param->gpio) / 1023.f;
 
   // smoothing the noise
-  param->smoothed += (new_value - param->smoothed) * 0.15f;
+  // 0.15f
+  param->smoothed += (new_value - param->smoothed) * smoothing_factor;
+  if (param->smoothed > 0.999f) param->smoothed = 1.0f;
+  if (param->smoothed < 0.001f) param->smoothed = 0.0f;
+
   // quantizing for comparison
   uint8_t quantized = (uint8_t)(param->smoothed * 127.f);
   if (quantized != old_value) {
@@ -56,4 +60,165 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate) 
   }
 
   SCHEDULE_REFRESH(gstate);
+}
+
+#define SMOOTH_POT 0.06f
+
+void handle_control(RuntimeState *gstate) {
+  static float smoothT = 0.5f;
+  static float smoothC = 0.5f;
+  static float smoothTMod = 0.0f;
+  static float smoothCMod = 0.0f;
+  static float smoothCut = 0.5f;
+  static float smoothRes = 0.25f;
+  static unsigned long last_pot_read = 0;
+
+  if (millis() - last_pot_read <= POT_READ_POLL_MS) {
+    return;
+  }
+
+  last_pot_read = millis();
+
+  float rT = analogRead(POT_TIMBRE) / 1023.0f;
+  float rC = analogRead(POT_COLOR) / 1023.0f;
+  float srcT = analogRead(POT_TIMBRE_MOD) / 1023.0f;
+#if HAS_4_POTS
+  float srcC = analogRead(POT_COLOR_MOD) / 1023.0f;
+#else
+  float srcC = 0.5f;
+#endif
+
+  if (!gstate->midi_enabled) {
+    gstate->timbre.locked = false;
+    gstate->color.locked = false;
+    gstate->cutoff.locked = false;
+    gstate->resonance.locked = false;
+    SCHEDULE_REFRESH(gstate);
+  }
+
+  if (gstate->cv_mod1_enabled) {
+    // --- Smooth the potentiometer inputs (depth controls) ---
+    smoothT += (rT - smoothT) * 0.15f;
+    smoothC += (rC - smoothC) * 0.15f;
+
+    // --- Smooth the modulation sources ---
+    smoothTMod += (srcT - smoothTMod) * 0.1f;  // slower smoothing
+    smoothCMod += (srcC - smoothCMod) * 0.1f;
+
+    // --- Apply modulation depth with soft scaling ---
+    gstate->timbre_mod.value += ((smoothT * smoothTMod) - gstate->timbre_mod.value) * 0.05f;
+    gstate->color_mod.value += ((smoothC * smoothCMod) - gstate->color_mod.value) * 0.05f;
+
+    // --- Set base values for other modes ---
+    gstate->timbre.value = 0.5f;
+    gstate->color.value = 0.5f;
+    SCHEDULE_REFRESH(gstate);
+
+  } else if (gstate->midi_enabled) {
+    handle_pot_parameter(&(gstate->timbre), gstate, SMOOTH_POT);
+    handle_pot_parameter(&(gstate->color), gstate, SMOOTH_POT);
+    SCHEDULE_REFRESH(gstate);
+  }
+
+  if (gstate->filter_enabled) {
+    handle_pot_parameter(&(gstate->cutoff), gstate, 0.15f);
+#if HAS_4_POTS
+    handle_pot_parameter(&(gstate->resonance), gstate, 0.15f);
+#endif
+    // gstate->timbre_mod.value *= 0.9f;
+    // gstate->color_mod.value *= 0.9f;
+    SCHEDULE_REFRESH(gstate);
+  }
+
+  else if (gstate->cv_mod2_enabled) {
+    smoothT += (rT - smoothT) * 0.08f;
+    smoothC += (rC - smoothC) * 0.08f;
+    gstate->timbre.value = smoothT;
+    gstate->color.value = smoothC;
+
+    gstate->color.value = smoothC;
+
+    // --- 2. Rolling Average Filter ---
+    static float historyT[16];
+    static float historyC[16];
+    static int histIdx = 0;
+
+    historyT[histIdx] = srcT;
+    historyC[histIdx] = srcC;
+    histIdx = (histIdx + 1) % 16;
+
+    float avgT = 0, avgC = 0;
+    for (int i = 0; i < 16; i++) {
+      avgT += historyT[i];
+      avgC += historyC[i];
+    }
+    avgT /= 16.0f;
+    avgC /= 16.0f;
+
+    smoothTMod += (avgT - smoothTMod) * 0.05f;
+    smoothCMod += (avgC - smoothCMod) * 0.05f;
+
+    // --- 3. Strict Deadzone ---
+    const float CV_DEADZONE = 0.15f;
+    bool cvT_active = (smoothTMod > CV_DEADZONE);
+    bool cvC_active = (smoothCMod > CV_DEADZONE);
+
+    // --- 4. Large-Band Hysteresis for Engines ---
+    static float lockT = -1.0f;
+    const float ENG_HYST = 0.10f;
+
+    if (cvT_active) {
+      if (fabsf(smoothTMod - lockT) > ENG_HYST) {
+        float norm = (smoothTMod - CV_DEADZONE) / (1.0f - CV_DEADZONE);
+        int new_idx = (int)(norm * (float)NUM_ENGINES);
+        new_idx = constrain(new_idx, 0, NUM_ENGINES - 1);
+
+        if (new_idx != gstate->engine_idx) {
+          gstate->engine_idx = new_idx;
+          lockT = smoothTMod;
+          SCHEDULE_REFRESH(gstate);
+        }
+      }
+    } else {
+      lockT = -1.0f;
+    }
+
+    // --- 5. Large-Band Hysteresis for FM ---
+    static float lockC = 0.0f;
+    const float FM_HYST = 0.1f;
+
+    if (cvC_active) {
+      if (fabsf(smoothCMod - lockC) > FM_HYST) {
+        float target_fm = (smoothCMod - CV_DEADZONE) / (1.0f - CV_DEADZONE);
+        gstate->fm_mod.value = constrain(target_fm, 0.0f, 1.0f);
+        lockC = smoothCMod;
+      }
+    } else {
+      gstate->fm_mod.value *= 0.5f;
+      if (gstate->fm_mod.value < 0.01f) {
+        gstate->fm_mod.value = 0.0f;
+        lockC = 0.0f;
+      }
+    }
+
+    gstate->timbre.locked = false;
+    gstate->color.locked = false;
+  } else if (!gstate->midi_enabled) {
+    smoothT += (rT - smoothT) * 0.08f;
+    smoothC += (rC - smoothC) * 0.08f;
+    gstate->timbre.value = smoothT;
+    gstate->color.value = smoothC;
+    gstate->color.value = smoothC;
+
+    // Zero out all CV-related variables
+    // gstate->timbre.value = 0.0f;
+    // gstate->color_mod.value = 0.0f;
+    // gstate->fm_mod = 0.0f;
+
+    gstate->timbre.locked = false;
+    gstate->color.locked = false;
+    gstate->resonance.locked = false;
+    gstate->cutoff.locked = false;
+    SCHEDULE_REFRESH(gstate);
+  }
 }

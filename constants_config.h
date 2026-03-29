@@ -19,6 +19,8 @@ const char *const engine_names[] = {
 };
 constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
+#define DEBUG false
+
 
 #define USE_UART_MIDI 0  // 0 = USB MIDI, 1 = UART MIDI
 
@@ -80,6 +82,7 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 // MIDI pins
 #define MIDI_UART_RX 13
 
+#define POT_READ_POLL_MS 4
 #define POT_TIMBRE A0      // GPIO26
 #define POT_COLOR A1       // GPIO27
 #define POT_TIMBRE_MOD A2  // GPIO28
@@ -91,4 +94,10 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 #define HAS_4_POTS 0
 #else
 #define HAS_4_POTS 1
+#endif
+
+#if DEBUG
+#define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+#else
+#define DEBUG_PRINTLN(...)
 #endif
