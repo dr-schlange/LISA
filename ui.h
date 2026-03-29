@@ -74,11 +74,11 @@ void draw_splash() {
   uint16_t w, h;
 
   display.clearDisplay();
-  display.drawBitmap((128 - 32) / 2, 0, lisa_logo_bitmap, 32, 16, SSD1306_WHITE);
+  display.drawBitmap((128 - 32) / 2, 0, lisa_logo_bitmap, 32, 16, SCREEN_WHITE);
 
   const char *title = "LISA";
   display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
+  display.setTextColor(SCREEN_WHITE);
   display.getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
   display.setCursor((128 - w) / 2, 18);
   display.println(title);
@@ -129,7 +129,7 @@ inline void draw_scope(UIState *uistate) {
     if (y1 > 63) y1 = 63;
     if (y2 < 0) y2 = 0;
     if (y2 > 63) y2 = 63;
-    display.drawLine(i, y1, i + 1, y2, SSD1306_WHITE);
+    display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
   }
 
   display.display();
@@ -144,7 +144,7 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
 
   const char *name = engine_names[gstate->engine_idx];
   display.setTextSize(4);
-  display.setTextColor(SSD1306_WHITE);
+  display.setTextColor(SCREEN_WHITE);
 
   char idxBuf[8];
   sprintf(idxBuf, "%d", gstate->engine_idx + 1);
@@ -197,6 +197,119 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
   display.display();
 }
 
+static inline void invert_rect(int x, int y, int w, int h) {
+  for (int j = y; j < y + h; j++) {
+    for (int i = x; i < x + w; i++) {
+      uint16_t color = display.getPixel(i, j);
+      display.drawPixel(i, j, color > 0 ? 0 : 1);
+    }
+  }
+}
+
+static inline void draw_param(uint8_t x, uint8_t y, const char *name, float value) {
+  display.setCursor(x, y);
+  display.print(name);
+  display.drawRect(x - 3, y - 1, 23, 10, 1);
+  invert_rect(x - 2, y, value * 21, 8);
+}
+
+static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
+  display.clearDisplay();
+  int16_t x1, y1;
+  uint16_t w, h;
+
+  display.setTextSize(1);
+  display.setTextColor(SCREEN_WHITE);
+
+  display.setTextWrap(false);
+  display.setCursor(60, 1);
+  display.print("A");
+
+  display.setCursor(85, 1);
+  display.print("B");
+
+  display.setCursor(109, 1);
+  display.print("C");
+
+  // General
+  display.setCursor(12, 11);
+  display.print("gnrl");
+  draw_param(54, 10, "vol", gstate->master_volume.value);
+
+  display.setCursor(85, 11);
+  display.print("-");
+  display.setCursor(109, 11);
+  display.print("-");
+
+  // timbre
+  display.setCursor(12, 22);
+  display.print("tmbr");
+  draw_param(54, 21, "amt", gstate->timbre.value);
+  draw_param(79, 21, "mod", gstate->timbre_mod.value);
+  draw_param(104, 21, "fm", gstate->fm_mod.value);
+
+  // color
+  display.setCursor(12, 33);
+  display.print("colr");
+  draw_param(54, 32, "amt", gstate->color.value);
+  draw_param(79, 32, "mod", gstate->color_mod.value);
+  draw_param(104, 32, "fm", gstate->fm_mod.value);
+
+  // filter
+  display.setCursor(12, 44);
+  display.print("fltr");
+  draw_param(54, 43, "ctf", gstate->cutoff.value);
+  draw_param(79, 43, "res", gstate->resonance.value);
+  display.setCursor(110, 44);
+  display.print("-");
+
+  // Envelope
+  display.setCursor(12, 54);
+  display.print("envl");
+  draw_param(54, 54, "atk", gstate->env_attack.value);
+  draw_param(79, 54, "rel", gstate->env_release.value);
+
+  display.setCursor(110, 55);
+  display.print("-");
+
+  display.display();
+}
+
+static inline void draw_global_settings(UIState *uistate) {
+  display.clearDisplay();
+  int16_t x1, y1;
+  uint16_t w, h;
+
+  display.setTextSize(1);
+  display.setTextColor(SCREEN_WHITE);
+
+  display.setTextWrap(false);
+  display.setCursor(30, 12);
+  display.print("A");
+
+  display.setCursor(30, 23);
+  display.print("B");
+
+  display.setCursor(30, 34);
+  display.print("C");
+
+  display.setCursor(12, 46);
+  display.print("Mode");
+
+  display.setCursor(72, 46);
+  display.print("both");
+
+  display.setCursor(72, 34);
+  display.print("normal");
+
+  display.setCursor(72, 23);
+  display.print("normal");
+
+  display.setCursor(72, 12);
+  display.print("normal");
+
+  display.display();
+}
 
 
 static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
@@ -226,6 +339,18 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
           gstate->engine_updated = false;
         }
         break;
+      case ALL_PARAMS_MODE:
+        if (REFRESH_IS_SCHEDULED(gstate)) {
+          draw_all_parameters(uistate, gstate);
+          gstate->engine_updated = false;
+        }
+        break;
+      case GLOBAL_SETTINGS:
+        if (REFRESH_IS_SCHEDULED(gstate)) {
+          draw_global_settings(uistate);
+          gstate->engine_updated = false;
+        }
+        break;
     }
   }
 }
@@ -238,7 +363,7 @@ static inline void saved_feedback(RuntimeState *gstate) {
     gstate->oscilloscope_enabled = false;  // we remove the scope the time to draw the message
     display.clearDisplay();
     display.setTextSize(2);
-    display.setTextColor(SSD1306_WHITE);
+    display.setTextColor(SCREEN_WHITE);
 
     const char *msg = "Saved!";
     int16_t x1, y1;

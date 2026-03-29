@@ -255,14 +255,14 @@ void handle_menu(RuntimeState *gstate) {
           case SCOPE_TOGGLE:
             TOGGLE_OSCILLOSCOPE(gstate);
             if (IS_OSCILLOSCOPE_OFF(gstate) && IS_OSCILLOSCOPE_MODE(gstate)) {
-              SWITCHTO_ENGINE_SELECT_MODE(gstate);
+              gstate->display_state = ENGINE_SELECT_MODE;
 #if USE_SCREEN
               ui_state.scope_ready = false;
 #endif
             }
             break;
           default:
-            SWITCHTO_ENGINE_SELECT_MODE(gstate);
+            gstate->display_state = ENGINE_SELECT_MODE;
             gstate->midi_enabled = true;
             gstate->cv_mod1_enabled = false;
             gstate->cv_mod2_enabled = false;
@@ -274,23 +274,40 @@ void handle_menu(RuntimeState *gstate) {
         break;
 
       case OSCILLOSCOPE_MODE:
-        SWITCHTO_ENGINE_SELECT_MODE(gstate);
+        gstate->display_state = ENGINE_SELECT_MODE;
         SCHEDULE_REFRESH(gstate);
         break;
     }
   }
 
   const EncoderStatus status = gstate->encoder_status;
-  // if (status == DBL_PRESSED) {
-  //   SCHEDULE_REFRESH(gstate);
-  // }
+  if (status == DBL_PRESSED) {
+      switch (gstate->display_state) {
+        case OSCILLOSCOPE_MODE:
+            gstate->display_state = ALL_PARAMS_MODE;
+            SCHEDULE_REFRESH(gstate);
+            break;
+        case ENGINE_SETTINGS_CONFIG:
+            gstate->display_state = GLOBAL_SETTINGS;
+            SCHEDULE_REFRESH(gstate);
+            break;
+        case GLOBAL_SETTINGS:
+            gstate->display_state = ENGINE_SETTINGS_CONFIG;
+            SCHEDULE_REFRESH(gstate);
+            break;
+        case ALL_PARAMS_MODE:
+            gstate->display_state = OSCILLOSCOPE_MODE;
+            SCHEDULE_REFRESH(gstate);
+            break;
+      }
+  }
 
   if (status == PRESSED) {
     // Encoder sw press reaction depending on the mode
     switch (gstate->display_state) {
       case ENGINE_SELECT_MODE:
-        SWITCHTO_ENGINE_SETTINGS_CONFIG(gstate);
-        gstate->encoder.state = ENGINE_SELECT;
+        gstate->display_state = ENGINE_SETTINGS_CONFIG;
+        gstate->encoder.state = VOLUME_ADJUST;
         SCHEDULE_REFRESH(gstate);
         break;
 
@@ -300,7 +317,7 @@ void handle_menu(RuntimeState *gstate) {
         break;
 
       case OSCILLOSCOPE_MODE:
-        SWITCHTO_ENGINE_SETTINGS_CONFIG(gstate);
+        gstate->display_state = ENGINE_SETTINGS_CONFIG;
         gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % (ENCODER_STATE_NUM - 1));
         SCHEDULE_REFRESH(gstate);
         break;
