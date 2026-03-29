@@ -131,11 +131,17 @@ static inline bool setup_LittleFS() {
 #include "ui.h"
 static inline void handle_save(RuntimeState *gstate) {
   // handle long press at global level (whatever the display mode)
-  if (encoder_sw_longpressed(&(gstate->encoder), LONG_PRESS_MS))
-    if (save_settings(gstate)) {
-      gstate->show_saved_flag = true;
-      gstate->saved_start_time = millis();
-    }
+  // if (encoder_sw_longpressed(&(gstate->encoder), LONG_PRESS_MS))
+  //   if (save_settings(gstate)) {
+  //     gstate->show_saved_flag = true;
+  //     gstate->saved_start_time = millis();
+  //   }
+  if (gstate->encoder_status == LONG_PRESSED) {
+      if (save_settings(gstate)) {
+          gstate->show_saved_flag = true;
+          gstate->saved_start_time = millis();
+      }
+  }
 #if USE_SCREEN
   saved_feedback(gstate);
 #endif

@@ -230,11 +230,12 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
   }
 }
 
-void saved_feedback(RuntimeState *gstate) {
+static inline void saved_feedback(RuntimeState *gstate) {
   if (!gstate->show_saved_flag) return;
 
   unsigned long now = millis();
   if (now - gstate->saved_start_time < SAVED_DISPLAY_MS) {
+    gstate->oscilloscope_enabled = false;  // we remove the scope the time to draw the message
     display.clearDisplay();
     display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
@@ -248,6 +249,7 @@ void saved_feedback(RuntimeState *gstate) {
     display.display();
   } else {
     gstate->show_saved_flag = false;
+    gstate->oscilloscope_enabled = true;  // we reactivate the scope
     SCHEDULE_REFRESH(gstate);
   }
 }

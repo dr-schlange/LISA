@@ -59,6 +59,9 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 // Buttons, Encoders
 #define BUTTON_DEBOUNCE_MS 200
 #define ENCODER_DEBOUNCE_COUNT 4
+#define ENCODER_DEBOUNCE_MS 30
+#define ENCODER_LONGPRESS_MS 1000
+#define ENCODER_PRESS_MS 100
 
 
 // I2S Config

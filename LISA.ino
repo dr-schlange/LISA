@@ -283,7 +283,12 @@ void handle_menu(RuntimeState *gstate) {
     }
   }
 
-  if (encoder_sw_pressed(encoder)) {
+  const EncoderStatus status = gstate->encoder_status;
+  // if (status == DBL_PRESSED) {
+  //   SCHEDULE_REFRESH(gstate);
+  // }
+
+  if (status == PRESSED) {
     // Encoder sw press reaction depending on the mode
     switch (gstate->display_state) {
       case ENGINE_SELECT_MODE:
@@ -348,7 +353,7 @@ void loop() {
   }
 
   // We need to update first the state for SW
-  encoder_update_sw(&(runtime_state.encoder));
+  runtime_state.encoder_status = encoder_sw_status(&(runtime_state.encoder));
   handle_save(&runtime_state);
   handle_control(&runtime_state);
   handle_menu(&runtime_state);

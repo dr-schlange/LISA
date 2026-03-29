@@ -117,6 +117,7 @@ struct RuntimeState {
   volatile bool oscilloscope_enabled;
 
   Encoder encoder;
+  EncoderStatus encoder_status;
 
   // MIDI controller mode
   MidiControllerMode controller_mode;
@@ -154,6 +155,7 @@ struct RuntimeState {
     .display_state = ENGINE_SELECT_MODE, \
     .oscilloscope_enabled = true, \
     .encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW), \
+    .encoder_status = NO_ACTION, \
     .controller_mode = CONTROLLER_BOTH, \
     .timbre = ParameterNew(POT_TIMBRE, MIDI_TIMBRE, 0.4f), \
     .color = ParameterNew(POT_COLOR, MIDI_COLOR, 0.3f), \
