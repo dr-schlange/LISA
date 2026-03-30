@@ -34,6 +34,9 @@ static inline void set_parameter_(Parameter *param, volatile float val, MidiCont
 }
 
 static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, float smoothing_factor) {
+  if (param == NULL) {
+    return;
+  }
   const uint8_t old_value = param->last_value;
   float new_value = analogRead(param->gpio) / 1023.f;
 
@@ -96,6 +99,53 @@ void handle_control(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
   }
 
+  // Associate parameter compared to row
+  Parameter *p1, *p2, *p3;
+  float p1_smooth_pot, p2_smooth_pot, p3_smooth_pot;
+  if (gstate->display_state == ALL_PARAMS_MODE) {
+    switch (gstate->pots_row_state) {
+      case ROW_GENERAL:
+        p1 = &(gstate->master_volume);
+        p2 = NULL;
+        p3 = NULL;
+        p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
+        break;
+      case ROW_FILTER:
+        p1 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
+        p2 = gstate->filter_enabled ? &(gstate->resonance) : NULL;
+        p1_smooth_pot = p2_smooth_pot = 0.15f;
+        p3 = NULL;
+        break;
+      case ROW_TIMBRE:
+        p1 = &(gstate->timbre);
+        p2 = &(gstate->timbre_mod);
+        p3 = &(gstate->fm_mod);
+        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+        break;
+      case ROW_COLOR:
+        p1 = &(gstate->color);
+        p2 = &(gstate->color_mod);
+        p3 = &(gstate->fm_mod);
+        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+        break;
+      case ROW_ENVELOPE:
+        p1 = &(gstate->env_attack);
+        p2 = &(gstate->env_release);
+        p3 = NULL;
+        p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
+        break;
+      default:
+        gstate->pots_row_state = ROW_GENERAL;
+        break;
+    }
+  } else {
+    p1 = &(gstate->timbre);
+    p2 = &(gstate->color);
+    p3 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
+    p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
+    p3_smooth_pot = 0.15f;
+  }
+
   if (gstate->cv_mod1_enabled) {
     // --- Smooth the potentiometer inputs (depth controls) ---
     smoothT += (rT - smoothT) * 0.15f;
@@ -115,18 +165,20 @@ void handle_control(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
 
   } else if (gstate->midi_enabled) {
-    handle_pot_parameter(&(gstate->timbre), gstate, SMOOTH_POT);
-    handle_pot_parameter(&(gstate->color), gstate, SMOOTH_POT);
+    handle_pot_parameter(p1, gstate, p1_smooth_pot);
+    handle_pot_parameter(p2, gstate, p2_smooth_pot);
+    SCHEDULE_REFRESH(gstate);
+  }
+
+  if (p3) {
+    handle_pot_parameter(p3, gstate, p3_smooth_pot);
     SCHEDULE_REFRESH(gstate);
   }
 
   if (gstate->filter_enabled) {
-    handle_pot_parameter(&(gstate->cutoff), gstate, 0.15f);
 #if HAS_4_POTS
     handle_pot_parameter(&(gstate->resonance), gstate, 0.15f);
 #endif
-    // gstate->timbre_mod.value *= 0.9f;
-    // gstate->color_mod.value *= 0.9f;
     SCHEDULE_REFRESH(gstate);
   }
 

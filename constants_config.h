@@ -86,6 +86,10 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 #define MIDI_UART_RX 13
 
 #define POT_READ_POLL_MS 4
+#define POT_A A0
+#define POT_B A1
+#define POT_C A2
+#define POT_D A3
 #define POT_TIMBRE A0      // GPIO26
 #define POT_COLOR A1       // GPIO27
 #define POT_TIMBRE_MOD A2  // GPIO28

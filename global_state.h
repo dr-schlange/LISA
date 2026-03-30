@@ -35,6 +35,15 @@ enum PotMode {
   POT_KINETIC
 };
 
+enum PotsRow {
+    ROW_GENERAL,
+    ROW_TIMBRE,
+    ROW_COLOR,
+    ROW_FILTER,
+    ROW_ENVELOPE,
+    ROW_NUM
+};
+
 struct Parameter {
   volatile float value;
   uint8_t last_value;
@@ -96,6 +105,7 @@ struct RuntimeState {
   uint8_t midi_ch;
   volatile int engine_idx;
   int last_engine_idx;
+  PotsRow pots_row_state;
 
 
   bool engine_updated;
@@ -141,6 +151,7 @@ struct RuntimeState {
     .midi_ch = 1, \
     .engine_idx = 1, \
     .last_engine_idx = -1, \
+    .pots_row_state = ROW_GENERAL, \
     .engine_updated = true, \
     .env_params_changed = true, \
     .last_param_change = 0, \
@@ -157,15 +168,15 @@ struct RuntimeState {
     .encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW), \
     .encoder_status = NO_ACTION, \
     .controller_mode = CONTROLLER_BOTH, \
-    .timbre = ParameterNew(POT_TIMBRE, MIDI_TIMBRE, 0.4f), \
-    .color = ParameterNew(POT_COLOR, MIDI_COLOR, 0.3f), \
-    .cutoff = ParameterNew(POT_CUTOFF, MIDI_CUTOFF, 0.5f), \
-    .resonance = ParameterNew(POT_RESONANCE, MIDI_RESONANCE, 0.25f), \
-    .timbre_mod = ParameterNew(POT_TIMBRE, MIDI_TIMBRE_MOD, 0.f), \
-    .color_mod = ParameterNew(POT_COLOR, MIDI_COLOR_MOD, 0.f), \
-    .fm_mod = ParameterNew(POT_CUTOFF, MIDI_FM_MOD, 0.f), \
-    .master_volume = ParameterNew(POT_CUTOFF, MIDI_MASTER_VOL, 0.7f), \
-    .env_attack = ParameterNew(POT_TIMBRE, MIDI_ATTACK, 0.009f), \
-    .env_release = ParameterNew(POT_COLOR, MIDI_RELEASE, 0.01f), \
+    .timbre = ParameterNew(POT_A, MIDI_TIMBRE, 0.4f), \
+    .color = ParameterNew(POT_B, MIDI_COLOR, 0.3f), \
+    .cutoff = ParameterNew(POT_A, MIDI_CUTOFF, 0.5f), \
+    .resonance = ParameterNew(POT_B, MIDI_RESONANCE, 0.25f), \
+    .timbre_mod = ParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f), \
+    .color_mod = ParameterNew(POT_B, MIDI_COLOR_MOD, 0.f), \
+    .fm_mod = ParameterNew(POT_C, MIDI_FM_MOD, 0.f), \
+    .master_volume = ParameterNew(POT_A, MIDI_MASTER_VOL, 0.7f), \
+    .env_attack = ParameterNew(POT_A, MIDI_ATTACK, 0.009f), \
+    .env_release = ParameterNew(POT_B, MIDI_RELEASE, 0.01f), \
     .system_ready = false, \
   };

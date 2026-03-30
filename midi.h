@@ -93,7 +93,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   has_msg = true;
 #endif
 
-  if (millis() - gstate->last_param_change > 1.f) {
+  if (millis() - gstate->last_param_change >= 1000.f) {
     gstate->color.locked = false;
     gstate->timbre.locked = false;
     SCHEDULE_REFRESH(gstate);

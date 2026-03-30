@@ -214,9 +214,9 @@ static inline void draw_param(uint8_t x, uint8_t y, const char *name, float valu
 }
 
 static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
+  uint8_t row = gstate->pots_row_state;
+
   display.clearDisplay();
-  int16_t x1, y1;
-  uint16_t w, h;
 
   display.setTextSize(1);
   display.setTextColor(SCREEN_WHITE);
@@ -230,6 +230,10 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
 
   display.setCursor(109, 1);
   display.print("C");
+
+  // Pointer
+  display.setCursor(1, (row + 1) * 11);
+  display.print(">");
 
   // General
   display.setCursor(12, 11);
@@ -311,6 +315,16 @@ static inline void draw_global_settings(UIState *uistate) {
   display.display();
 }
 
+static inline bool some_parameter_changed(RuntimeState *gstate) {
+  Parameter *p = &(gstate->timbre);
+  for (int i = 0; i < 10; i++) {
+    if (p[i].last_value != p[i].value) {
+      return true;
+    }
+  }
+  return false;
+}
+
 
 static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
   if (millis() - uistate->last_draw_time > SCREEN_REFRESH_TIME) {
@@ -340,7 +354,7 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
         }
         break;
       case ALL_PARAMS_MODE:
-        if (REFRESH_IS_SCHEDULED(gstate)) {
+        if (REFRESH_IS_SCHEDULED(gstate) || some_parameter_changed(gstate)) {
           draw_all_parameters(uistate, gstate);
           gstate->engine_updated = false;
         }

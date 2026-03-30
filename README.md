@@ -19,12 +19,12 @@ Features added in **LISA**:
 
 - **MIDI Controller** Support to send MIDI controls via USB.
 - **MIDI Controller extended configuration** Allows to either repeat the value set by the buttons, or to only send values without interacting with the synth part.
+- **Advanced configuration** Access all synth parameter configuration and more with the physical buttons.
 - **Multiple MIDI/Physical button interaction** Support for 3 different modes of interaction between arriving MIDI messages and manually touching the knobs, configurable by knob:
   - `raw mode`: the button and the MIDI CC value fights to make their value prioritary (first arrived first served).
   - `catch-up mode`: the button stays "innactive" until the moment it reaches the value set by the MIDI CC value (planned).
   - `attenuator-mode`: select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition (planned).
 - **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated (planned).
-- **Advanced configuration** Access all synth parameter configuration and more with the physical buttons (planned).
 - **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want with float precision in the message sent/received (planned).
 
 ## Menu System & UI
@@ -40,10 +40,19 @@ The synthesizer operates in two primary display modes:
        - **CV:** CV modulation mode
        - **MIDI:** Enable MIDI CC and disable CV
        - **MIDI CH:** Set the input channel (1-16)
-       - **OSCILOSCOPE Toggle:** On / Off
+       - **OSCILLOSCOPE Toggle:** On / Off
        - **SAVE SETTINGS:** Long press button to save menu settings
        - **EXIT MENU**
-2.  **OSCILOSCOPE:** Automatically engages after 10 seconds to visualize the current waveform
+2.  **OSCILLOSCOPE:** Automatically engages after 10 seconds to visualize the current waveform
+
+There is 2 additional displays which are accessible with a double press of the encoder:
+
+1. **ALL PARAMETERS** display (double press from the **OSCILLOSCOPE** display): that brings you to a page with all the parameter of the synth and a quick access to modify them. 
+    1. Rotate the encoder to select a parameter row. Each parameter row is automatically mapped on A, B, C, representing the 3 main pots of LISA.
+    2. Rotate A, B or C to set the desired parameter level.
+    3. Double press the encoder to come back to the **OSCILLOSCOPE** display.
+2. **GLOBAL SETTINGS** display (double press from the **ENGINE SELECT** or **SETTINGS** display): that brings you to the general synth settings where you can configure the behavior of some buttons (type of conflict resolution between pots and MIDI messages, etc).
+    1. WIP
 
 ### Filter Mode (Default)
 

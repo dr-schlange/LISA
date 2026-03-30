@@ -277,29 +277,39 @@ void handle_menu(RuntimeState *gstate) {
         gstate->display_state = ENGINE_SELECT_MODE;
         SCHEDULE_REFRESH(gstate);
         break;
+
+      case ALL_PARAMS_MODE:
+        int next_row = (int)(((uint8_t)gstate->pots_row_state) - step);
+        if (next_row < 0) {
+          gstate->pots_row_state = (PotsRow)(ROW_NUM - 1);
+        } else {
+          gstate->pots_row_state = (PotsRow)(next_row % ROW_NUM);
+        }
+        SCHEDULE_REFRESH(gstate);
+        break;
     }
   }
 
   const EncoderStatus status = gstate->encoder_status;
   if (status == DBL_PRESSED) {
-      switch (gstate->display_state) {
-        case OSCILLOSCOPE_MODE:
-            gstate->display_state = ALL_PARAMS_MODE;
-            SCHEDULE_REFRESH(gstate);
-            break;
-        case ENGINE_SETTINGS_CONFIG:
-            gstate->display_state = GLOBAL_SETTINGS;
-            SCHEDULE_REFRESH(gstate);
-            break;
-        case GLOBAL_SETTINGS:
-            gstate->display_state = ENGINE_SETTINGS_CONFIG;
-            SCHEDULE_REFRESH(gstate);
-            break;
-        case ALL_PARAMS_MODE:
-            gstate->display_state = OSCILLOSCOPE_MODE;
-            SCHEDULE_REFRESH(gstate);
-            break;
-      }
+    switch (gstate->display_state) {
+      case OSCILLOSCOPE_MODE:
+        gstate->display_state = ALL_PARAMS_MODE;
+        SCHEDULE_REFRESH(gstate);
+        break;
+      case ENGINE_SETTINGS_CONFIG:
+        gstate->display_state = GLOBAL_SETTINGS;
+        SCHEDULE_REFRESH(gstate);
+        break;
+      case GLOBAL_SETTINGS:
+        gstate->display_state = ENGINE_SETTINGS_CONFIG;
+        SCHEDULE_REFRESH(gstate);
+        break;
+      case ALL_PARAMS_MODE:
+        gstate->display_state = OSCILLOSCOPE_MODE;
+        SCHEDULE_REFRESH(gstate);
+        break;
+    }
   }
 
   if (status == PRESSED) {
@@ -312,13 +322,13 @@ void handle_menu(RuntimeState *gstate) {
         break;
 
       case ENGINE_SETTINGS_CONFIG:
-        gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % (ENCODER_STATE_NUM - 1));
+        gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
         SCHEDULE_REFRESH(gstate);
         break;
 
       case OSCILLOSCOPE_MODE:
         gstate->display_state = ENGINE_SETTINGS_CONFIG;
-        gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % (ENCODER_STATE_NUM - 1));
+        gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
         SCHEDULE_REFRESH(gstate);
         break;
     }
