@@ -110,24 +110,30 @@ void handle_control(RuntimeState *gstate) {
         p3 = NULL;
         p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
         break;
-      case ROW_FILTER:
-        p1 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
-        p2 = gstate->filter_enabled ? &(gstate->resonance) : NULL;
-        p1_smooth_pot = p2_smooth_pot = 0.15f;
-        p3 = NULL;
-        break;
       case ROW_TIMBRE:
         p1 = &(gstate->timbre);
+        p1->gpio = POT_A;
         p2 = &(gstate->timbre_mod);
+        p2->gpio = POT_B;
         p3 = &(gstate->fm_mod);
         p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
       case ROW_COLOR:
         p1 = &(gstate->color);
+        p1->gpio = POT_A;  // we remap color to pot A
         p2 = &(gstate->color_mod);
         p3 = &(gstate->fm_mod);
         p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
+      case ROW_FILTER:
+        p1 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
+        if (p1) {
+          p1->gpio = POT_A;  // we remap cutoff to pot A
+        }
+        p2 = gstate->filter_enabled ? &(gstate->resonance) : NULL;
+        break;
+        p1_smooth_pot = p2_smooth_pot = 0.15f;
+        p3 = NULL;
       case ROW_ENVELOPE:
         p1 = &(gstate->env_attack);
         p2 = &(gstate->env_release);
@@ -139,9 +145,15 @@ void handle_control(RuntimeState *gstate) {
         break;
     }
   } else {
+    // Reset and remap
     p1 = &(gstate->timbre);
+    p1->gpio = POT_A;  // in non all parameter mode, timbre remaps on A, color on B and cutoff on C
     p2 = &(gstate->color);
+    p2->gpio = POT_B;
     p3 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
+    if (p3) {
+      p3->gpio = POT_C;
+    }
     p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
     p3_smooth_pot = 0.15f;
   }

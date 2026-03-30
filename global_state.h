@@ -170,7 +170,7 @@ struct RuntimeState {
     .controller_mode = CONTROLLER_BOTH, \
     .timbre = ParameterNew(POT_A, MIDI_TIMBRE, 0.4f), \
     .color = ParameterNew(POT_B, MIDI_COLOR, 0.3f), \
-    .cutoff = ParameterNew(POT_A, MIDI_CUTOFF, 0.5f), \
+    .cutoff = ParameterNew(POT_C, MIDI_CUTOFF, 0.5f), \
     .resonance = ParameterNew(POT_B, MIDI_RESONANCE, 0.25f), \
     .timbre_mod = ParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f), \
     .color_mod = ParameterNew(POT_B, MIDI_COLOR_MOD, 0.f), \
