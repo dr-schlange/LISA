@@ -18,6 +18,7 @@ typedef struct __attribute__((packed)) {
   float master_volume, env_attack, env_release;
   float timbre, color, timb_mod, color_mod;
   float cutoff, resonance;
+  float b1, b2, b3, b4, b5;
   int engine_idx;
   uint8_t midi_ch;
   uint8_t filter_enabled, midi_enabled, cv_mod1_enabled, cv_mod2_enabled;
@@ -30,6 +31,7 @@ static inline SettingsSnapshot snapshot_from(const RuntimeState *s) {
     s->master_volume.value, s->env_attack.value, s->env_release.value,
     s->timbre.value, s->color.value, s->timbre_mod.value, s->color_mod.value,
     s->cutoff.value, s->resonance.value,
+    s->b1.value, s->b2.value, s->b3.value, s->b4.value, s->b5.value,
     s->engine_idx, s->midi_ch,
     s->filter_enabled, s->midi_enabled, s->cv_mod1_enabled, s->cv_mod2_enabled,
     s->oscilloscope_enabled, (uint8_t)s->encoder.state
@@ -65,6 +67,11 @@ inline bool save_settings(const RuntimeState *gstate) {
   doc["ch"] = gstate->midi_ch;
   doc["enc"] = (int)gstate->encoder.state;
   doc["osc"] = gstate->oscilloscope_enabled;
+  doc["b1"] = gstate->b1.value;
+  doc["b2"] = gstate->b2.value;
+  doc["b3"] = gstate->b3.value;
+  doc["b4"] = gstate->b4.value;
+  doc["b5"] = gstate->b5.value;
 
   File f = LittleFS.open(SETTINGS_FILE, "w");
   if (!f) return false;
@@ -105,6 +112,11 @@ inline void load_settings(RuntimeState *gstate) {
   gstate->midi_ch = doc["ch"] | 1;
   gstate->encoder.state = (EncoderState)(doc["enc"] | 0);
   gstate->oscilloscope_enabled = doc["osc"] | true;
+  gstate->b1.value = doc["b1"] | 0.001f;
+  gstate->b2.value = doc["b2"] | 0.001f;
+  gstate->b3.value = doc["b3"] | 0.001f;
+  gstate->b4.value = doc["b4"] | 0.001f;
+  gstate->b5.value = doc["b5"] | 0.001f;
 
   last_snapshot = snapshot_from(gstate);
   SCHEDULE_REFRESH(gstate);

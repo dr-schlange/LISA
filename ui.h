@@ -242,11 +242,8 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.setCursor(12, 11);
   display.print("gnrl");
   draw_param(54, 10, "vol", &(gstate->master_volume));
-
-  display.setCursor(85, 11);
-  display.print("-");
-  display.setCursor(109, 11);
-  display.print("-");
+  draw_param(79, 10, "b1", &(gstate->b1));
+  draw_param(104, 10, "b2", &(gstate->b2));
 
   // timbre
   display.setCursor(12, 22);
@@ -260,24 +257,21 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.print("colr");
   draw_param(54, 32, "amt", &(gstate->color));
   draw_param(79, 32, "mod", &(gstate->color_mod));
-  draw_param(104, 32, "fm", &(gstate->fm_mod));
+  draw_param(104, 32, "b3", &(gstate->b3));
 
   // filter
   display.setCursor(12, 44);
   display.print("fltr");
   draw_param(54, 43, "ctf", &(gstate->cutoff));
   draw_param(79, 43, "res", &(gstate->resonance));
-  display.setCursor(110, 44);
-  display.print("-");
+  draw_param(104, 43, "b4", &(gstate->b4));
 
   // Envelope
   display.setCursor(12, 54);
   display.print("envl");
   draw_param(54, 54, "atk", &(gstate->env_attack));
   draw_param(79, 54, "rel", &(gstate->env_release));
-
-  display.setCursor(110, 55);
-  display.print("-");
+  draw_param(104, 54, "b5", &(gstate->b5));
 
   display.display();
 }
@@ -320,7 +314,7 @@ static inline void draw_global_settings(UIState *uistate) {
 
 static inline bool some_parameter_changed(RuntimeState *gstate) {
   Parameter *p = &(gstate->timbre);
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 15; i++) {
     if (p[i].last_value != p[i].value) {
       return true;
     }
@@ -357,7 +351,7 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
         }
         break;
       case ALL_PARAMS_MODE:
-        if (REFRESH_IS_SCHEDULED(gstate) || some_parameter_changed(gstate)) {
+        if (REFRESH_IS_SCHEDULED(gstate)) {
           draw_all_parameters(uistate, gstate);
           gstate->engine_updated = false;
         }

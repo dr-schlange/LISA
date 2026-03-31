@@ -294,22 +294,22 @@ void handle_menu(RuntimeState *gstate) {
           }
           switch (gstate->pots_row_state) {
             case ROW_GENERAL:
-              map_abc_pots(gstate, &(gstate->master_volume), NULL, NULL);
+              map_abc_pots(gstate, &(gstate->master_volume), &(gstate->b1), &(gstate->b2));
               break;
             case ROW_TIMBRE:
               map_abc_pots(gstate, &(gstate->timbre), &(gstate->timbre_mod), &(gstate->fm_mod));
               break;
             case ROW_COLOR:
-              map_abc_pots(gstate, &(gstate->color), &(gstate->color_mod), &(gstate->fm_mod));
+              map_abc_pots(gstate, &(gstate->color), &(gstate->color_mod), &(gstate->b3));
               break;
             case ROW_FILTER:
               map_abc_pots(gstate,
                            gstate->filter_enabled ? &(gstate->cutoff) : NULL,
                            gstate->filter_enabled ? &(gstate->resonance) : NULL,
-                           NULL);
+                           &(gstate->b4));
               break;
             case ROW_ENVELOPE:
-              map_abc_pots(gstate, &(gstate->env_attack), &(gstate->env_release), NULL);
+              map_abc_pots(gstate, &(gstate->env_attack), &(gstate->env_release), &(gstate->b5));
               break;
           }
           // lock the new mapped pots
@@ -327,7 +327,7 @@ void handle_menu(RuntimeState *gstate) {
         gstate->display_state = ALL_PARAMS_MODE;
         gstate->pots_row_state = ROW_GENERAL;
         lock_all_parameters(gstate, true);
-        map_abc_pots(gstate, &(gstate->master_volume), NULL, NULL);
+        map_abc_pots(gstate, &(gstate->master_volume), &(gstate->b1), &(gstate->b2));
         SCHEDULE_REFRESH(gstate);
         break;
       case ENGINE_SETTINGS_CONFIG:

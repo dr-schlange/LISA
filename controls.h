@@ -127,7 +127,7 @@ void handle_control(RuntimeState *gstate) {
   if (gstate->display_state == ALL_PARAMS_MODE) {
     switch (gstate->pots_row_state) {
       case ROW_GENERAL:
-        p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
+        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
       case ROW_TIMBRE:
         p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
@@ -135,13 +135,16 @@ void handle_control(RuntimeState *gstate) {
       case ROW_COLOR:
         p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
+      case ROW_FILTER:
+        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+        break;
       case ROW_ENVELOPE:
-        p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
+        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
     }
   } else {
     p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
-    p3_smooth_pot = 0.15f;
+    p3_smooth_pot = SMOOTH_POT;
   }
 
   if (gstate->cv_mod1_enabled) {

@@ -53,6 +53,11 @@ constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 #define MIDI_FM_MOD 15
 #define MIDI_TIMBRE_MOD 16
 #define MIDI_COLOR_MOD 17
+#define MIDI_B1 120
+#define MIDI_B2 121
+#define MIDI_B3 122
+#define MIDI_B4 123
+#define MIDI_B5 124
 #define MIDI_DEV 127
 
 

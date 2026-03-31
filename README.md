@@ -49,12 +49,18 @@ There is 2 additional displays which are accessible with a double press of the e
 
 1. **ALL PARAMETERS** display (double press from the **OSCILLOSCOPE** display): that brings you to a page with all the parameter of the synth and a quick access to modify them. 
     1. Rotate the encoder to select a parameter row. Each parameter row is automatically mapped on A, B, C, representing the 3 main pots of LISA.
-    2. Click the encoder to activate the modification on the row.
-    2. Rotate A, B or C to set the desired parameter level.
-    3. Rotate the encoder again to pass to another row (no need to press again).
-    3. Double press the encoder to come back to the **OSCILLOSCOPE** display.
+    2. Click the encoder to activate the modification on the row \*. 
+    3. Rotate A, B or C to set the desired parameter level.
+    4. Rotate the encoder again to pass to another row (no need to press again, but you can if you want to).
+    5. Double press the encoder to come back to the **OSCILLOSCOPE** display.
+    1. [**ENGINE SELECT**] When on the name of the synth engine
+        1. Press the encoder to pass in engine select mode.
+        1. Rotate the encoder to select your engine.
+        1. Press the encoder again to go back to the row selection.    
 2. **GLOBAL SETTINGS** display (double press from the **ENGINE SELECT** or **SETTINGS** display): that brings you to the general synth settings where you can configure the behavior of some buttons (type of conflict resolution between pots and MIDI messages, etc).
     1. WIP
+
+\* At this point, the levels will adujst with the values of the pots! Use this feature to quickly prepare new values for your row and jump to the values when pressing the encoder.
 
 ### Filter Mode (Default)
 
@@ -102,7 +108,17 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **64**  | Sustain (Hold notes)                                   |
 | **71**  | Filter Resonance                                       |
 | **74**  | Filter Cutoff                                          |
+| **120** | b1 (send CC only)                                      |
+| **121** | b2 (send CC only)                                      |
+| **122** | b3 (send CC only)                                      |
+| **123** | b4 (send CC only)                                      |
+| **124** | b5 (send CC only)                                      |
 | **127** | Reset USB to upload from IDE (WARNING: for dev mode)\* |
+
+CC#120-124 are sent by the button B or C depending on the row you are located in the **ALL PARAMETERS** mode. 
+They are sent CCs that are here mainly to provide extra actions to LISA used as a MIDI controller in general, and can achieve internal rewiring if used with Nallely.
+
+In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely session, and you can reroute them also on other LISA's parameters (you can map `b1` on the `cutoff` for example).
 
 \* Note: in `dev mode`, CC#127 have 2 specific values it can use:
 
