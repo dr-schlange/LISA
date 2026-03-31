@@ -206,16 +206,15 @@ static inline void invert_rect(int x, int y, int w, int h) {
   }
 }
 
-static inline void draw_param(uint8_t x, uint8_t y, const char *name, Parameter *p, uint8_t onrow) {
+static inline void draw_param(uint8_t x, uint8_t y, const char *name, Parameter *p) {
   display.setCursor(x, y);
   display.print(name);
-  display.drawRect(x - 3, y - 1, 23, 10, ((((onrow + 1) * 11) - 1) == y) ? (p->screen_locked ? 0 : 1) : 0);
+  display.drawRect(x - 3, y - 1, 23, 10, p->screen_locked ? 0 : 1);
   invert_rect(x - 2, y, p->value * 21, 8);
 }
 
 static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   uint8_t row = gstate->pots_row_state;
-
   display.clearDisplay();
 
   display.setTextSize(1);
@@ -232,13 +231,17 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.print("C");
 
   // Pointer
-  display.setCursor(1, (row + 1) * 11);
+  display.setCursor(1, row * 11);
   display.print(">");
+
+  // Engine name
+  display.setCursor(12 + 10, 1);
+  display.print(engine_names[gstate->engine_idx]);
 
   // General
   display.setCursor(12, 11);
   display.print("gnrl");
-  draw_param(54, 10, "vol", &(gstate->master_volume), row);
+  draw_param(54, 10, "vol", &(gstate->master_volume));
 
   display.setCursor(85, 11);
   display.print("-");
@@ -248,30 +251,30 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   // timbre
   display.setCursor(12, 22);
   display.print("tmbr");
-  draw_param(54, 21, "amt", &(gstate->timbre), row);
-  draw_param(79, 21, "mod", &(gstate->timbre_mod), row);
-  draw_param(104, 21, "fm", &(gstate->fm_mod), row);
+  draw_param(54, 21, "amt", &(gstate->timbre));
+  draw_param(79, 21, "mod", &(gstate->timbre_mod));
+  draw_param(104, 21, "fm", &(gstate->fm_mod));
 
   // color
   display.setCursor(12, 33);
   display.print("colr");
-  draw_param(54, 32, "amt", &(gstate->color), row);
-  draw_param(79, 32, "mod", &(gstate->color_mod), row);
-  draw_param(104, 32, "fm", &(gstate->fm_mod), row);
+  draw_param(54, 32, "amt", &(gstate->color));
+  draw_param(79, 32, "mod", &(gstate->color_mod));
+  draw_param(104, 32, "fm", &(gstate->fm_mod));
 
   // filter
   display.setCursor(12, 44);
   display.print("fltr");
-  draw_param(54, 43, "ctf", &(gstate->cutoff), row);
-  draw_param(79, 43, "res", &(gstate->resonance), row);
+  draw_param(54, 43, "ctf", &(gstate->cutoff));
+  draw_param(79, 43, "res", &(gstate->resonance));
   display.setCursor(110, 44);
   display.print("-");
 
   // Envelope
   display.setCursor(12, 54);
   display.print("envl");
-  draw_param(54, 54, "atk", &(gstate->env_attack), row);
-  draw_param(79, 54, "rel", &(gstate->env_release), row);
+  draw_param(54, 54, "atk", &(gstate->env_attack));
+  draw_param(79, 54, "rel", &(gstate->env_release));
 
   display.setCursor(110, 55);
   display.print("-");

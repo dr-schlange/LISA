@@ -66,7 +66,8 @@
 static UIState ui_state = UIStateNew();
 #endif
 
-static RuntimeState runtime_state = GlobalStateNew();
+// static RuntimeState runtime_state = GlobalStateNew();
+static RuntimeState runtime_state;
 static Voice voices[MAX_VOICES];
 
 static I2S i2s_output(OUTPUT);
@@ -279,15 +280,43 @@ void handle_menu(RuntimeState *gstate) {
         break;
 
       case ALL_PARAMS_MODE:
-        int next_row = (int)(((uint8_t)gstate->pots_row_state) - step);
-        if (next_row < 0) {
-          gstate->pots_row_state = (PotsRow)(ROW_NUM - 1);
+        // lock the already mapped pots
+        lock_mapped_pots(gstate, true);
+        if (gstate->pots_row_state == ROW_EDIT_ENGINE) {
+          gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
+          SCHEDULE_REFRESH(gstate);
         } else {
-          gstate->pots_row_state = (PotsRow)(next_row % ROW_NUM);
+          int next_row = (int)(((uint8_t)gstate->pots_row_state) - step);
+          if (next_row < 0) {
+            gstate->pots_row_state = (PotsRow)(ROW_NUM - 1);
+          } else {
+            gstate->pots_row_state = (PotsRow)(next_row % ROW_NUM);
+          }
+          switch (gstate->pots_row_state) {
+            case ROW_GENERAL:
+              map_abc_pots(gstate, &(gstate->master_volume), NULL, NULL);
+              break;
+            case ROW_TIMBRE:
+              map_abc_pots(gstate, &(gstate->timbre), &(gstate->timbre_mod), &(gstate->fm_mod));
+              break;
+            case ROW_COLOR:
+              map_abc_pots(gstate, &(gstate->color), &(gstate->color_mod), &(gstate->fm_mod));
+              break;
+            case ROW_FILTER:
+              map_abc_pots(gstate,
+                           gstate->filter_enabled ? &(gstate->cutoff) : NULL,
+                           gstate->filter_enabled ? &(gstate->resonance) : NULL,
+                           NULL);
+              break;
+            case ROW_ENVELOPE:
+              map_abc_pots(gstate, &(gstate->env_attack), &(gstate->env_release), NULL);
+              break;
+          }
+          // lock the new mapped pots
+          lock_mapped_pots(gstate, true);
+          SCHEDULE_REFRESH(gstate);
+          break;
         }
-        lock_all_parameters(gstate, true);
-        SCHEDULE_REFRESH(gstate);
-        break;
     }
   }
 
@@ -296,7 +325,9 @@ void handle_menu(RuntimeState *gstate) {
     switch (gstate->display_state) {
       case OSCILLOSCOPE_MODE:
         gstate->display_state = ALL_PARAMS_MODE;
+        gstate->pots_row_state = ROW_GENERAL;
         lock_all_parameters(gstate, true);
+        map_abc_pots(gstate, &(gstate->master_volume), NULL, NULL);
         SCHEDULE_REFRESH(gstate);
         break;
       case ENGINE_SETTINGS_CONFIG:
@@ -310,6 +341,10 @@ void handle_menu(RuntimeState *gstate) {
       case ALL_PARAMS_MODE:
         gstate->display_state = OSCILLOSCOPE_MODE;
         lock_all_parameters(gstate, false);
+        map_abc_pots(gstate,
+                     &(gstate->timbre),
+                     &(gstate->color),
+                     gstate->filter_enabled ? &(gstate->cutoff) : NULL);
         SCHEDULE_REFRESH(gstate);
         break;
     }
@@ -335,10 +370,20 @@ void handle_menu(RuntimeState *gstate) {
         SCHEDULE_REFRESH(gstate);
         break;
 
-        case ALL_PARAMS_MODE:
-          lock_all_parameters(gstate, false);
-          SCHEDULE_REFRESH(gstate);
-          break;
+      case ALL_PARAMS_MODE:
+        switch (gstate->pots_row_state) {
+          case ROW_ENGINE_SELECT:
+            gstate->pots_row_state = ROW_EDIT_ENGINE;
+            break;
+          case ROW_EDIT_ENGINE:
+            gstate->pots_row_state = ROW_ENGINE_SELECT;
+            break;
+          default:
+            lock_mapped_pots(gstate, !(gstate->A->screen_locked));
+            break;
+        }
+        SCHEDULE_REFRESH(gstate);
+        break;
     }
   }
 }
@@ -380,7 +425,7 @@ void setup() {
 
 void loop() {
   if (!runtime_state.system_ready) {
-    yield();  // Wait for Core 1 to finish DSP initialisation
+    yield();  // Wait for Core 1 to finish DSP initialisation & init global state
     return;
   }
 
@@ -424,6 +469,7 @@ static inline void setup_global_filter() {
 
 void setup1() {
   setup_soundcard();
+  init_global_state(&runtime_state);
   setup_voices();
   setup_global_filter();
 }

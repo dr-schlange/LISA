@@ -33,26 +33,45 @@ static inline void set_parameter_(Parameter *param, volatile float val, MidiCont
   }
 }
 
-static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, float smoothing_factor) {
+static inline uint8_t peek_pot_quantized(Parameter *param, float smoothing_factor) {
   if (param == NULL) {
-    return;
+    return 0;
   }
-  const uint8_t old_value = param->last_value;
   float new_value = analogRead(param->gpio) / 1023.f;
 
   // smoothing the noise
-  // 0.15f
   param->smoothed += (new_value - param->smoothed) * smoothing_factor;
   if (param->smoothed > 0.999f) param->smoothed = 1.0f;
   if (param->smoothed < 0.001f) param->smoothed = 0.0f;
 
   // quantizing for comparison
-  uint8_t quantized = (uint8_t)(param->smoothed * 127.f);
+  return (uint8_t)(param->smoothed * 127.f);
+}
+
+static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, float smoothing_factor) {
+  if (param == NULL) {
+    return;
+  }
+  // float new_value = analogRead(param->gpio) / 1023.f;
+
+  // // smoothing the noise
+  // // 0.15f
+  // param->smoothed += (new_value - param->smoothed) * smoothing_factor;
+  // if (param->smoothed > 0.999f) param->smoothed = 1.0f;
+  // if (param->smoothed < 0.001f) param->smoothed = 0.0f;
+
+  // // quantizing for comparison
+  // uint8_t quantized = (uint8_t)(param->smoothed * 127.f);
+
+  const uint8_t old_value = param->last_value;
+
+  // // quantizing for comparison
+  uint8_t quantized = peek_pot_quantized(param, smoothing_factor);
   if (quantized != old_value) {
-      if (param->screen_locked) {
-          return;
-      }
-      param->last_value = quantized;
+    if (param->screen_locked) {
+      return;
+    }
+    param->last_value = quantized;
 
     const MidiControllerMode mode = gstate->controller_mode;
 
@@ -103,60 +122,24 @@ void handle_control(RuntimeState *gstate) {
   }
 
   // Associate parameter compared to row
-  Parameter *p1, *p2, *p3;
+  // Parameter *p1, *p2, *p3;
   float p1_smooth_pot, p2_smooth_pot, p3_smooth_pot;
   if (gstate->display_state == ALL_PARAMS_MODE) {
     switch (gstate->pots_row_state) {
       case ROW_GENERAL:
-        p1 = &(gstate->master_volume);
-        p2 = NULL;
-        p3 = NULL;
         p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
         break;
       case ROW_TIMBRE:
-        p1 = &(gstate->timbre);
-        p1->gpio = POT_A;
-        p2 = &(gstate->timbre_mod);
-        p2->gpio = POT_B;
-        p3 = &(gstate->fm_mod);
         p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
       case ROW_COLOR:
-        p1 = &(gstate->color);
-        p1->gpio = POT_A;  // we remap color to pot A
-        p2 = &(gstate->color_mod);
-        p3 = &(gstate->fm_mod);
         p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
         break;
-      case ROW_FILTER:
-        p1 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
-        if (p1) {
-          p1->gpio = POT_A;  // we remap cutoff to pot A
-        }
-        p2 = gstate->filter_enabled ? &(gstate->resonance) : NULL;
-        p1_smooth_pot = p2_smooth_pot = 0.15f;
-        p3 = NULL;
-        break;
       case ROW_ENVELOPE:
-        p1 = &(gstate->env_attack);
-        p2 = &(gstate->env_release);
-        p3 = NULL;
         p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
-        break;
-      default:
-        gstate->pots_row_state = ROW_GENERAL;
         break;
     }
   } else {
-    // Reset and remap
-    p1 = &(gstate->timbre);
-    p1->gpio = POT_A;  // in non all parameter mode, timbre remaps on A, color on B and cutoff on C
-    p2 = &(gstate->color);
-    p2->gpio = POT_B;
-    p3 = gstate->filter_enabled ? &(gstate->cutoff) : NULL;
-    if (p3) {
-      p3->gpio = POT_C;
-    }
     p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
     p3_smooth_pot = 0.15f;
   }
@@ -180,13 +163,13 @@ void handle_control(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
 
   } else if (gstate->midi_enabled) {
-    handle_pot_parameter(p1, gstate, p1_smooth_pot);
-    handle_pot_parameter(p2, gstate, p2_smooth_pot);
+    handle_pot_parameter(gstate->A, gstate, p1_smooth_pot);
+    handle_pot_parameter(gstate->B, gstate, p2_smooth_pot);
     SCHEDULE_REFRESH(gstate);
   }
 
-  if (p3) {
-    handle_pot_parameter(p3, gstate, p3_smooth_pot);
+  if (gstate->C) {
+    handle_pot_parameter(gstate->C, gstate, p3_smooth_pot);
     SCHEDULE_REFRESH(gstate);
   }
 

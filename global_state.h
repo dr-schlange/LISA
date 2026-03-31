@@ -36,12 +36,14 @@ enum PotMode {
 };
 
 enum PotsRow {
+  ROW_ENGINE_SELECT,
   ROW_GENERAL,
   ROW_TIMBRE,
   ROW_COLOR,
   ROW_FILTER,
   ROW_ENVELOPE,
-  ROW_NUM
+  ROW_NUM,
+  ROW_EDIT_ENGINE, // hidden state
 };
 
 struct Parameter {
@@ -147,43 +149,86 @@ struct RuntimeState {
   Parameter master_volume;
   Parameter env_attack;
   Parameter env_release;
+
+  // Mapped pots
+  Parameter *A;
+  Parameter *B;
+  Parameter *C;
   volatile bool system_ready;
 };
 
-#define GlobalStateNew() \
-  { \
-    .midi_ch = 1, \
-    .engine_idx = 1, \
-    .last_engine_idx = -1, \
-    .pots_row_state = ROW_GENERAL, \
-    .engine_updated = true, \
-    .env_params_changed = true, \
-    .last_param_change = 0, \
-    .midi_enabled = true, \
-    .cv_mod1_enabled = false, \
-    .cv_mod2_enabled = false, \
-    .sustain_enabled = false, \
-    .filter_enabled = true, \
-    .filter_mix = 1.0f, \
-    .show_saved_flag = false, \
-    .saved_start_time = 0, \
-    .display_state = ENGINE_SELECT_MODE, \
-    .oscilloscope_enabled = true, \
-    .encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW), \
-    .encoder_status = NO_ACTION, \
-    .controller_mode = CONTROLLER_BOTH, \
-    .timbre = ParameterNew(POT_A, MIDI_TIMBRE, 0.4f), \
-    .color = ParameterNew(POT_B, MIDI_COLOR, 0.3f), \
-    .cutoff = ParameterNew(POT_C, MIDI_CUTOFF, 0.5f), \
-    .resonance = ParameterNew(POT_B, MIDI_RESONANCE, 0.25f), \
-    .timbre_mod = ParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f), \
-    .color_mod = ParameterNew(POT_B, MIDI_COLOR_MOD, 0.f), \
-    .fm_mod = ParameterNew(POT_C, MIDI_FM_MOD, 0.f), \
-    .master_volume = ParameterNew(POT_A, MIDI_MASTER_VOL, 0.7f), \
-    .env_attack = ParameterNew(POT_A, MIDI_ATTACK, 0.009f), \
-    .env_release = ParameterNew(POT_B, MIDI_RELEASE, 0.01f), \
-    .system_ready = false, \
-  };
+// #define GlobalStateNew() \
+//   { \
+//     .midi_ch = 1, \
+//     .engine_idx = 1, \
+//     .last_engine_idx = -1, \
+//     .pots_row_state = ROW_GENERAL, \
+//     .engine_updated = true, \
+//     .env_params_changed = true, \
+//     .last_param_change = 0, \
+//     .midi_enabled = true, \
+//     .cv_mod1_enabled = false, \
+//     .cv_mod2_enabled = false, \
+//     .sustain_enabled = false, \
+//     .filter_enabled = true, \
+//     .filter_mix = 1.0f, \
+//     .show_saved_flag = false, \
+//     .saved_start_time = 0, \
+//     .display_state = ENGINE_SELECT_MODE, \
+//     .oscilloscope_enabled = true, \
+//     .encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW), \
+//     .encoder_status = NO_ACTION, \
+//     .controller_mode = CONTROLLER_BOTH, \
+//     .timbre = ParameterNew(POT_A, MIDI_TIMBRE, 0.4f), \
+//     .color = ParameterNew(POT_B, MIDI_COLOR, 0.3f), \
+//     .cutoff = ParameterNew(POT_C, MIDI_CUTOFF, 0.5f), \
+//     .resonance = ParameterNew(POT_B, MIDI_RESONANCE, 0.25f), \
+//     .timbre_mod = ParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f), \
+//     .color_mod = ParameterNew(POT_B, MIDI_COLOR_MOD, 0.f), \
+//     .fm_mod = ParameterNew(POT_C, MIDI_FM_MOD, 0.f), \
+//     .master_volume = ParameterNew(POT_A, MIDI_MASTER_VOL, 0.7f), \
+//     .env_attack = ParameterNew(POT_A, MIDI_ATTACK, 0.009f), \
+//     .env_release = ParameterNew(POT_B, MIDI_RELEASE, 0.01f), \
+//     .A = NULL, .B = NULL, .C = NULL, \
+//     .system_ready = false, \
+//   }
+
+static inline void init_global_state(RuntimeState *gstate) {
+  gstate->midi_ch = 1;
+  gstate->engine_idx = 0;
+  gstate->last_engine_idx = -1;
+  gstate->pots_row_state = ROW_GENERAL;
+  gstate->engine_updated = true;
+  gstate->env_params_changed = true;
+  gstate->last_param_change = 0;
+  gstate->midi_enabled = true;
+  gstate->cv_mod1_enabled = false;
+  gstate->cv_mod2_enabled = false;
+  gstate->sustain_enabled = false;
+  gstate->filter_enabled = true;
+  gstate->filter_mix = 1.f;
+  gstate->show_saved_flag = false;
+  gstate->saved_start_time = 0;
+  gstate->display_state = ENGINE_SELECT_MODE;
+  gstate->oscilloscope_enabled = true;
+  gstate->encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW);
+  gstate->encoder_status = NO_ACTION;
+  gstate->controller_mode = CONTROLLER_BOTH;
+  gstate->timbre = ParameterNew(POT_A, MIDI_TIMBRE, 0.4f);
+  gstate->color = ParameterNew(POT_B, MIDI_COLOR, 0.3f);
+  gstate->cutoff = ParameterNew(POT_C, MIDI_CUTOFF, 0.5f);
+  gstate->resonance = ParameterNew(POT_B, MIDI_RESONANCE, 0.25f);
+  gstate->timbre_mod = ParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f);
+  gstate->color_mod = ParameterNew(POT_B, MIDI_COLOR_MOD, 0.f);
+  gstate->fm_mod = ParameterNew(POT_C, MIDI_FM_MOD, 0.f);
+  gstate->master_volume = ParameterNew(POT_A, MIDI_MASTER_VOL, 0.7f);
+  gstate->env_attack = ParameterNew(POT_A, MIDI_ATTACK, 0.009f);
+  gstate->env_release = ParameterNew(POT_B, MIDI_RELEASE, 0.01f);
+  gstate->A = &(gstate->timbre);
+  gstate->B = &(gstate->color);
+  gstate->C = &(gstate->cutoff);
+  gstate->system_ready = false;
+}
 
 static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->timbre.screen_locked = status;
@@ -196,4 +241,22 @@ static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->master_volume.screen_locked = status;
   gstate->env_attack.screen_locked = status;
   gstate->env_release.screen_locked = status;
+}
+
+static inline void lock_mapped_pots(RuntimeState *gstate, bool status) {
+  gstate->A->screen_locked = status;
+  gstate->B->screen_locked = status;
+  gstate->C->screen_locked = status;
+}
+
+static inline void map_abc_pots(RuntimeState *gstate, Parameter *A, Parameter *B, Parameter *C) {
+  if (gstate->A = A) {
+    gstate->A->gpio = POT_A;
+  }
+  if (gstate->B = B) {
+    gstate->B->gpio = POT_B;
+  }
+  if (gstate->C = C) {
+    gstate->C->gpio = POT_C;
+  }
 }
