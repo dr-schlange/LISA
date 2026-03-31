@@ -285,6 +285,7 @@ void handle_menu(RuntimeState *gstate) {
         } else {
           gstate->pots_row_state = (PotsRow)(next_row % ROW_NUM);
         }
+        lock_all_parameters(gstate, true);
         SCHEDULE_REFRESH(gstate);
         break;
     }
@@ -295,6 +296,7 @@ void handle_menu(RuntimeState *gstate) {
     switch (gstate->display_state) {
       case OSCILLOSCOPE_MODE:
         gstate->display_state = ALL_PARAMS_MODE;
+        lock_all_parameters(gstate, true);
         SCHEDULE_REFRESH(gstate);
         break;
       case ENGINE_SETTINGS_CONFIG:
@@ -307,6 +309,7 @@ void handle_menu(RuntimeState *gstate) {
         break;
       case ALL_PARAMS_MODE:
         gstate->display_state = OSCILLOSCOPE_MODE;
+        lock_all_parameters(gstate, false);
         SCHEDULE_REFRESH(gstate);
         break;
     }
@@ -331,6 +334,11 @@ void handle_menu(RuntimeState *gstate) {
         gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
         SCHEDULE_REFRESH(gstate);
         break;
+
+        case ALL_PARAMS_MODE:
+          lock_all_parameters(gstate, false);
+          SCHEDULE_REFRESH(gstate);
+          break;
     }
   }
 }

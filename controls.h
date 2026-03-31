@@ -49,7 +49,10 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
   // quantizing for comparison
   uint8_t quantized = (uint8_t)(param->smoothed * 127.f);
   if (quantized != old_value) {
-    param->last_value = quantized;
+      if (param->screen_locked) {
+          return;
+      }
+      param->last_value = quantized;
 
     const MidiControllerMode mode = gstate->controller_mode;
 
@@ -131,9 +134,9 @@ void handle_control(RuntimeState *gstate) {
           p1->gpio = POT_A;  // we remap cutoff to pot A
         }
         p2 = gstate->filter_enabled ? &(gstate->resonance) : NULL;
-        break;
         p1_smooth_pot = p2_smooth_pot = 0.15f;
         p3 = NULL;
+        break;
       case ROW_ENVELOPE:
         p1 = &(gstate->env_attack);
         p2 = &(gstate->env_release);

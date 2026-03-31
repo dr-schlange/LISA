@@ -36,12 +36,12 @@ enum PotMode {
 };
 
 enum PotsRow {
-    ROW_GENERAL,
-    ROW_TIMBRE,
-    ROW_COLOR,
-    ROW_FILTER,
-    ROW_ENVELOPE,
-    ROW_NUM
+  ROW_GENERAL,
+  ROW_TIMBRE,
+  ROW_COLOR,
+  ROW_FILTER,
+  ROW_ENVELOPE,
+  ROW_NUM
 };
 
 struct Parameter {
@@ -53,6 +53,8 @@ struct Parameter {
   uint8_t midi_cc;
   ResolutionMode resolution_mode;
   bool locked;
+  bool screen_locked;
+  uint8_t quantized;
   struct {
     float velocity;
     float damping;
@@ -75,6 +77,8 @@ struct Parameter {
     .midi_cc = midi_cc_, \
     .resolution_mode = RES_RAW, \
     .locked = false, \
+    .screen_locked = false, \
+    .quantized = 0, \
     .kinetic_params = { \
       .velocity = 0, \
       .damping = 0.5, \
@@ -180,3 +184,16 @@ struct RuntimeState {
     .env_release = ParameterNew(POT_B, MIDI_RELEASE, 0.01f), \
     .system_ready = false, \
   };
+
+static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
+  gstate->timbre.screen_locked = status;
+  gstate->color.screen_locked = status;
+  gstate->cutoff.screen_locked = status;
+  gstate->resonance.screen_locked = status;
+  gstate->timbre_mod.screen_locked = status;
+  gstate->color_mod.screen_locked = status;
+  gstate->fm_mod.screen_locked = status;
+  gstate->master_volume.screen_locked = status;
+  gstate->env_attack.screen_locked = status;
+  gstate->env_release.screen_locked = status;
+}

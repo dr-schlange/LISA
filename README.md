@@ -27,7 +27,7 @@ Features added in **LISA**:
 - **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated (planned).
 - **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want with float precision in the message sent/received (planned).
 
-## Menu System & UI
+## Menu System & UI 
 
 The synthesizer operates in two primary display modes:
 
@@ -49,7 +49,9 @@ There is 2 additional displays which are accessible with a double press of the e
 
 1. **ALL PARAMETERS** display (double press from the **OSCILLOSCOPE** display): that brings you to a page with all the parameter of the synth and a quick access to modify them. 
     1. Rotate the encoder to select a parameter row. Each parameter row is automatically mapped on A, B, C, representing the 3 main pots of LISA.
+    2. Click the encoder to activate the modification on the row.
     2. Rotate A, B or C to set the desired parameter level.
+    3. Rotate the encoder again to pass to another row (no need to press again).
     3. Double press the encoder to come back to the **OSCILLOSCOPE** display.
 2. **GLOBAL SETTINGS** display (double press from the **ENGINE SELECT** or **SETTINGS** display): that brings you to the general synth settings where you can configure the behavior of some buttons (type of conflict resolution between pots and MIDI messages, etc).
     1. WIP
@@ -180,7 +182,7 @@ This project is licensed under the GNU General Public License v3.0 (GPLv3).
 
 All modifications and newly added features are original work by Dr Schlange and are distributed under the GNU GPLv3 as part of this derivative project.
 
-### Third-Party Components
+### Third-Party Components 
 
 This project depends on the following external components:
 
