@@ -20,19 +20,24 @@ enum DisplayMode { ENGINE_SELECT_MODE,
 
 enum MidiControllerMode { CONTROLLER_MODE_OFF,
                           CONTROLLER_BOTH,
-                          CONTROLLER_ONLY
+                          CONTROLLER_ONLY,
+                          CONTROLLER_NUM,
 };
 
 
 enum ResolutionMode {
   RES_RAW,
   RES_CATCHUP,
+  RES_NUM,
+  RES_UNKNOWN,
 };
 
 enum PotMode {
   POT_NORMAL,
   POT_KINETIC,
+  POT_MODE_NUM,
   POT_ATTENUATOR,
+  POT_UNKNOWN,
 };
 
 enum PotsRow {
@@ -43,7 +48,18 @@ enum PotsRow {
   ROW_FILTER,
   ROW_ENVELOPE,
   ROW_NUM,
-  ROW_EDIT_ENGINE,  // hidden state
+  ROW_EDIT_ENGINE,  // hidden state edit engine
+  ROW_PAGE_SELECT,  // hidden state set all parameters page
+};
+
+enum GlobalSettings {
+  SETTING_PARAMETER,
+  SETTING_GLOB_RES,
+  SETTING_GLOB_MODE,
+  SETTING_NUM,
+  SETTING_EDIT_PARAMETER,
+  SETTING_EDIT_RES,
+  SETTING_EDIT_MODE,
 };
 
 #define BASE_PARAMETER \
@@ -92,8 +108,8 @@ struct ExtParameter {
 #define ExtParameterNew(gpio_, midi_cc_, val_) \
   { \
     .extended = true, \
-    .value = 0, \
-    .last_value = 0, \
+    .value = val_, \
+    .last_value = (uint8_t)val_, \
     .smoothed = val_, \
     .gpio = gpio_, \
     .screen_locked = false, \
@@ -106,7 +122,7 @@ struct ExtParameter {
         .extended = false, \
         .value = 0, \
         .last_value = 0, \
-        .smoothed = val_, \
+        .smoothed = 0, \
         .gpio = gpio_, \
         .screen_locked = false, \
         .resolution_mode = RES_CATCHUP, \
@@ -114,8 +130,8 @@ struct ExtParameter {
       .damping = { \
         .extended = false, \
         .value = 0.5, \
-        .last_value = 0, \
-        .smoothed = val_, \
+        .last_value = (uint8_t)0.5, \
+        .smoothed = 0.5, \
         .gpio = gpio_, \
         .screen_locked = false, \
         .resolution_mode = RES_CATCHUP, \
@@ -123,8 +139,8 @@ struct ExtParameter {
       .stiffness = { \
         .extended = false, \
         .value = 1, \
-        .last_value = 0, \
-        .smoothed = val_, \
+        .last_value = 1, \
+        .smoothed = 1, \
         .gpio = gpio_, \
         .screen_locked = false, \
         .resolution_mode = RES_CATCHUP, \
@@ -151,7 +167,8 @@ struct RuntimeState {
   volatile int engine_idx;
   int last_engine_idx;
   PotsRow pots_row_state;
-
+  GlobalSettings glob_settings_state;
+  ExtParameter *glob_settings_edit_param;
 
   bool engine_updated;
   volatile bool env_params_changed;
@@ -203,12 +220,20 @@ struct RuntimeState {
   volatile bool system_ready;
 };
 
+const char *const all_parameters[] = {
+  "tmbr amt", "colr amt", "cutoff", "resonance",
+  "tmbr mod", "colr mod", "fm mod", "mast vol",
+  "envl atk", "envl rel",
+  "b1", "b2", "b3", "b4", "b5"
+};
+constexpr uint8_t ALL_PARAMETERS_NUM = sizeof(all_parameters) / sizeof(all_parameters[0]);
 
 static inline void init_global_state(RuntimeState *gstate) {
   gstate->midi_ch = 1;
   gstate->engine_idx = 0;
   gstate->last_engine_idx = -1;
   gstate->pots_row_state = ROW_GENERAL;
+  gstate->glob_settings_state = SETTING_PARAMETER;
   gstate->engine_updated = true;
   gstate->env_params_changed = true;
   gstate->last_param_change = 0;
@@ -246,6 +271,7 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->A = (Parameter *)&(gstate->timbre);
   gstate->B = (Parameter *)&(gstate->color);
   gstate->C = (Parameter *)&(gstate->cutoff);
+  gstate->glob_settings_edit_param = NULL;
   gstate->system_ready = false;
 }
 
@@ -313,4 +339,77 @@ static inline void set_all_resolution(RuntimeState *gstate, ResolutionMode mode)
   set_ext_param_resolution(&(gstate->b3), mode);
   set_ext_param_resolution(&(gstate->b4), mode);
   set_ext_param_resolution(&(gstate->b5), mode);
+}
+
+static inline void set_all_mode(RuntimeState *gstate, PotMode mode) {
+  gstate->timbre.mode = mode;
+  gstate->color.mode = mode;
+  gstate->cutoff.mode = mode;
+  gstate->resonance.mode = mode;
+  gstate->timbre_mod.mode = mode;
+  gstate->color_mod.mode = mode;
+  gstate->fm_mod.mode = mode;
+  gstate->master_volume.mode = mode;
+  gstate->env_attack.mode = mode;
+  gstate->env_release.mode = mode;
+  gstate->b1.mode = mode;
+  gstate->b2.mode = mode;
+  gstate->b3.mode = mode;
+  gstate->b4.mode = mode;
+  gstate->b5.mode = mode;
+}
+
+static inline void set_pot_mode(RuntimeState *gstate, PotMode mode) {
+  if (gstate->glob_settings_edit_param == NULL) {
+    set_all_mode(gstate, mode);
+    return;
+  }
+  gstate->glob_settings_edit_param->mode = mode;
+}
+
+static inline void set_resolution_mode(RuntimeState *gstate, ResolutionMode mode) {
+  if (gstate->glob_settings_edit_param == NULL) {
+    set_all_resolution(gstate, mode);
+    return;
+  }
+  set_ext_param_resolution(gstate->glob_settings_edit_param, mode);
+}
+
+static inline PotMode glob_get_pot_mode(RuntimeState *gstate) {
+  ExtParameter *p = gstate->glob_settings_edit_param;
+  if (p == NULL) {
+    uint8_t state = gstate->timbre.mode;
+    p = &(gstate->timbre);
+    for (uint8_t i = 1; i < ALL_PARAMETERS_NUM; i++) {
+      if (state != p[i].mode) {
+        return POT_UNKNOWN;
+      }
+    }
+    return (PotMode)state;
+  }
+  return p->mode;
+}
+
+static inline ResolutionMode glob_get_res_mode(RuntimeState *gstate) {
+  ExtParameter *p = gstate->glob_settings_edit_param;
+  if (p == NULL) {
+    uint8_t state = gstate->timbre.resolution_mode;
+    p = &(gstate->timbre);
+    for (uint8_t i = 1; i < ALL_PARAMETERS_NUM; i++) {
+      if (state != p[i].resolution_mode) {
+        return RES_UNKNOWN;
+      }
+    }
+    return (ResolutionMode)state;
+  }
+  return p->resolution_mode;
+}
+
+static inline void sync_all_kinetic_values(RuntimeState *gstate) {
+  ExtParameter *p = &(gstate->timbre);
+  for (uint8_t i = 1; i < ALL_PARAMETERS_NUM; i++) {
+    p[i].kinetic.velocity.value = p->kinetic.velocity.value;
+    p[i].kinetic.damping.value = p->kinetic.damping.value;
+    p[i].kinetic.stiffness.value = p->kinetic.stiffness.value;
+  }
 }

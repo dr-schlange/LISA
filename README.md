@@ -60,7 +60,8 @@ There is 2 additional displays which are accessible with a double press of the e
 2. **GLOBAL SETTINGS** display (double press from the **ENGINE SELECT** or **SETTINGS** display): that brings you to the general synth settings where you can configure the behavior of some buttons (type of conflict resolution between pots and MIDI messages, etc).
     1. WIP
 
-\* At this point, the levels will adujst with the values of the pots! Use this feature to quickly prepare new values for your row and jump to the values when pressing the encoder.
+\* At this point, if you are in `CATCHUP` resolution mode (default mode), the levels will stay put until you move the related pot close from the parameter recorded value.
+\* At this point, if you are in `RAW` resolution mode, the levels will adujst with the values of the pots! Use this feature to quickly prepare new values for your row and jump to the values when pressing the encoder.
 
 ### Filter Mode (Default)
 

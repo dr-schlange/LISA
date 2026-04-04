@@ -208,6 +208,10 @@ static inline void invert_rect(int x, int y, int w, int h) {
 
 static inline void draw_param(uint8_t x, uint8_t y, const char *name, Parameter *p) {
   display.setCursor(x, y);
+  if (p == NULL) {
+    display.print(" - ");
+    return;
+  }
   display.print(name);
   display.drawRect(x - 3, y - 1, 23, 10, p->screen_locked ? 0 : 1);
   invert_rect(x - 2, y, p->value * 21, 8);
@@ -277,40 +281,84 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
 }
 
 static inline void draw_global_settings(UIState *uistate, RuntimeState *gstate) {
+  uint8_t col_offset = gstate->glob_settings_state > SETTING_NUM ? 1 : 0;
+  uint8_t row = (((uint8_t)gstate->glob_settings_state) - col_offset) % (SETTING_NUM);
   display.clearDisplay();
-  int16_t x1, y1;
-  uint16_t w, h;
 
   display.setTextSize(1);
   display.setTextColor(SCREEN_WHITE);
-
   display.setTextWrap(false);
-  display.setCursor(30, 12);
-  display.print("A");
-  display.setCursor(72, 12);
-  display.print(modes[gstate->timbre.mode]);
 
-  display.setCursor(30, 23);
-  display.print("B");
-  display.setCursor(72, 23);
-  display.print(modes[gstate->color.mode]);
+  // Pointer
+  display.setCursor(1 + (col_offset * 59), (row) * 11);
+  display.print(">");
 
-  display.setCursor(30, 34);
-  display.print("C");
-  display.setCursor(72, 34);
-  display.print(modes[gstate->cutoff.mode]);
+  // Parameter
+  display.setCursor(12, 1);
+  display.print("param");
+  display.setCursor(70, 1);
+  if (gstate->glob_settings_edit_param == NULL) {
+    display.print("ALL");
+  } else {
+    // get the parameter offset
+    uint8_t offset = (gstate->glob_settings_edit_param) - (&(gstate->timbre));
+    display.print(all_parameters[offset]);
+  }
 
-  display.setCursor(12, 46);
-  display.print("Mode");
-  display.setCursor(72, 46);
-  display.print(gstate->timbre.resolution_mode == RES_CATCHUP ? "catchup" : "raw");
+  // Resolution mode
+  display.setCursor(12, 11);
+  display.print("resol");
+  display.setCursor(70, 11);
+  const ResolutionMode res_mode = glob_get_res_mode(gstate);
+  if (res_mode == RES_UNKNOWN) {
+    display.print("--");
+  } else {
+    display.print(res_mode == RES_CATCHUP ? "catchup" : "raw");
+  }
+
+  // Mode row
+  display.setCursor(12, 22);
+  display.print("mode");
+  display.setCursor(70, 22);
+  const PotMode pot_mode = glob_get_pot_mode(gstate);
+  if (pot_mode == POT_UNKNOWN) {
+    display.print("--");
+  } else {
+    display.print(modes[pot_mode]);
+  }
+
+  // Kinetic parameters
+  if (pot_mode == POT_KINETIC) {
+    ExtParameter *param = gstate->glob_settings_edit_param;
+    if (param == NULL) {
+      draw_param(14 + 10, 44, "vel", (Parameter *)&(gstate->timbre.kinetic.velocity));
+      display.setCursor(20 + 10, 55);
+      display.print("A");
+      draw_param(43 + 10, 44, "dmp", (Parameter *)&(gstate->timbre.kinetic.damping));
+      display.setCursor(49 + 10, 55);
+      display.print("B");
+      draw_param(72 + 10, 44, "stf", (Parameter *)&(gstate->timbre.kinetic.stiffness));
+      display.setCursor(78 + 10, 55);
+      display.print("C"); 
+    } else {
+      draw_param(14 + 10, 44, "vel", (Parameter *)&(param->kinetic.velocity));
+      display.setCursor(20 + 10, 55);
+      display.print("A");
+      draw_param(43 + 10, 44, "dmp", (Parameter *)&(param->kinetic.damping));
+      display.setCursor(49 + 10, 55);
+      display.print("B");
+      draw_param(72 + 10, 44, "stf", (Parameter *)&(param->kinetic.stiffness));
+      display.setCursor(78 + 10, 55);
+      display.print("C");
+    }
+  }
 
   display.display();
 }
 
 static inline bool some_parameter_changed(RuntimeState *gstate) {
   Parameter *p = (Parameter *)&(gstate->timbre);
-  for (int i = 0; i < 15; i++) {
+  for (int i = 0; i < ALL_PARAMETERS_NUM; i++) {
     if (p[i].last_value != p[i].value) {
       return true;
     }

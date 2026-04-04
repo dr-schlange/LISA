@@ -317,6 +317,50 @@ void handle_menu(RuntimeState *gstate) {
           SCHEDULE_REFRESH(gstate);
           break;
         }
+      case GLOBAL_SETTINGS:
+        ExtParameter *main_parameter = gstate->glob_settings_edit_param;
+        const PotMode pot_mode = glob_get_pot_mode(gstate);
+        const ResolutionMode res_mode = glob_get_res_mode(gstate);
+        const int8_t param_offset = main_parameter == NULL ? -1 : main_parameter - &(gstate->timbre);
+        switch (gstate->glob_settings_state) {
+          case SETTING_EDIT_RES:
+            if (res_mode == RES_UNKNOWN) {
+              set_resolution_mode(gstate, RES_CATCHUP);
+            } else {
+              set_resolution_mode(gstate, (ResolutionMode)((((uint8_t)res_mode) + step + RES_NUM) % RES_NUM));
+            }
+            break;
+          case SETTING_EDIT_MODE:
+            if (pot_mode == POT_UNKNOWN) {
+              set_pot_mode(gstate, POT_NORMAL);
+            } else {
+              set_pot_mode(gstate, (PotMode)((((uint8_t)pot_mode) + step + POT_MODE_NUM) % POT_MODE_NUM));
+            }
+            if (glob_get_pot_mode(gstate) == POT_KINETIC) {
+              if (main_parameter == NULL) {
+                map_abc_pots(gstate, &(gstate->timbre.kinetic.velocity), &(gstate->timbre.kinetic.damping), &(gstate->timbre.kinetic.stiffness));
+                lock_mapped_pots(gstate, true);
+                sync_all_kinetic_values(gstate);
+              } else {
+                map_abc_pots(gstate, &(main_parameter->kinetic.velocity), &(main_parameter->kinetic.damping), &(main_parameter->kinetic.stiffness));
+                lock_mapped_pots(gstate, true);
+              }
+            }
+            break;
+          case SETTING_EDIT_PARAMETER:
+            if (param_offset + step >= ALL_PARAMETERS_NUM) {
+              gstate->glob_settings_edit_param = (&(gstate->timbre)) + (ALL_PARAMETERS_NUM - 1);
+            } else if (param_offset + step < 0) {
+              gstate->glob_settings_edit_param = NULL;
+            } else {
+              gstate->glob_settings_edit_param = (main_parameter == NULL ? &(gstate->timbre) - 1 : main_parameter) + step;
+            }
+            break;
+          default:
+            gstate->glob_settings_state = (GlobalSettings)((((uint8_t)gstate->glob_settings_state) + SETTING_NUM - step) % SETTING_NUM);
+            break;
+        }
+        break;
     }
   }
 
@@ -336,6 +380,7 @@ void handle_menu(RuntimeState *gstate) {
         break;
       case GLOBAL_SETTINGS:
         gstate->display_state = ENGINE_SETTINGS_CONFIG;
+        gstate->glob_settings_state = SETTING_PARAMETER;
         SCHEDULE_REFRESH(gstate);
         break;
       case ALL_PARAMS_MODE:
@@ -383,6 +428,13 @@ void handle_menu(RuntimeState *gstate) {
             break;
         }
         SCHEDULE_REFRESH(gstate);
+        break;
+      case GLOBAL_SETTINGS:
+        if (gstate->glob_settings_state > SETTING_NUM) {
+          gstate->glob_settings_state = (GlobalSettings)(((uint8_t)gstate->glob_settings_state) - (SETTING_NUM + 1));
+        } else {
+          gstate->glob_settings_state = (GlobalSettings)(((uint8_t)gstate->glob_settings_state) + (SETTING_NUM + 1));  // switch to the edit hidden state
+        }
         break;
     }
   }
