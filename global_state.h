@@ -27,12 +27,12 @@ enum MidiControllerMode { CONTROLLER_MODE_OFF,
 enum ResolutionMode {
   RES_RAW,
   RES_CATCHUP,
-  RES_ATTENUATOR
 };
 
 enum PotMode {
   POT_NORMAL,
-  POT_KINETIC
+  POT_KINETIC,
+  POT_ATTENUATOR,
 };
 
 enum PotsRow {
@@ -46,50 +46,89 @@ enum PotsRow {
   ROW_EDIT_ENGINE,  // hidden state
 };
 
+#define BASE_PARAMETER \
+  bool extended; \
+  volatile float value; \
+  uint8_t last_value; \
+  float smoothed; \
+  uint8_t gpio; \
+  bool screen_locked; \
+  ResolutionMode resolution_mode
+
 struct Parameter {
-  volatile float value;
-  uint8_t last_value;
-  float smoothed;
-  uint8_t gpio;
-  PotMode mode;
-  uint8_t midi_cc;
-  ResolutionMode resolution_mode;
-  bool locked;
-  bool screen_locked;
-  uint8_t quantized;
-  struct {
-    float velocity;
-    float damping;
-    float stiffness;
-  } kinetic_params;
-  struct {
-    uint8_t min;
-    uint8_t center;
-    uint8_t max;
-  } attenuator_params;
+  BASE_PARAMETER;
 };
 
 #define ParameterNew(gpio_, midi_cc_, val_) \
   { \
+    .extended = false, \
     .value = 0, \
     .last_value = 0, \
     .smoothed = val_, \
     .gpio = gpio_, \
+    .screen_locked = false, \
+    .resolution_mode = RES_CATCHUP \
+  }
+
+struct ExtParameter {
+  BASE_PARAMETER;
+  PotMode mode;
+  uint8_t midi_cc;
+  bool locked;
+  union {
+    struct {
+      Parameter velocity;
+      Parameter damping;
+      Parameter stiffness;
+    } kinetic;
+    struct {
+      Parameter min;
+      Parameter center;
+      Parameter max;
+    } attenuator;
+  };
+};
+
+#define ExtParameterNew(gpio_, midi_cc_, val_) \
+  { \
+    .extended = true, \
+    .value = 0, \
+    .last_value = 0, \
+    .smoothed = val_, \
+    .gpio = gpio_, \
+    .screen_locked = false, \
+    .resolution_mode = RES_CATCHUP, \
     .mode = POT_NORMAL, \
     .midi_cc = midi_cc_, \
-    .resolution_mode = RES_RAW, \
     .locked = false, \
-    .screen_locked = false, \
-    .quantized = 0, \
-    .kinetic_params = { \
-      .velocity = 0, \
-      .damping = 0.5, \
-      .stiffness = 0.5 \
-    }, \
-    .attenuator_params = { \
-      .min = 0, \
-      .center = 64, \
-      .max = 127 \
+    .kinetic = { \
+      .velocity = { \
+        .extended = false, \
+        .value = 0, \
+        .last_value = 0, \
+        .smoothed = val_, \
+        .gpio = gpio_, \
+        .screen_locked = false, \
+        .resolution_mode = RES_CATCHUP, \
+      }, \
+      .damping = { \
+        .extended = false, \
+        .value = 0.5, \
+        .last_value = 0, \
+        .smoothed = val_, \
+        .gpio = gpio_, \
+        .screen_locked = false, \
+        .resolution_mode = RES_CATCHUP, \
+      }, \
+      .stiffness = { \
+        .extended = false, \
+        .value = 1, \
+        .last_value = 0, \
+        .smoothed = val_, \
+        .gpio = gpio_, \
+        .screen_locked = false, \
+        .resolution_mode = RES_CATCHUP, \
+      } \
     } \
   }
 
@@ -139,27 +178,28 @@ struct RuntimeState {
   MidiControllerMode controller_mode;
 
   // Parameters
-  Parameter timbre;
-  Parameter color;
-  Parameter cutoff;
-  Parameter resonance;
-  Parameter timbre_mod;
-  Parameter color_mod;
-  Parameter fm_mod;
-  Parameter master_volume;
-  Parameter env_attack;
-  Parameter env_release;
+  ExtParameter timbre;
+  ExtParameter color;
+  ExtParameter cutoff;
+  ExtParameter resonance;
+  ExtParameter timbre_mod;
+  ExtParameter color_mod;
+  ExtParameter fm_mod;
+  ExtParameter master_volume;
+  ExtParameter env_attack;
+  ExtParameter env_release;
   // Extra params
-  Parameter b1;
-  Parameter b2;
-  Parameter b3;
-  Parameter b4;
-  Parameter b5;
+  ExtParameter b1;
+  ExtParameter b2;
+  ExtParameter b3;
+  ExtParameter b4;
+  ExtParameter b5;
 
   // Mapped pots
   Parameter *A;
   Parameter *B;
   Parameter *C;
+
   volatile bool system_ready;
 };
 
@@ -185,27 +225,27 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW);
   gstate->encoder_status = NO_ACTION;
   gstate->controller_mode = CONTROLLER_BOTH;
-  gstate->timbre = ParameterNew(POT_A, MIDI_TIMBRE, 0.4f);
-  gstate->color = ParameterNew(POT_B, MIDI_COLOR, 0.3f);
-  gstate->cutoff = ParameterNew(POT_C, MIDI_CUTOFF, 0.5f);
-  gstate->resonance = ParameterNew(POT_B, MIDI_RESONANCE, 0.25f);
-  gstate->timbre_mod = ParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f);
-  gstate->color_mod = ParameterNew(POT_B, MIDI_COLOR_MOD, 0.f);
-  gstate->fm_mod = ParameterNew(POT_C, MIDI_FM_MOD, 0.f);
-  gstate->master_volume = ParameterNew(POT_A, MIDI_MASTER_VOL, 0.7f);
-  gstate->env_attack = ParameterNew(POT_A, MIDI_ATTACK, 0.009f);
-  gstate->env_release = ParameterNew(POT_B, MIDI_RELEASE, 0.01f);
+  gstate->timbre = ExtParameterNew(POT_A, MIDI_TIMBRE, 0.4f);
+  gstate->color = ExtParameterNew(POT_B, MIDI_COLOR, 0.3f);
+  gstate->cutoff = ExtParameterNew(POT_C, MIDI_CUTOFF, 0.5f);
+  gstate->resonance = ExtParameterNew(POT_B, MIDI_RESONANCE, 0.25f);
+  gstate->timbre_mod = ExtParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f);
+  gstate->color_mod = ExtParameterNew(POT_B, MIDI_COLOR_MOD, 0.f);
+  gstate->fm_mod = ExtParameterNew(POT_C, MIDI_FM_MOD, 0.f);
+  gstate->master_volume = ExtParameterNew(POT_A, MIDI_MASTER_VOL, 0.7f);
+  gstate->env_attack = ExtParameterNew(POT_A, MIDI_ATTACK, 0.009f);
+  gstate->env_release = ExtParameterNew(POT_B, MIDI_RELEASE, 0.01f);
 
-  gstate->b1 = ParameterNew(POT_B, MIDI_B1, 0.01f);
-  gstate->b2 = ParameterNew(POT_C, MIDI_B2, 0.01f);
-  gstate->b3 = ParameterNew(POT_C, MIDI_B3, 0.01f);
-  gstate->b4 = ParameterNew(POT_C, MIDI_B4, 0.01f);
-  gstate->b5 = ParameterNew(POT_C, MIDI_B5, 0.01f);
+  gstate->b1 = ExtParameterNew(POT_B, MIDI_B1, 0.01f);
+  gstate->b2 = ExtParameterNew(POT_C, MIDI_B2, 0.01f);
+  gstate->b3 = ExtParameterNew(POT_C, MIDI_B3, 0.01f);
+  gstate->b4 = ExtParameterNew(POT_C, MIDI_B4, 0.01f);
+  gstate->b5 = ExtParameterNew(POT_C, MIDI_B5, 0.01f);
 
 
-  gstate->A = &(gstate->timbre);
-  gstate->B = &(gstate->color);
-  gstate->C = &(gstate->cutoff);
+  gstate->A = (Parameter *)&(gstate->timbre);
+  gstate->B = (Parameter *)&(gstate->color);
+  gstate->C = (Parameter *)&(gstate->cutoff);
   gstate->system_ready = false;
 }
 
@@ -243,4 +283,34 @@ static inline void map_abc_pots(RuntimeState *gstate, Parameter *A, Parameter *B
   if (gstate->C = C) {
     gstate->C->gpio = POT_C;
   }
+}
+
+static inline void set_parameter_resolution(Parameter *param, ResolutionMode mode) {
+  param->resolution_mode = mode;
+}
+
+static inline void set_ext_param_resolution(ExtParameter *param, ResolutionMode mode) {
+  set_parameter_resolution((Parameter *)param, mode);
+  set_parameter_resolution(&(param->kinetic.damping), mode);
+  set_parameter_resolution(&(param->kinetic.stiffness), mode);
+  set_parameter_resolution(&(param->kinetic.velocity), mode);
+}
+
+
+static inline void set_all_resolution(RuntimeState *gstate, ResolutionMode mode) {
+  set_ext_param_resolution(&(gstate->timbre), mode);
+  set_ext_param_resolution(&(gstate->color), mode);
+  set_ext_param_resolution(&(gstate->cutoff), mode);
+  set_ext_param_resolution(&(gstate->resonance), mode);
+  set_ext_param_resolution(&(gstate->timbre_mod), mode);
+  set_ext_param_resolution(&(gstate->color_mod), mode);
+  set_ext_param_resolution(&(gstate->fm_mod), mode);
+  set_ext_param_resolution(&(gstate->master_volume), mode);
+  set_ext_param_resolution(&(gstate->env_attack), mode);
+  set_ext_param_resolution(&(gstate->env_release), mode);
+  set_ext_param_resolution(&(gstate->b1), mode);
+  set_ext_param_resolution(&(gstate->b2), mode);
+  set_ext_param_resolution(&(gstate->b3), mode);
+  set_ext_param_resolution(&(gstate->b4), mode);
+  set_ext_param_resolution(&(gstate->b5), mode);
 }

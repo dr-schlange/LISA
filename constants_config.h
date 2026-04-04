@@ -19,6 +19,10 @@ const char *const engine_names[] = {
 };
 constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
+const char *const modes[] = {
+  "normal", "kinetic", "attenuator"
+};
+
 #define DEBUG false
 
 

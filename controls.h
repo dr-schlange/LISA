@@ -48,27 +48,26 @@ static inline uint8_t peek_pot_quantized(Parameter *param, float smoothing_facto
   return (uint8_t)(param->smoothed * 127.f);
 }
 
+#define CLOSENESS 0.01f
+
 static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, float smoothing_factor) {
   if (param == NULL) {
     return;
   }
-  // float new_value = analogRead(param->gpio) / 1023.f;
-
-  // // smoothing the noise
-  // // 0.15f
-  // param->smoothed += (new_value - param->smoothed) * smoothing_factor;
-  // if (param->smoothed > 0.999f) param->smoothed = 1.0f;
-  // if (param->smoothed < 0.001f) param->smoothed = 0.0f;
-
-  // // quantizing for comparison
-  // uint8_t quantized = (uint8_t)(param->smoothed * 127.f);
 
   const uint8_t old_value = param->last_value;
 
-  // // quantizing for comparison
+  // quantizing for comparison
   uint8_t quantized = peek_pot_quantized(param, smoothing_factor);
   if (quantized != old_value) {
-    if (param->screen_locked) {
+    if (param->screen_locked && param->resolution_mode == RES_RAW) {
+      return;
+    }
+    if (param->screen_locked && param->resolution_mode == RES_CATCHUP) {
+      // catchup!
+      if (fabsf(param->smoothed - param->value) < CLOSENESS) {
+        param->screen_locked = false;
+      }
       return;
     }
     param->last_value = quantized;
@@ -77,11 +76,9 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
 
     // RAW
     set_parameter_(param, param->smoothed, mode);
-    midi_cc_forward_(param->midi_cc, quantized, gstate->midi_ch, mode);
-    // catchup!
-    // if (fabsf(smoothT - gstate->timbre_in) < 0.02f) {
-    //   gstate->timbre.locked = false;
-    // }
+    if (param->extended) {
+      midi_cc_forward_(((ExtParameter *)param)->midi_cc, quantized, gstate->midi_ch, mode);
+    }
   }
 
   SCHEDULE_REFRESH(gstate);

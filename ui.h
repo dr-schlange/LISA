@@ -241,42 +241,42 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   // General
   display.setCursor(12, 11);
   display.print("gnrl");
-  draw_param(54, 10, "vol", &(gstate->master_volume));
-  draw_param(79, 10, "b1", &(gstate->b1));
-  draw_param(104, 10, "b2", &(gstate->b2));
+  draw_param(54, 10, "vol", (Parameter *)&(gstate->master_volume));
+  draw_param(79, 10, "b1", (Parameter *)&(gstate->b1));
+  draw_param(104, 10, "b2", (Parameter *)&(gstate->b2));
 
   // timbre
   display.setCursor(12, 22);
   display.print("tmbr");
-  draw_param(54, 21, "amt", &(gstate->timbre));
-  draw_param(79, 21, "mod", &(gstate->timbre_mod));
-  draw_param(104, 21, "fm", &(gstate->fm_mod));
+  draw_param(54, 21, "amt", (Parameter *)&(gstate->timbre));
+  draw_param(79, 21, "mod", (Parameter *)&(gstate->timbre_mod));
+  draw_param(104, 21, "fm", (Parameter *)&(gstate->fm_mod));
 
   // color
   display.setCursor(12, 33);
   display.print("colr");
-  draw_param(54, 32, "amt", &(gstate->color));
-  draw_param(79, 32, "mod", &(gstate->color_mod));
-  draw_param(104, 32, "b3", &(gstate->b3));
+  draw_param(54, 32, "amt", (Parameter *)&(gstate->color));
+  draw_param(79, 32, "mod", (Parameter *)&(gstate->color_mod));
+  draw_param(104, 32, "b3", (Parameter *)&(gstate->b3));
 
   // filter
   display.setCursor(12, 44);
   display.print("fltr");
-  draw_param(54, 43, "ctf", &(gstate->cutoff));
-  draw_param(79, 43, "res", &(gstate->resonance));
-  draw_param(104, 43, "b4", &(gstate->b4));
+  draw_param(54, 43, "ctf", (Parameter *)&(gstate->cutoff));
+  draw_param(79, 43, "res", (Parameter *)&(gstate->resonance));
+  draw_param(104, 43, "b4", (Parameter *)&(gstate->b4));
 
   // Envelope
   display.setCursor(12, 54);
   display.print("envl");
-  draw_param(54, 54, "atk", &(gstate->env_attack));
-  draw_param(79, 54, "rel", &(gstate->env_release));
-  draw_param(104, 54, "b5", &(gstate->b5));
+  draw_param(54, 54, "atk", (Parameter *)&(gstate->env_attack));
+  draw_param(79, 54, "rel", (Parameter *)&(gstate->env_release));
+  draw_param(104, 54, "b5", (Parameter *)&(gstate->b5));
 
   display.display();
 }
 
-static inline void draw_global_settings(UIState *uistate) {
+static inline void draw_global_settings(UIState *uistate, RuntimeState *gstate) {
   display.clearDisplay();
   int16_t x1, y1;
   uint16_t w, h;
@@ -287,33 +287,29 @@ static inline void draw_global_settings(UIState *uistate) {
   display.setTextWrap(false);
   display.setCursor(30, 12);
   display.print("A");
+  display.setCursor(72, 12);
+  display.print(modes[gstate->timbre.mode]);
 
   display.setCursor(30, 23);
   display.print("B");
+  display.setCursor(72, 23);
+  display.print(modes[gstate->color.mode]);
 
   display.setCursor(30, 34);
   display.print("C");
+  display.setCursor(72, 34);
+  display.print(modes[gstate->cutoff.mode]);
 
   display.setCursor(12, 46);
   display.print("Mode");
-
   display.setCursor(72, 46);
-  display.print("both");
-
-  display.setCursor(72, 34);
-  display.print("normal");
-
-  display.setCursor(72, 23);
-  display.print("normal");
-
-  display.setCursor(72, 12);
-  display.print("normal");
+  display.print(gstate->timbre.resolution_mode == RES_CATCHUP ? "catchup" : "raw");
 
   display.display();
 }
 
 static inline bool some_parameter_changed(RuntimeState *gstate) {
-  Parameter *p = &(gstate->timbre);
+  Parameter *p = (Parameter *)&(gstate->timbre);
   for (int i = 0; i < 15; i++) {
     if (p[i].last_value != p[i].value) {
       return true;
@@ -321,7 +317,6 @@ static inline bool some_parameter_changed(RuntimeState *gstate) {
   }
   return false;
 }
-
 
 static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
   if (millis() - uistate->last_draw_time > SCREEN_REFRESH_TIME) {
@@ -358,7 +353,7 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
         break;
       case GLOBAL_SETTINGS:
         if (REFRESH_IS_SCHEDULED(gstate)) {
-          draw_global_settings(uistate);
+          draw_global_settings(uistate, gstate);
           gstate->engine_updated = false;
         }
         break;
@@ -389,7 +384,6 @@ static inline void saved_feedback(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
   }
 }
-
 
 static inline void scope_fill(UIState *uistate, float *mix, bool enabled) {
   static int scope_idx = 0;

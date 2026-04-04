@@ -20,11 +20,11 @@ Features added in **LISA**:
 - **MIDI Controller** Support to send MIDI controls via USB.
 - **MIDI Controller extended configuration** Allows to either repeat the value set by the buttons, or to only send values without interacting with the synth part.
 - **Advanced configuration** Access all synth parameter configuration and more with the physical buttons.
-- **Multiple MIDI/Physical button interaction** Support for 3 different modes of interaction between arriving MIDI messages and manually touching the knobs, configurable by knob:
+- **Multiple MIDI/Physical button interaction** Support for 2 different modes of interaction between arriving MIDI messages and manually touching the knobs, configurable by knob:
   - `raw mode`: the button and the MIDI CC value fights to make their value prioritary (first arrived first served).
-  - `catch-up mode`: the button stays "innactive" until the moment it reaches the value set by the MIDI CC value (planned).
-  - `attenuator-mode`: select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition (planned).
+  - `catch-up mode`: the button stays "innactive" until the moment it reaches the value set by the MIDI CC value.
 - **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated (planned).
+- **Attenuator Mode** Select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition (planned).
 - **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want with float precision in the message sent/received (planned).
 
 ## Menu System & UI 
