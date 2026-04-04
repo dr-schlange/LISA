@@ -118,8 +118,10 @@ void handle_control(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
   }
 
-  // Associate parameter compared to row
-  // Parameter *p1, *p2, *p3;
+  if (gstate->display_state == GLOBAL_SETTINGS && gstate->glob_settings_edit_param == NULL && glob_get_pot_mode(gstate) == POT_KINETIC) {
+    sync_all_kinetic_values(gstate);
+  }
+
   float p1_smooth_pot, p2_smooth_pot, p3_smooth_pot;
   if (gstate->display_state == ALL_PARAMS_MODE) {
     switch (gstate->pots_row_state) {

@@ -408,8 +408,14 @@ static inline ResolutionMode glob_get_res_mode(RuntimeState *gstate) {
 static inline void sync_all_kinetic_values(RuntimeState *gstate) {
   ExtParameter *p = &(gstate->timbre);
   for (uint8_t i = 1; i < ALL_PARAMETERS_NUM; i++) {
-    p[i].kinetic.velocity.value = p->kinetic.velocity.value;
-    p[i].kinetic.damping.value = p->kinetic.damping.value;
-    p[i].kinetic.stiffness.value = p->kinetic.stiffness.value;
+    if (!p->kinetic.velocity.screen_locked) {
+      p[i].kinetic.velocity.value = p->kinetic.velocity.value;
+    }
+    if (!p->kinetic.damping.screen_locked) {
+      p[i].kinetic.damping.value = p->kinetic.damping.value;
+    }
+    if (!p->kinetic.stiffness.screen_locked) {
+      p[i].kinetic.stiffness.value = p->kinetic.stiffness.value;
+    }
   }
 }

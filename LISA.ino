@@ -336,16 +336,6 @@ void handle_menu(RuntimeState *gstate) {
             } else {
               set_pot_mode(gstate, (PotMode)((((uint8_t)pot_mode) + step + POT_MODE_NUM) % POT_MODE_NUM));
             }
-            if (glob_get_pot_mode(gstate) == POT_KINETIC) {
-              if (main_parameter == NULL) {
-                map_abc_pots(gstate, &(gstate->timbre.kinetic.velocity), &(gstate->timbre.kinetic.damping), &(gstate->timbre.kinetic.stiffness));
-                lock_mapped_pots(gstate, true);
-                sync_all_kinetic_values(gstate);
-              } else {
-                map_abc_pots(gstate, &(main_parameter->kinetic.velocity), &(main_parameter->kinetic.damping), &(main_parameter->kinetic.stiffness));
-                lock_mapped_pots(gstate, true);
-              }
-            }
             break;
           case SETTING_EDIT_PARAMETER:
             if (param_offset + step >= ALL_PARAMETERS_NUM) {
@@ -359,6 +349,21 @@ void handle_menu(RuntimeState *gstate) {
           default:
             gstate->glob_settings_state = (GlobalSettings)((((uint8_t)gstate->glob_settings_state) + SETTING_NUM - step) % SETTING_NUM);
             break;
+        }
+        if (glob_get_pot_mode(gstate) == POT_KINETIC) {
+          if (gstate->glob_settings_edit_param == NULL) {
+            map_abc_pots(gstate,
+                         &(gstate->timbre.kinetic.velocity),
+                         &(gstate->timbre.kinetic.damping),
+                         &(gstate->timbre.kinetic.stiffness));
+            lock_mapped_pots(gstate, true);
+          } else {
+            map_abc_pots(gstate,
+                         &(gstate->glob_settings_edit_param->kinetic.velocity),
+                         &(gstate->glob_settings_edit_param->kinetic.damping),
+                         &(gstate->glob_settings_edit_param->kinetic.stiffness));
+            lock_mapped_pots(gstate, true);
+          }
         }
         break;
     }
@@ -381,11 +386,16 @@ void handle_menu(RuntimeState *gstate) {
       case GLOBAL_SETTINGS:
         gstate->display_state = ENGINE_SETTINGS_CONFIG;
         gstate->glob_settings_state = SETTING_PARAMETER;
+        lock_all_parameters(gstate, glob_get_res_mode(gstate) == RES_CATCHUP);
+        map_abc_pots(gstate,
+                     (Parameter *)&(gstate->timbre),
+                     (Parameter *)&(gstate->color),
+                     gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL);
         SCHEDULE_REFRESH(gstate);
         break;
       case ALL_PARAMS_MODE:
         gstate->display_state = OSCILLOSCOPE_MODE;
-        lock_all_parameters(gstate, false);
+        lock_all_parameters(gstate, glob_get_res_mode(gstate) == RES_CATCHUP);
         map_abc_pots(gstate,
                      (Parameter *)&(gstate->timbre),
                      (Parameter *)&(gstate->color),
