@@ -239,7 +239,7 @@ inline void load_settings(RuntimeState *gstate) {
 
 static inline bool setup_LittleFS() {
   bool fs_ready = false;
-  LittleFS.format();
+  // LittleFS.format();
   if (!LittleFS.begin()) {
     DEBUG_PRINTLN("LittleFS Mount Failed. Attempting to format...");
     LittleFS.format();
