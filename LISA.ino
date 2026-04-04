@@ -353,13 +353,13 @@ void handle_menu(RuntimeState *gstate) {
         if (glob_get_pot_mode(gstate) == POT_KINETIC) {
           if (gstate->glob_settings_edit_param == NULL) {
             map_abc_pots(gstate,
-                         &(gstate->timbre.kinetic.velocity),
+                         &(gstate->timbre.kinetic.mass),
                          &(gstate->timbre.kinetic.damping),
                          &(gstate->timbre.kinetic.stiffness));
             lock_mapped_pots(gstate, true);
           } else {
             map_abc_pots(gstate,
-                         &(gstate->glob_settings_edit_param->kinetic.velocity),
+                         &(gstate->glob_settings_edit_param->kinetic.mass),
                          &(gstate->glob_settings_edit_param->kinetic.damping),
                          &(gstate->glob_settings_edit_param->kinetic.stiffness));
             lock_mapped_pots(gstate, true);
@@ -381,6 +381,21 @@ void handle_menu(RuntimeState *gstate) {
         break;
       case ENGINE_SETTINGS_CONFIG:
         gstate->display_state = GLOBAL_SETTINGS;
+        if (glob_get_pot_mode(gstate) == POT_KINETIC) {
+          if (gstate->glob_settings_edit_param == NULL) {
+            map_abc_pots(gstate,
+                         &(gstate->timbre.kinetic.mass),
+                         &(gstate->timbre.kinetic.damping),
+                         &(gstate->timbre.kinetic.stiffness));
+            lock_mapped_pots(gstate, true);
+          } else {
+            map_abc_pots(gstate,
+                         &(gstate->glob_settings_edit_param->kinetic.mass),
+                         &(gstate->glob_settings_edit_param->kinetic.damping),
+                         &(gstate->glob_settings_edit_param->kinetic.stiffness));
+            lock_mapped_pots(gstate, true);
+          }
+        }
         SCHEDULE_REFRESH(gstate);
         break;
       case GLOBAL_SETTINGS:

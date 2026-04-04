@@ -55,11 +55,9 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
     return;
   }
 
-  const uint8_t old_value = param->last_value;
-
   // quantizing for comparison
   uint8_t quantized = peek_pot_quantized(param, smoothing_factor);
-  if (quantized != old_value) {
+  if (quantized != param->last_value) {
     if (param->screen_locked && param->resolution_mode == RES_RAW) {
       return;
     }
@@ -72,6 +70,16 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
     }
     param->last_value = quantized;
 
+    // Kinetic movement
+    if (param->extended && ((ExtParameter *)param)->mode == POT_KINETIC) {
+      ExtParameter *p = (ExtParameter *)param;
+      float diff = (param->smoothed - p->kinetic.last_pos) * 20.f;
+      p->kinetic.velocity += diff;
+      p->kinetic.last_pos = param->smoothed;
+      p->kinetic.last_move_time = millis();
+      param->value = param->smoothed;
+    }
+
     const MidiControllerMode mode = gstate->controller_mode;
 
     // RAW
@@ -82,6 +90,56 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
   }
 
   SCHEDULE_REFRESH(gstate);
+}
+
+static inline void update_kinetic_physics(RuntimeState *gstate, ExtParameter *param) {
+  if (param->mode != POT_KINETIC) return;
+  unsigned long now = micros();
+  if (millis() - param->kinetic.last_move_time < 30) {
+    param->kinetic.last_update_time = now;
+    return;
+  }
+
+  // Compute dt
+  float dt = (now - param->kinetic.last_update_time) / 1000000.f;
+  param->kinetic.last_update_time = now;
+
+  if (dt <= 0.f || dt > 0.1f) return;
+
+  float k = param->kinetic.stiffness.value * 100.f;
+  float c = param->kinetic.damping.value * 2.5f;
+  float m = 0.01f + (param->kinetic.mass.value * 0.5f);
+
+  // Compute spring force & damping
+  float error = param->smoothed - param->value;
+  float spring_force = error * k;
+  float damping_force = -param->kinetic.velocity * c;
+
+  // Acceleration (a = F / m)
+  float acceleration = (spring_force + damping_force) / m;
+
+  // Euler integration
+  param->kinetic.velocity += acceleration * dt;
+  float next_value = param->value + (param->kinetic.velocity * dt);
+
+  if (next_value > 1.0f) {
+    next_value = 1.0f;
+    param->kinetic.velocity *= -0.2f;  // potential bounce against the limit
+  } else if (next_value < 0.0f) {
+    next_value = 0.0f;
+    param->kinetic.velocity *= -0.2f;  // potential bounce against the limit
+  }
+  param->value = next_value;
+
+
+  // Update the value if needed
+  if (fabsf(param->kinetic.velocity) > 0.0001f || fabsf(error) > 0.0001f) {
+    set_parameter_((Parameter *)param, param->value, gstate->controller_mode);
+    midi_cc_forward_(param->midi_cc, (uint8_t)(param->value * 127.f), gstate->midi_ch, gstate->controller_mode);
+  } else {
+    param->value = param->smoothed;
+    param->kinetic.velocity = 0;
+  }
 }
 
 #define SMOOTH_POT 0.06f
@@ -120,6 +178,15 @@ void handle_control(RuntimeState *gstate) {
 
   if (gstate->display_state == GLOBAL_SETTINGS && gstate->glob_settings_edit_param == NULL && glob_get_pot_mode(gstate) == POT_KINETIC) {
     sync_all_kinetic_values(gstate);
+  }
+
+  if (gstate->display_state != GLOBAL_SETTINGS) {
+    ExtParameter *p = &(gstate->timbre);
+    for (int i = 0; i < ALL_PARAMETERS_NUM; i++) {
+      if (p[i].mode == POT_KINETIC) {
+        update_kinetic_physics(gstate, &p[i]);
+      }
+    }
   }
 
   float p1_smooth_pot, p2_smooth_pot, p3_smooth_pot;

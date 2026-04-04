@@ -331,7 +331,7 @@ static inline void draw_global_settings(UIState *uistate, RuntimeState *gstate) 
   if (pot_mode == POT_KINETIC) {
     ExtParameter *param = gstate->glob_settings_edit_param;
     if (param == NULL) {
-      draw_param(14 + 10, 44, "vel", (Parameter *)&(gstate->timbre.kinetic.velocity));
+      draw_param(14 + 10, 44, "mas", (Parameter *)&(gstate->timbre.kinetic.mass));
       display.setCursor(20 + 10, 55);
       display.print("A");
       draw_param(43 + 10, 44, "dmp", (Parameter *)&(gstate->timbre.kinetic.damping));
@@ -339,9 +339,9 @@ static inline void draw_global_settings(UIState *uistate, RuntimeState *gstate) 
       display.print("B");
       draw_param(72 + 10, 44, "stf", (Parameter *)&(gstate->timbre.kinetic.stiffness));
       display.setCursor(78 + 10, 55);
-      display.print("C"); 
+      display.print("C");
     } else {
-      draw_param(14 + 10, 44, "vel", (Parameter *)&(param->kinetic.velocity));
+      draw_param(14 + 10, 44, "mas", (Parameter *)&(param->kinetic.mass));
       display.setCursor(20 + 10, 55);
       display.print("A");
       draw_param(43 + 10, 44, "dmp", (Parameter *)&(param->kinetic.damping));

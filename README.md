@@ -23,7 +23,7 @@ Features added in **LISA**:
 - **Multiple MIDI/Physical button interaction** Support for 2 different modes of interaction between arriving MIDI messages and manually touching the knobs, configurable by knob:
   - `raw mode`: the button and the MIDI CC value fights to make their value prioritary (first arrived first served).
   - `catch-up mode`: the button stays "innactive" until the moment it reaches the value set by the MIDI CC value.
-- **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated (planned).
+- **Kinetic Controls** Support for a "friction" and "elasticity" on buttons to send MIDI values that oscillate and damp themselves when huge movements are operated.
 - **Attenuator Mode** Select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition (planned).
 - **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want with float precision in the message sent/received (planned).
 
@@ -58,7 +58,16 @@ There is 2 additional displays which are accessible with a double press of the e
         1. Rotate the encoder to select your engine.
         1. Press the encoder again to go back to the row selection.    
 2. **GLOBAL SETTINGS** display (double press from the **ENGINE SELECT** or **SETTINGS** display): that brings you to the general synth settings where you can configure the behavior of some buttons (type of conflict resolution between pots and MIDI messages, etc).
-    1. WIP
+    1. Rotate the encoder to select a parameter row:
+      1. `param` is the synth parameter to edit. `ALL` represents modifications that are applied to all parameters. If a single parameter is selected, this parameter will be impacted by the other rows, but not all the parameters.
+      1. `resol` is the resolution policy on arriving messages. By default `catchup` is selected, can be set to `raw`.
+      1. `mode` is the mode for the parameter, it can be `kinetic` or `normal` (default is `normal`).
+    1. Press the encoder to modify the selected parameter.
+    1. Double press the encoder to come back to the **SETTINGS** of the engine.
+    1. [**KINETIC MODE**] When `kinetic` mode is activated, 3 new parameters appears in the bottom on the screen. Those parameters are automatically mapped to the 3 potentiometers and represent:
+      - `mas`: the **mass** of the potentiometer cursor (going towards 100% means higher amplitude oscillation),
+      - `dmp`: the **damping** of the damping factor of the sprint (going towards 100% damps the oscillation),
+      - `stf`: the **stiffness** of the spring (going towards 100% oscillation become like a pendulum, almost LFO),
 
 \* At this point, if you are in `CATCHUP` resolution mode (default mode), the levels will stay put until you move the related pot close from the parameter recorded value.
 \* At this point, if you are in `RAW` resolution mode, the levels will adujst with the values of the pots! Use this feature to quickly prepare new values for your row and jump to the values when pressing the encoder.

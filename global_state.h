@@ -93,9 +93,13 @@ struct ExtParameter {
   bool locked;
   union {
     struct {
-      Parameter velocity;
+      Parameter mass;
       Parameter damping;
       Parameter stiffness;
+      float last_pos;
+      float velocity;
+      unsigned long last_update_time;
+      unsigned long last_move_time;
     } kinetic;
     struct {
       Parameter min;
@@ -118,33 +122,37 @@ struct ExtParameter {
     .midi_cc = midi_cc_, \
     .locked = false, \
     .kinetic = { \
-      .velocity = { \
+      .mass = { \
         .extended = false, \
-        .value = 0, \
-        .last_value = 0, \
-        .smoothed = 0, \
+        .value = 0.2f, \
+        .last_value = (uint8_t)0.2f, \
+        .smoothed = 0.2f, \
         .gpio = gpio_, \
         .screen_locked = false, \
         .resolution_mode = RES_CATCHUP, \
       }, \
       .damping = { \
         .extended = false, \
-        .value = 0.5, \
-        .last_value = (uint8_t)0.5, \
-        .smoothed = 0.5, \
+        .value = 0.4f, \
+        .last_value = (uint8_t)0.4, \
+        .smoothed = 0.4f, \
         .gpio = gpio_, \
         .screen_locked = false, \
         .resolution_mode = RES_CATCHUP, \
       }, \
       .stiffness = { \
         .extended = false, \
-        .value = 1, \
-        .last_value = 1, \
-        .smoothed = 1, \
+        .value = 0.4f, \
+        .last_value = (uint8_t)0.4f, \
+        .smoothed = 0.4f, \
         .gpio = gpio_, \
         .screen_locked = false, \
         .resolution_mode = RES_CATCHUP, \
-      } \
+      }, \
+      .last_pos = 0.f, \
+      .velocity = 0.f, \
+      .last_update_time = 0, \
+      .last_move_time = 0, \
     } \
   }
 
@@ -319,7 +327,7 @@ static inline void set_ext_param_resolution(ExtParameter *param, ResolutionMode 
   set_parameter_resolution((Parameter *)param, mode);
   set_parameter_resolution(&(param->kinetic.damping), mode);
   set_parameter_resolution(&(param->kinetic.stiffness), mode);
-  set_parameter_resolution(&(param->kinetic.velocity), mode);
+  set_parameter_resolution(&(param->kinetic.mass), mode);
 }
 
 
@@ -408,8 +416,8 @@ static inline ResolutionMode glob_get_res_mode(RuntimeState *gstate) {
 static inline void sync_all_kinetic_values(RuntimeState *gstate) {
   ExtParameter *p = &(gstate->timbre);
   for (uint8_t i = 1; i < ALL_PARAMETERS_NUM; i++) {
-    if (!p->kinetic.velocity.screen_locked) {
-      p[i].kinetic.velocity.value = p->kinetic.velocity.value;
+    if (!p->kinetic.mass.screen_locked) {
+        p[i].kinetic.mass.value = p->kinetic.mass.value;
     }
     if (!p->kinetic.damping.screen_locked) {
       p[i].kinetic.damping.value = p->kinetic.damping.value;
