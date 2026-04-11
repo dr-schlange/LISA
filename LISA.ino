@@ -223,6 +223,7 @@ void handle_menu(RuntimeState *gstate) {
     switch (gstate->display_state) {
       case ENGINE_SELECT_MODE:
         gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
+        send_midi_cc(MIDI_ENGINE_SEL, gstate->engine_idx, gstate->midi_ch);
         SCHEDULE_REFRESH(gstate);
         break;
 
