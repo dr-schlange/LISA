@@ -86,12 +86,19 @@ void __not_in_flash_func(update_audio)() {
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
 
-  static float attackCoef = 0.f;
+  static float attackCoef  = 0.f;
   static float releaseCoef = 0.f;
-  if (runtime_state.env_params_changed) {
-    attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_attack.value));
-    releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * runtime_state.env_release.value));
-    runtime_state.env_params_changed = false;
+  static float last_atk    = -1.f;
+  static float last_rel    = -1.f;
+  float atk = runtime_state.env_attack.value;
+  float rel = runtime_state.env_release.value;
+  if (atk != last_atk) {
+    attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
+    last_atk = atk;
+  }
+  if (rel != last_rel) {
+    releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
+    last_rel = rel;
   }
 
   float mix[AUDIO_BLOCK] = { 0 };
@@ -226,11 +233,9 @@ void handle_menu(RuntimeState *gstate) {
             break;
           case ATTACK_ADJUST:
             gstate->env_attack.value = constrain(gstate->env_attack.value + step * 0.01f, 0.001f, 1.f);
-            gstate->env_params_changed = true;
             break;
           case RELEASE_ADJUST:
             gstate->env_release.value = constrain(gstate->env_release.value + step * 0.01f, 0.01f, 2.f);
-            gstate->env_params_changed = true;
             break;
           case FILTER_TOGGLE:
             gstate->filter_enabled = !gstate->filter_enabled;

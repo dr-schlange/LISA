@@ -137,6 +137,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     int i = find_free_voice(voices);
     voices[i].pitch = pitch_or_cc;
     voices[i].velocity = cc_value / 127.f;
+    voices[i].env = 0.f;
     voices[i].active = true;
     voices[i].age = global_age++;
     return;

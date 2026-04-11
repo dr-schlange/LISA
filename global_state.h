@@ -179,7 +179,6 @@ struct RuntimeState {
   ExtParameter *glob_settings_edit_param;
 
   bool engine_updated;
-  volatile bool env_params_changed;
   unsigned long last_param_change;
 
   volatile bool midi_enabled;
@@ -243,7 +242,6 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->pots_row_state = ROW_GENERAL;
   gstate->glob_settings_state = SETTING_PARAMETER;
   gstate->engine_updated = true;
-  gstate->env_params_changed = true;
   gstate->last_param_change = 0;
   gstate->midi_enabled = true;
   gstate->cv_mod1_enabled = false;
