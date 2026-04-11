@@ -86,10 +86,10 @@ void __not_in_flash_func(update_audio)() {
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
 
-  static float attackCoef  = 0.f;
+  static float attackCoef = 0.f;
   static float releaseCoef = 0.f;
-  static float last_atk    = -1.f;
-  static float last_rel    = -1.f;
+  static float last_atk = -1.f;
+  static float last_rel = -1.f;
   float atk = runtime_state.env_attack.value;
   float rel = runtime_state.env_release.value;
   if (atk != last_atk) {
@@ -223,7 +223,7 @@ void handle_menu(RuntimeState *gstate) {
     switch (gstate->display_state) {
       case ENGINE_SELECT_MODE:
         gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
-        send_midi_cc(MIDI_ENGINE_SEL, gstate->engine_idx, gstate->midi_ch);
+        send_midi_cc(MIDI_ENGINE_SEL, (uint8_t)((gstate->engine_idx * 127.f) / (NUM_ENGINES - 1)), gstate->midi_ch);
         SCHEDULE_REFRESH(gstate);
         break;
 
