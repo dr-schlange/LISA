@@ -10,9 +10,11 @@
 #include <pico/stdlib.h>
 #include <BRAIDS.h>
 #include "constants_config.h"
+#include "wavetable_streaming.h"
 
 struct Voice {
-  braids::MacroOscillator osc;
+  // braids::MacroOscillator osc;
+  WavetableStreamingOscillator osc;
   int pitch;
   float velocity;
   float vel_smoothed;

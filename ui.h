@@ -11,6 +11,8 @@
 #include <Wire.h>
 #include "global_state.h"
 #include "constants_config.h"
+#include "wavetable_streaming.h"
+#include "braids/settings.h"
 
 #if SSD1306
 #include <Adafruit_SSD1306.h>
@@ -128,6 +130,58 @@ inline void draw_scope(UIState *uistate) {
     if (y1 < 0) y1 = 0;
     if (y1 > 63) y1 = 63;
     if (y2 < 0) y2 = 0;
+    if (y2 > 63) y2 = 63;
+    display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
+  }
+
+  display.display();
+  uistate->scope_ready = false;
+}
+
+inline void draw_live_scope(UIState *uistate) {
+  if (!uistate->scope_ready) return;
+  display.clearDisplay();
+
+  // Upper half
+  uint8_t bufs[4][129];
+  WavetableStreamingOscillator::CopyBuffers(bufs);
+  uint8_t wbuf = WavetableStreamingOscillator::GetWriteBuf();
+  uint8_t wpos = WavetableStreamingOscillator::GetWritePos();
+
+  for (int b = 0; b < 4; b++) {
+    int xoff = b * 32;
+    for (int i = 0; i < 31; i++) {
+      // 128 samples for 32 pixels
+      int16_t y1 = 30 - (int16_t)((uint16_t)bufs[b][i * 4] * 30 / 255);
+      int16_t y2 = 30 - (int16_t)((uint16_t)bufs[b][(i + 1) * 4] * 30 / 255);
+      display.drawLine(xoff + i, y1, xoff + i + 1, y2, SCREEN_WHITE);
+    }
+  }
+
+  const uint8_t dash_height = 3;
+  const uint8_t gap_height = 3;
+  const uint8_t line_length = 32;
+  for (int b = 1; b < 4; b++) {
+    for (int y = 0; y < 32; y += (dash_height + gap_height)) {
+      int16_t current_dash = min(dash_height, line_length - y);
+      display.drawFastVLine(b * 32, y, current_dash, SCREEN_WHITE);
+    }
+  }
+
+  // Write-head cursor
+  int wx = wbuf * 32 + (wpos / 4);
+  display.drawPixel(wx, 0, SCREEN_WHITE);
+  display.drawPixel(wx, 1, SCREEN_WHITE);
+
+  // Lower half
+  const float midY = 48.0f;
+  const float gain = 75.0f;
+  for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
+    int16_t y1 = (int16_t)(midY - uistate->scope_buffer_back[i] * gain);
+    int16_t y2 = (int16_t)(midY - uistate->scope_buffer_back[i + 1] * gain);
+    if (y1 < 32) y1 = 32;
+    if (y1 > 63) y1 = 63;
+    if (y2 < 32) y2 = 32;
     if (y2 > 63) y2 = 63;
     display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
   }
@@ -290,7 +344,7 @@ static inline void draw_global_settings(UIState *uistate, RuntimeState *gstate) 
   display.setTextWrap(false);
 
   // Pointer
-  display.setCursor(1 + (col_offset * 59), (row) * 11);
+  display.setCursor(1 + (col_offset * 59), (row)*11);
   display.print(">");
 
   // Parameter
@@ -383,7 +437,10 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
     }
     switch (gstate->display_state) {
       case OSCILLOSCOPE_MODE:
-        draw_scope(uistate);
+        if (gstate->engine_idx >= braids::MACRO_OSC_SHAPE_LAST)
+          draw_live_scope(uistate);
+        else
+          draw_scope(uistate);
         break;
       case ENGINE_SELECT_MODE:
       case ENGINE_SETTINGS_CONFIG:

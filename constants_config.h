@@ -15,7 +15,7 @@ const char *const engine_names[] = {
   "ZBPF", "ZHPF", "VOSM", "VOWL", "VFOF", "HARM", "-FM-", "FBFM", "WTFM",
   "PLUK", "BOWD", "BLOW", "FLUT", "BELL", "DRUM", "KICK", "CYMB", "SNAR",
   "WTBL", "WMAP", "WLIN", "WTx4", "NOIS", "TWNQ", "CLKN", "CLOU", "PRTC",
-  "QPSK", "????"
+  "QPSK", "????", "LIVE"
 };
 constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
@@ -57,11 +57,16 @@ const char *const modes[] = {
 #define MIDI_FM_MOD 15
 #define MIDI_TIMBRE_MOD 16
 #define MIDI_COLOR_MOD 17
-#define MIDI_B1 120
-#define MIDI_B2 121
-#define MIDI_B3 122
-#define MIDI_B4 123
-#define MIDI_B5 124
+#define MIDI_B1 100
+#define MIDI_B2 101
+#define MIDI_B3 102
+#define MIDI_B4 103
+#define MIDI_B5 104
+#define MIDI_WT_CAPTURE_MODE 122
+#define MIDI_WT_FREEZE 123
+#define MIDI_WT_RETRIGGER 124
+#define MIDI_WT_PHASE_OFFSET 125
+#define MIDI_WT_PHASE_RESET 126
 #define MIDI_DEV 127
 
 

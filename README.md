@@ -1,6 +1,7 @@
 # LISA synthesizer
 
-LISA is a small semi-modular synthesizer and configurable kinetic MIDI controller for Raspberry PICO. The synthesizer and MIDI controller are standalone, but gain extended capabilities and flexibility when paired with [Nallely](https://github.com/dr-schlange/nallely-midi) (e.g: LFOs, sequencers, sensors interactions, ...).
+LISA is a small semi-modular wavetable synthesizer and configurable kinetic MIDI controller for Raspberry PICO with live dynamic wavetable synthesis.
+The synthesizer and MIDI controller are standalone, but gain extended capabilities and flexibility when paired with [Nallely](https://github.com/dr-schlange/nallely-midi) (e.g: LFOs, sequencers, sensors interactions, ...).
 
 LISA is a hard-fork of the [VIJA synthesizer v1.0.2](https://github.com/ledlaux/vija-pico-synth/releases/tag/v.1.0.2) for Raspberry PICO created by [Vadims Maksimovs](https://github.com/ledlaux). The original version is based on the port of the [Mutable Instruments Braids](https://github.com/poetaster/BRAIDS) macro oscillator.
 
@@ -104,36 +105,45 @@ There is 2 additional displays which are accessible with a double press of the e
 
 LISA responds to the following Control Change (CC) messages on the selected MIDI Channel:
 
-| CC #    | Parameter                                              |
-| :------ | :----------------------------------------------------- |
-| **7**   | Master Volume                                          |
-| **8**   | Engine Select                                          |
-| **9**   | Timbre                                                 |
-| **10**  | Color                                                  |
-| **11**  | Envelope Attack                                        |
-| **12**  | Envelope Release                                       |
-| **15**  | FM Modulation                                          |
-| **16**  | Timbre Modulation Amount                               |
-| **17**  | Color Modulation Amount                                |
-| **64**  | Sustain (Hold notes)                                   |
-| **71**  | Filter Resonance                                       |
-| **74**  | Filter Cutoff                                          |
-| **120** | b1 (send CC only)                                      |
-| **121** | b2 (send CC only)                                      |
-| **122** | b3 (send CC only)                                      |
-| **123** | b4 (send CC only)                                      |
-| **124** | b5 (send CC only)                                      |
-| **127** | Reset USB to upload from IDE (WARNING: for dev mode)\* |
+| CC #          | Parameter                                              |
+| :------------ | :----------------------------------------------------- |
+| **7**         | Master Volume                                          |
+| **8**         | Engine Select                                          |
+| **9**         | Timbre                                                 |
+| **10**        | Color                                                  |
+| **11**        | Envelope Attack                                        |
+| **12**        | Envelope Release                                       |
+| **15**        | FM Modulation                                          |
+| **16**        | Timbre Modulation Amount                               |
+| **17**        | Color Modulation Amount                                |
+| **64**        | Sustain (Hold notes)                                   |
+| **71**        | Filter Resonance                                       |
+| **74**        | Filter Cutoff                                          |
+| **100**       | b1 (send CC only)                                      |
+| **101**       | b2 (send CC only)                                      |
+| **102**       | b3 (send CC only)                                      |
+| **103**       | b4 (send CC only)                                      |
+| **104**       | b5 (send CC only)                                      |
+| **122**       | Changes the wavetable write mode (\*\*)                |
+| **123**       | Freezes the current wavetables (\*\*)                  |
+| **124**       | Activates phase reset on note strike (\*\*)            |
+| **125**       | Add an offset to the phase (\*\*)                      |
+| **126**       | Reset the watetable phase (\*\*)                       |
+| **pitchweel** | Streams a waveform for the live wavetetable engine     |
+| **127**       | Reset USB to upload from IDE (WARNING: for dev mode)\* |
 
-CC#120-124 are sent by the button B or C depending on the row you are located in the **ALL PARAMETERS** mode. 
+CC#100-104 are sent by the button B or C depending on the row you are located in the **ALL PARAMETERS** mode. 
 They are sent CCs that are here mainly to provide extra actions to LISA used as a MIDI controller in general, and can achieve internal rewiring if used with Nallely.
 
 In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely session, and you can reroute them also on other LISA's parameters (you can map `b1` on the `cutoff` for example).
+
 
 \* Note: in `dev mode`, CC#127 have 2 specific values it can use:
 
 - 127 -> resets the USB stack and sets the device in "receiving" mode to flash another firmware
 - 126 -> resets LISA (app reset)
+
+\*\* Note: those CCs are only used by the live wavetable engine (`LIVE`). 
 
 ## Software Setup
 

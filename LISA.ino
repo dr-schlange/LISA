@@ -77,12 +77,15 @@ static braids::Svf global_filter;
 void __not_in_flash_func(update_audio)() {
 
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
-    braids::MacroOscillatorShape shape =
-      (braids::MacroOscillatorShape)runtime_state.engine_idx;
-
-    for (int v = 0; v < MAX_VOICES; v++)
-      voices[v].osc.set_shape(shape);
-
+    bool use_streaming = (runtime_state.engine_idx >= braids::MACRO_OSC_SHAPE_LAST);
+    for (int v = 0; v < MAX_VOICES; v++) {
+      voices[v].osc.set_live_mode(use_streaming);
+      if (!use_streaming) {
+        braids::MacroOscillatorShape shape =
+          (braids::MacroOscillatorShape)runtime_state.engine_idx;
+        voices[v].osc.set_shape(shape);
+      }
+    }
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
 

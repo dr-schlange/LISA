@@ -15,6 +15,7 @@
 #define IS_MIDI_NOTE_OFF(status, value) (((status & 0xF0) == 0x80) || ((status & 0xF0) == 0x90 && value == 0))
 #define IS_MIDI_NOTE_ON(status) ((status & 0xF0) == 0x90)
 #define IS_MIDI_CC(status) ((status & 0xF0) == 0xB0)
+#define IS_MIDI_PITCHWHEEL(status) ((status & 0xF0) == 0xE0)
 
 
 
@@ -184,8 +185,29 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         if (cc_value == 127) reset_usb_boot(0, 0);
         if (cc_value == 126) watchdog_reboot(0, 0, 0);
         break;
+      case MIDI_WT_CAPTURE_MODE:
+        WavetableStreamingOscillator::setCaptureMode(
+          (WavetableStreamingOscillator::CaptureMode)constrain(cc_value / 25, 0, WavetableStreamingOscillator::CAPTURE_NUMBER - 1));
+        break;
+      case MIDI_WT_RETRIGGER:
+        WavetableStreamingOscillator::setRetrigger(cc_value >= 64);
+        break;
+      case MIDI_WT_PHASE_OFFSET:
+        WavetableStreamingOscillator::setPhaseOffset((int32_t)(cc_value - 64) << 25);
+        break;
+      case MIDI_WT_PHASE_RESET:
+        for (uint8_t i = 0; i < MAX_VOICES; i++) {
+          voices[i].osc.reset_phase();
+        }
+        break;
+      case MIDI_WT_FREEZE:
+        WavetableStreamingOscillator::freezeBuffers(cc_value >= 64);
+        break;
     }
     SCHEDULE_REFRESH(gstate);
     gstate->last_param_change = millis();
+  } else if (IS_MIDI_PITCHWHEEL(status)) {
+    uint16_t raw = ((uint16_t)cc_value << 7) | pitch_or_cc;  // 0–16383
+    WavetableStreamingOscillator::PushSample(raw >> 6);      // 0–255
   }
 }

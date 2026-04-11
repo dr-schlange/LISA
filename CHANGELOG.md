@@ -12,3 +12,4 @@ First LISA release since fork from Vija v1.0.2
 * Add parameter/potentiometer configuration
 * Add new config parameter save & load
 * Add MIDI controller mode
+* Add live dynamic wavetable mode
