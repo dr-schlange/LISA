@@ -16,12 +16,13 @@ using namespace stmlib;
 class WavetableStreamingOscillator : public braids::MacroOscillator {
 public:
   enum CaptureMode : uint8_t {
-    CAPTURE_FORWARD = 0,   // fill 0 to 127
-    CAPTURE_REVERSE,       // fill 127 to 0
-    CAPTURE_ROLLING,       // always most recent 128 samples on buffer 0
-    CAPTURE_REV_FORWARD,   // fill 127 to 0, going forward on buffers
-    CAPTURE_FOR_BACKWARD,  // fill 0 to 127, going backward on buffers
-    CAPTURE_NUMBER,        // always most recent 128 samples on buffer 0
+    CAPTURE_FORWARD = 0,       // fill 0 to 127
+    CAPTURE_REVERSE,           // fill 127 to 0
+    CAPTURE_ROLLING,           // always most recent 128 samples on buffer 0
+    CAPTURE_REV_FORWARD,       // fill 127 to 0, going forward on buffers
+    CAPTURE_FOR_BACKWARD,      // fill 0 to 127, going backward on buffers
+    CAPTURE_ROLLING_BACKWARD,  // always most recent 128 samples on buffer 0 write in reverse
+    CAPTURE_NUMBER,
   };
   inline void Init(float sr) {
     braids::MacroOscillator::Init(sr);
@@ -81,7 +82,7 @@ public:
     // Color (p2): one-pole lowpass
     // Floor at 256 to keep the cutoff above more or less 40Hz
     int32_t t = 32767 - p2_;
-    int32_t lp_coeff = t * t >> 15;      // 32766→0, squared
+    int32_t lp_coeff = t * t >> 15;      // 32766 to 0, squared
     if (lp_coeff < 256) lp_coeff = 256;  // floor around 40Hz at 32kHz
 
     uint32_t phase_increment = ComputePhaseIncrement(pitch_) >> 1;
@@ -117,8 +118,9 @@ public:
     uint8_t buf = write_buf_;
     buffers_[buf][pos] = value;
 
-    if (capture_mode_ == CAPTURE_ROLLING) {
-      write_pos_ = (pos + 1) & 0x7f;  // ring stays in buffer 0, wraps 0-127
+    if (capture_mode_ == CAPTURE_ROLLING || capture_mode_ == CAPTURE_ROLLING_BACKWARD) {
+      uint8_t direction = capture_mode_ == CAPTURE_ROLLING_BACKWARD ? -1 : 1;
+      write_pos_ = (pos + direction) & 0x7f;  // ring stays in buffer 0, wraps 0-127
       buffers_[0][128] = buffers_[0][0];
       return;
     }
@@ -167,7 +169,7 @@ public:
   inline static void setCaptureMode(CaptureMode mode) {
     capture_mode_ = mode;
     write_buf_ = 0;
-    write_pos_ = (mode == CAPTURE_REVERSE || mode == CAPTURE_REV_FORWARD) ? 127 : 0;
+    write_pos_ = (mode == CAPTURE_REVERSE || mode == CAPTURE_REV_FORWARD || mode == CAPTURE_ROLLING_BACKWARD) ? 127 : 0;
   }
   inline static CaptureMode getCaptureMode() {
     return capture_mode_;

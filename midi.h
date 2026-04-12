@@ -187,7 +187,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         break;
       case MIDI_WT_CAPTURE_MODE:
         WavetableStreamingOscillator::setCaptureMode(
-          (WavetableStreamingOscillator::CaptureMode)constrain(cc_value / 25, 0, WavetableStreamingOscillator::CAPTURE_NUMBER - 1));
+          (WavetableStreamingOscillator::CaptureMode)constrain(((int)cc_value * WavetableStreamingOscillator::CAPTURE_NUMBER + 63) / 127, 0, WavetableStreamingOscillator::CAPTURE_NUMBER - 1));
         break;
       case MIDI_WT_RETRIGGER:
         WavetableStreamingOscillator::setRetrigger(cc_value >= 64);
