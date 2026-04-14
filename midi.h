@@ -1,3 +1,4 @@
+#include "wavetable_streaming.h"
 /*
   LISA (v0.0.1)
 
@@ -16,7 +17,7 @@
 #define IS_MIDI_NOTE_ON(status) ((status & 0xF0) == 0x90)
 #define IS_MIDI_CC(status) ((status & 0xF0) == 0xB0)
 #define IS_MIDI_PITCHWHEEL(status) ((status & 0xF0) == 0xE0)
-
+#define MIDI_CHANNEL(status) (status & 0x0F)
 
 
 static Adafruit_USBD_MIDI usb_midi;
@@ -102,7 +103,17 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
 
   if (!has_msg) return;
   if ((status & 0x80) == 0) return;
-  if ((status & 0x0F) != (gstate->midi_ch - 1)) return;
+  // Special case for MIDI channel and pitchwheel
+  if (WavetableStreamingOscillator::getCaptureMode() == WavetableStreamingOscillator::CAPTURE_INDEPENDENT_BUFFER 
+      && IS_MIDI_PITCHWHEEL(status) 
+      && MIDI_CHANNEL(status) >= 0 
+      && MIDI_CHANNEL(status) <= 3)
+  {
+    uint16_t raw = ((uint16_t)cc_value << 7) | pitch_or_cc;  // 0–16383
+    WavetableStreamingOscillator::PushSampleInBuffer(raw >> 6, MIDI_CHANNEL(status));      // 0–255
+    return;
+  }
+  if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1)) return;
 
   // --- Special CC64 sustain handling ---
   if (IS_MIDI_CC(status) && pitch_or_cc == 64) {

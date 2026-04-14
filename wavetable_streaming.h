@@ -16,12 +16,13 @@ using namespace stmlib;
 class WavetableStreamingOscillator : public braids::MacroOscillator {
 public:
   enum CaptureMode : uint8_t {
-    CAPTURE_FORWARD = 0,       // fill 0 to 127
-    CAPTURE_REVERSE,           // fill 127 to 0
-    CAPTURE_ROLLING,           // always most recent 128 samples on buffer 0
-    CAPTURE_REV_FORWARD,       // fill 127 to 0, going forward on buffers
-    CAPTURE_FOR_BACKWARD,      // fill 0 to 127, going backward on buffers
-    CAPTURE_ROLLING_BACKWARD,  // always most recent 128 samples on buffer 0 write in reverse
+    CAPTURE_FORWARD = 0,         // fill 0 to 127
+    CAPTURE_REVERSE,             // fill 127 to 0
+    CAPTURE_ROLLING,             // always most recent 128 samples on buffer 0
+    CAPTURE_REV_FORWARD,         // fill 127 to 0, going forward on buffers
+    CAPTURE_FOR_BACKWARD,        // fill 0 to 127, going backward on buffers
+    CAPTURE_ROLLING_BACKWARD,    // always most recent 128 samples on buffer 0 write in reverse
+    CAPTURE_INDEPENDENT_BUFFER,  // independent buffers (4 streaming entries)
     CAPTURE_NUMBER,
   };
   inline void Init(float sr) {
@@ -107,20 +108,20 @@ public:
     return write_buf_;
   }
   inline static uint8_t GetWritePos() {
-    return write_pos_;
+    return write_pos_[0];
   }
 
   // Called from the MIDI handler in Core 0 only
   inline static void PushSample(uint8_t value) {
     if (freeze_) return;
 
-    uint8_t pos = write_pos_;
+    uint8_t pos = write_pos_[0];
     uint8_t buf = write_buf_;
     buffers_[buf][pos] = value;
 
     if (capture_mode_ == CAPTURE_ROLLING || capture_mode_ == CAPTURE_ROLLING_BACKWARD) {
       uint8_t direction = capture_mode_ == CAPTURE_ROLLING_BACKWARD ? -1 : 1;
-      write_pos_ = (pos + direction) & 0x7f;  // ring stays in buffer 0, wraps 0-127
+      write_pos_[0] = (pos + direction) & 0x7f;  // ring stays in buffer 0, wraps 0-127
       buffers_[0][128] = buffers_[0][0];
       return;
     }
@@ -130,9 +131,9 @@ public:
         buffers_[buf][128] = buffers_[buf][0];
         uint8_t next_buffer = capture_mode_ == CAPTURE_REV_FORWARD ? 1 : -1;
         write_buf_ = (buf + next_buffer) & 0x3;
-        write_pos_ = 127;
+        write_pos_[0] = 127;
       } else {
-        write_pos_ = pos - 1;
+        write_pos_[0] = pos - 1;
       }
       return;
     }
@@ -150,7 +151,20 @@ public:
       uint8_t next_buffer = capture_mode_ == CAPTURE_FOR_BACKWARD ? -1 : 1;
       write_buf_ = (buf + next_buffer) & 0x3;
     }
-    write_pos_ = pos;
+    write_pos_[0] = pos;
+  }
+
+  inline static void PushSampleInBuffer(uint8_t value, uint8_t buf) {
+    if (freeze_) return;
+
+    uint8_t pos = write_pos_[buf];
+    buffers_[buf][pos] = value;
+
+    if (++pos >= 128) {
+      pos = 0;
+      buffers_[buf][128] = buffers_[buf][0]; // wraps
+    }
+    write_pos_[buf] = pos;
   }
 
   // Other public API for the live wavetable mode
@@ -169,7 +183,7 @@ public:
   inline static void setCaptureMode(CaptureMode mode) {
     capture_mode_ = mode;
     write_buf_ = 0;
-    write_pos_ = (mode == CAPTURE_REVERSE || mode == CAPTURE_REV_FORWARD || mode == CAPTURE_ROLLING_BACKWARD) ? 127 : 0;
+    write_pos_[0] = (mode == CAPTURE_REVERSE || mode == CAPTURE_REV_FORWARD || mode == CAPTURE_ROLLING_BACKWARD) ? 127 : 0;
   }
   inline static CaptureMode getCaptureMode() {
     return capture_mode_;
@@ -203,7 +217,7 @@ private:
   static volatile CaptureMode capture_mode_;
   static volatile uint8_t buffers_[4][129];
   static volatile uint8_t write_buf_;
-  static volatile uint8_t write_pos_;
+  static volatile uint8_t write_pos_[4];
   static volatile bool retrigger_;
   static volatile bool freeze_;
   static volatile int32_t phase_offset_;
@@ -212,7 +226,7 @@ private:
 
 volatile uint8_t WavetableStreamingOscillator::buffers_[4][129] = {};
 volatile uint8_t WavetableStreamingOscillator::write_buf_ = 0;
-volatile uint8_t WavetableStreamingOscillator::write_pos_ = 0;
+volatile uint8_t WavetableStreamingOscillator::write_pos_[4] = {};
 volatile bool WavetableStreamingOscillator::retrigger_ = false;
 volatile bool WavetableStreamingOscillator::freeze_ = false;
 volatile int32_t WavetableStreamingOscillator::phase_offset_ = 0;
