@@ -94,52 +94,54 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
 
 static inline void update_kinetic_physics(RuntimeState *gstate, ExtParameter *param) {
   if (param->mode != POT_KINETIC) return;
-  unsigned long now = micros();
-  if (millis() - param->kinetic.last_move_time < 30) {
-    param->kinetic.last_update_time = now;
+  uint32_t now = micros();
+  uint32_t dt_us = now - param->kinetic.last_update_time;
+  param->kinetic.last_update_time = now;
+  if (dt_us == 0) return;
+  if (dt_us > 20000) dt_us = 20000;
+
+  // Reduce dt step
+  float dt = dt_us * 1e-6f;
+
+  if (dt <= 0.f) return;
+
+  float error = param->smoothed - param->value;
+  float velocity = param->kinetic.velocity;
+
+  if (fabsf(error) < 1e-2f && fabsf(velocity) < 1e-4f) {
+    param->value = param->smoothed;
+    param->kinetic.velocity = 0.f;
     return;
   }
-
-  // Compute dt
-  float dt = (now - param->kinetic.last_update_time) / 1000000.f;
-  param->kinetic.last_update_time = now;
-
-  if (dt <= 0.f || dt > 0.1f) return;
-
   float k = param->kinetic.stiffness.value * 100.f;
   float c = param->kinetic.damping.value * 2.5f;
-  float m = 0.01f + (param->kinetic.mass.value * 0.5f);
+  float inv_m = 1.f / (0.01f + (param->kinetic.mass.value * 0.5f));
 
   // Compute spring force & damping
-  float error = param->smoothed - param->value;
   float spring_force = error * k;
   float damping_force = -param->kinetic.velocity * c;
 
   // Acceleration (a = F / m)
-  float acceleration = (spring_force + damping_force) / m;
+  float acceleration = (spring_force + damping_force) * inv_m;
 
   // Euler integration
-  param->kinetic.velocity += acceleration * dt;
-  float next_value = param->value + (param->kinetic.velocity * dt);
+  velocity += acceleration * dt;
+  float next_value = param->value + (velocity * dt);
 
   if (next_value > 1.0f) {
     next_value = 1.0f;
-    param->kinetic.velocity *= -0.2f;  // potential bounce against the limit
+    velocity *= -0.2f;  // bounce against the limit
   } else if (next_value < 0.0f) {
     next_value = 0.0f;
-    param->kinetic.velocity *= -0.2f;  // potential bounce against the limit
+    velocity *= -0.2f;  // bounce against the limit
   }
   param->value = next_value;
+  param->kinetic.velocity = velocity;
 
+  set_parameter_((Parameter *)param, param->value, gstate->controller_mode);
 
-  // Update the value if needed
-  if (fabsf(param->kinetic.velocity) > 0.0001f || fabsf(error) > 0.0001f) {
-    set_parameter_((Parameter *)param, param->value, gstate->controller_mode);
-    midi_cc_forward_(param->midi_cc, (uint8_t)(param->value * 127.f), gstate->midi_ch, gstate->controller_mode);
-  } else {
-    param->value = param->smoothed;
-    param->kinetic.velocity = 0;
-  }
+  midi_cc_forward_(param->midi_cc, (uint8_t)(param->value * 127.f),
+                   gstate->midi_ch, gstate->controller_mode);
 }
 
 #define SMOOTH_POT 0.06f

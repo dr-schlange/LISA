@@ -110,7 +110,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       && MIDI_CHANNEL(status) <= 3)
   {
     uint16_t raw = ((uint16_t)cc_value << 7) | pitch_or_cc;  // 0–16383
-    WavetableStreamingOscillator::PushSampleInBuffer(raw >> 6, MIDI_CHANNEL(status));      // 0–255
+    // WavetableStreamingOscillator::PushSampleInBuffer(raw >> 6, MIDI_CHANNEL(status));      // 0–255
+    int16_t sample = ((int32_t)raw - 8192) << 2;
+    WavetableStreamingOscillator::PushSampleInBuffer(sample, MIDI_CHANNEL(status));
     return;
   }
   if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1)) return;

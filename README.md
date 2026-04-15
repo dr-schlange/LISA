@@ -129,7 +129,10 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **124**       | Activates phase reset on note strike (\*\*)            |
 | **125**       | Add an offset to the phase (\*\*)                      |
 | **126**       | Reset the watetable phase (\*\*)                       |
-| **pitchweel** | Streams a waveform for the live wavetetable engine     |
+| **pitchweel** channel 1 | Streams a waveform for wavetetable 1 (\*\*)      |
+| **pitchweel** channel 2 | Streams a waveform for wavetetable 2 (\*\*)      |
+| **pitchweel** channel 3 | Streams a waveform for wavetetable 3 (\*\*)      |
+| **pitchweel** channel 4 | Streams a waveform for wavetetable 4 (\*\*)      |
 | **127**       | Reset USB to upload from IDE (WARNING: for dev mode)\* |
 
 CC#100-104 are sent by the button B or C depending on the row you are located in the **ALL PARAMETERS** mode. 

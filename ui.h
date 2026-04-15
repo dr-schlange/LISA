@@ -143,7 +143,7 @@ inline void draw_live_scope(UIState *uistate) {
   display.clearDisplay();
 
   // Upper half
-  uint8_t bufs[4][129];
+  int16_t bufs[4][129];
   WavetableStreamingOscillator::CopyBuffers(bufs);
   uint8_t wbuf = WavetableStreamingOscillator::GetWriteBuf();
   uint8_t wpos = WavetableStreamingOscillator::GetWritePos();
@@ -151,9 +151,13 @@ inline void draw_live_scope(UIState *uistate) {
   for (int b = 0; b < 4; b++) {
     int xoff = b * 32;
     for (int i = 0; i < 31; i++) {
-      // 128 samples for 32 pixels
-      int16_t y1 = 30 - (int16_t)((uint16_t)bufs[b][i * 4] * 30 / 255);
-      int16_t y2 = 30 - (int16_t)((uint16_t)bufs[b][(i + 1) * 4] * 30 / 255);
+
+      int16_t s1 = bufs[b][i * 4];
+      int16_t s2 = bufs[b][(i + 1) * 4];
+
+      int16_t y1 = 15 - (s1 >> 11);
+      int16_t y2 = 15 - (s2 >> 11);
+
       display.drawLine(xoff + i, y1, xoff + i + 1, y2, SCREEN_WHITE);
     }
   }
@@ -169,13 +173,13 @@ inline void draw_live_scope(UIState *uistate) {
   }
 
   // Write-head cursor
-  int wx = wbuf * 32 + (wpos / 4);
-  display.drawPixel(wx, 0, SCREEN_WHITE);
-  display.drawPixel(wx, 1, SCREEN_WHITE);
+  // int wx = wbuf * 32 + (wpos / 4);
+  // display.drawPixel(wx, 0, SCREEN_WHITE);
+  // display.drawPixel(wx, 1, SCREEN_WHITE);
 
   // Lower half
   const float midY = 48.0f;
-  const float gain = 75.0f;
+  const float gain = 100.0f;
   for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
     int16_t y1 = (int16_t)(midY - uistate->scope_buffer_back[i] * gain);
     int16_t y2 = (int16_t)(midY - uistate->scope_buffer_back[i + 1] * gain);
