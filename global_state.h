@@ -187,7 +187,6 @@ struct RuntimeState {
 
   bool sustain_enabled;
   volatile bool filter_enabled;
-  float filter_mix;
 
   bool show_saved_flag;
   unsigned long saved_start_time;
@@ -212,6 +211,7 @@ struct RuntimeState {
   ExtParameter master_volume;
   ExtParameter env_attack;
   ExtParameter env_release;
+  Parameter filter_type;
   // Extra params
   ExtParameter b1;
   ExtParameter b2;
@@ -228,10 +228,22 @@ struct RuntimeState {
 };
 
 const char *const all_parameters[] = {
-  "tmbr amt", "colr amt", "cutoff", "resonance",
-  "tmbr mod", "colr mod", "fm mod", "mast vol",
-  "envl atk", "envl rel",
-  "b1", "b2", "b3", "b4", "b5"
+  "tmbr amt",
+  "colr amt",
+  "cutoff",
+  "resonance",
+  "tmbr mod",
+  "colr mod",
+  "fm mod",
+  "mast vol",
+  "envl atk",
+  "envl rel",
+  "filt. type",
+  "b1",
+  "b2",
+  "b3",
+  "b4",
+  "b5",
 };
 constexpr uint8_t ALL_PARAMETERS_NUM = sizeof(all_parameters) / sizeof(all_parameters[0]);
 
@@ -248,7 +260,6 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->cv_mod2_enabled = false;
   gstate->sustain_enabled = false;
   gstate->filter_enabled = true;
-  gstate->filter_mix = 1.f;
   gstate->show_saved_flag = false;
   gstate->saved_start_time = 0;
   gstate->display_state = ENGINE_SELECT_MODE;
@@ -273,6 +284,7 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->b4 = ExtParameterNew(POT_C, MIDI_B4, 0.01f);
   gstate->b5 = ExtParameterNew(POT_C, MIDI_B5, 0.01f);
 
+  gstate->filter_type = ParameterNew(POT_A, MIDI_FILTER_TYPE, 0);
 
   gstate->A = (Parameter *)&(gstate->timbre);
   gstate->B = (Parameter *)&(gstate->color);
@@ -297,6 +309,7 @@ static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->b3.screen_locked = status;
   gstate->b4.screen_locked = status;
   gstate->b5.screen_locked = status;
+  gstate->filter_type.screen_locked = status;
 }
 
 static inline void lock_mapped_pots(RuntimeState *gstate, bool status) {
@@ -415,7 +428,7 @@ static inline void sync_all_kinetic_values(RuntimeState *gstate) {
   ExtParameter *p = &(gstate->timbre);
   for (uint8_t i = 1; i < ALL_PARAMETERS_NUM; i++) {
     if (!p->kinetic.mass.screen_locked) {
-        p[i].kinetic.mass.value = p->kinetic.mass.value;
+      p[i].kinetic.mass.value = p->kinetic.mass.value;
     }
     if (!p->kinetic.damping.screen_locked) {
       p[i].kinetic.damping.value = p->kinetic.damping.value;

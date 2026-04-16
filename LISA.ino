@@ -72,6 +72,7 @@ static Voice voices[MAX_VOICES];
 
 static I2S i2s_output(OUTPUT);
 static braids::Svf global_filter;
+static braids::SvfMode previous_filter_mode;
 
 // Audio engine
 void __not_in_flash_func(update_audio)() {
@@ -79,7 +80,7 @@ void __not_in_flash_func(update_audio)() {
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
     bool use_streaming = (runtime_state.engine_idx >= braids::MACRO_OSC_SHAPE_LAST);
     for (int v = 0; v < MAX_VOICES; v++) {
-      voices[v].osc.set_live_mode(use_streaming);
+      voices[v].osc.setLiveMode(use_streaming);
       if (!use_streaming) {
         braids::MacroOscillatorShape shape =
           (braids::MacroOscillatorShape)runtime_state.engine_idx;
@@ -121,13 +122,6 @@ void __not_in_flash_func(update_audio)() {
     fm_target = runtime_state.fm_mod.value;
   }
 
-  // float timb_target = runtime_state.midi_enabled ? runtime_state.timbre_mod.value
-  //                     : runtime_state.cv_mod1_enabled    ? runtime_state.timbre_mod.value
-  //                                                : 0.0f;
-
-  // float color_target = runtime_state.midi_enabled ? runtime_state.color_mod.value
-  //                      : runtime_state.cv_mod1_enabled    ? runtime_state.color_mod.value
-  //                                                 : 0.0f;
   float timb_target = runtime_state.timbre_mod.value;
   float color_target = runtime_state.color_mod.value;
 
@@ -203,6 +197,12 @@ void __not_in_flash_func(update_audio)() {
 
   global_filter.set_frequency((uint16_t)cut_slew);
   global_filter.set_resonance((uint16_t)res_slew);
+
+  braids::SvfMode filter_type = (braids::SvfMode)(runtime_state.filter_type.value * 3.f);
+  if (filter_type != previous_filter_mode) {
+    global_filter.set_mode(filter_type);
+    previous_filter_mode = filter_type;
+  }
 
   const float dry_scale = (1.0f - mix_slew) * 32767.0f;
   const float wet_scale = mix_slew;
@@ -315,10 +315,10 @@ void handle_menu(RuntimeState *gstate) {
               map_abc_pots(gstate,
                            gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL,
                            gstate->filter_enabled ? (Parameter *)&(gstate->resonance) : NULL,
-                           (Parameter *)&(gstate->b4));
+                           gstate->filter_enabled ? &(gstate->filter_type) : NULL);
               break;
             case ROW_ENVELOPE:
-              map_abc_pots(gstate, (Parameter *)&(gstate->env_attack), (Parameter *)&(gstate->env_release), (Parameter *)&(gstate->b5));
+              map_abc_pots(gstate, (Parameter *)&(gstate->env_attack), (Parameter *)&(gstate->env_release), (Parameter *)&(gstate->b4));
               break;
           }
           // lock the new mapped pots
@@ -551,6 +551,7 @@ static inline void setup_global_filter() {
   global_filter.set_mode(braids::SVF_MODE_LP);
   global_filter.set_frequency(INIT_CUTOFF);
   global_filter.set_resonance(INIT_RESONANCE);
+  previous_filter_mode = braids::SVF_MODE_LP;
 }
 
 void setup1() {

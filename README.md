@@ -124,9 +124,15 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **102**       | b3 (send CC only)                                      |
 | **103**       | b4 (send CC only)                                      |
 | **104**       | b5 (send CC only)                                      |
-| **122**       | Changes the wavetable write mode (\*\*)                |
-| **123**       | Freezes the current wavetables (\*\*)                  |
-| **124**       | Activates phase reset on note strike (\*\*)            |
+| **116**       | Activates the double buffering default false (\*\*)    |
+| **117**       | Reset all wavetables to 0 (\*\*)                       |
+| **118**       | Reset write index on all wavetables (\*\*)             |
+| **119**       | Freezes wavetable 1 (\*\*)                             |
+| **120**       | Freezes wavetable 2 (\*\*)                             |
+| **121**       | Freezes wavetable 3 (\*\*)                             |
+| **122**       | Freezes wavetable 4 (\*\*)                             |
+| **123**       | Freezes all the wavetables (\*\*)                      |
+| **124**       | Retrigger (reset phase on strike) (\*\*)               |
 | **125**       | Add an offset to the phase (\*\*)                      |
 | **126**       | Reset the watetable phase (\*\*)                       |
 | **pitchweel** channel 1 | Streams a waveform for wavetetable 1 (\*\*)      |

@@ -13,6 +13,70 @@
 
 using namespace stmlib;
 
+class LiveWavetable {
+public:
+  LiveWavetable() {
+    write_pos_ = 0;
+    freeze_ = false;
+    double_buffer_ = false;
+    read_idx_ = 0;
+    write_idx_ = 1;
+    reset();
+  }
+
+  inline void freeze(boolean freeze) {
+    freeze_ = freeze;
+  }
+
+  inline void resetWriteIndex() {
+    write_pos_ = 0;
+  }
+
+  inline void setDoubleBuffer(bool on) {
+    double_buffer_ = on;
+  }
+
+  inline void pushSample(int16_t value) {
+    if (freeze_) return;
+    uint16_t pos = write_pos_;
+    if (double_buffer_) {
+      buffers_[write_idx_][pos] = value;
+      if (pos == 0) buffers_[write_idx_][256] = value;
+      if (++pos >= 256) {
+        pos = 0;
+        read_idx_ = write_idx_;
+        write_idx_ = 1 - write_idx_;
+      }
+    } else {
+      buffers_[read_idx_][pos] = value;
+      if (pos == 0) buffers_[read_idx_][256] = value;
+      if (++pos >= 256) pos = 0;
+    }
+    write_pos_ = pos;
+  }
+
+  inline void reset() {
+    for (uint8_t b = 0; b < 2; ++b) {
+      for (uint16_t i = 0; i < 257; ++i) {
+        buffers_[b][i] = 0;
+      }
+    }
+  }
+
+  inline void copyTable(int16_t dst[257]) {
+    memcpy(dst, (const int16_t*)buffers_[read_idx_], 257 * sizeof(int16_t));
+  }
+
+private:
+  volatile uint16_t write_pos_;
+  volatile boolean freeze_;
+  volatile bool double_buffer_;
+  volatile int16_t buffers_[2][257];
+  volatile uint8_t read_idx_;
+  volatile uint8_t write_idx_;
+};
+
+
 class WavetableStreamingOscillator : public braids::MacroOscillator {
 public:
   enum CaptureMode : uint8_t {
@@ -92,47 +156,10 @@ public:
       RenderMixing(sync, buffer, size);
       return;
     }
-
-    // Snapshot waveforms once per block to avoid mid-block weird artifacts
-    int16_t wave_a[129], wave_b[129];
-    uint16_t xfade;
-
-    if (capture_mode_ == CAPTURE_ROLLING) {
-      // Read ring buffer as it is so the waveform is stable between
-      // blocks and morphs smoothly as new samples overwrite old ones in-place
-      memcpy(wave_a, (const uint8_t*)buffers_[write_buf_], 129 * sizeof(int16_t));
-      memcpy(wave_b, wave_a, 129 * sizeof(int16_t));
-      xfade = 0;
-    } else {
-      uint32_t pos = (uint32_t)p1_ * 3;
-      uint8_t wi = pos >> 15;       // 0, 1, or 2  (which buffer pair)
-      xfade = (pos & 0x7fff) << 1;  // 0 to 65534 within each pair
-      memcpy(wave_a, (const uint8_t*)buffers_[wi], 129 * sizeof(int16_t));
-      memcpy(wave_b, (const uint8_t*)buffers_[wi + 1], 129 * sizeof(int16_t));
-    }
-
-    // Color (p2): one-pole lowpass
-    // Floor at 256 to keep the cutoff above more or less 40Hz
-    int32_t t = 32767 - p2_;
-    int32_t lp_coeff = t * t >> 15;      // 32766 to 0, squared
-    if (lp_coeff < 256) lp_coeff = 256;  // floor around 40Hz at 32kHz
-
-    uint32_t phase_increment = ComputePhaseIncrement(pitch_) >> 1;
-    while (size--) {
-      int16_t sample;
-      phase_ += phase_increment;
-      if (*sync++) phase_ = 0;
-      sample = Crossfade(wave_a, wave_b, (phase_ + phase_offset_) >> 1, xfade);
-      phase_ += phase_increment;
-      sample += Crossfade(wave_a, wave_b, (phase_ + phase_offset_) >> 1, xfade);
-      sample >>= 1;
-      *buffer++ = sample;
-      // lpState_ += ((int32_t)sample - lpState_) * lp_coeff >> 15;
-      // *buffer++ = (int16_t)lpState_;
-    }
+    // TODO: rewrite the other modes
   }
 
-  inline int16_t ReadMixedSample(int16_t waves[4][129], uint32_t phase) {
+  inline int16_t ReadMixedSample(int16_t waves[4][257], uint32_t phase) {
     int32_t mix =
       Interpolate824(waves[0], phase) * w1_ + Interpolate824(waves[1], phase) * w2_ + Interpolate824(waves[2], phase) * w3_ + Interpolate824(waves[3], phase) * w4_;
 
@@ -140,107 +167,76 @@ public:
   }
 
   inline void RenderMixing(const uint8_t* sync, int16_t* output, size_t size) {
-    int16_t waves[4][129];
+    int16_t waves[4][257];
 
-    memcpy(waves, (const uint8_t*)buffers_, 4 * 129 * sizeof(int16_t));
+    for (uint8_t i = 0; i < 4; ++i) {
+      tables_[i].copyTable(waves[i]);
+    }
 
-    uint32_t phase_increment = ComputePhaseIncrement(pitch_) >> 1;
+    // uint32_t phase_increment = ComputePhaseIncrement(pitch_) >> 1;
+    uint32_t phase_increment = ComputePhaseIncrement(pitch_);
     while (size--) {
       phase_ += phase_increment;
       if (*sync++) phase_ = 0;
       int16_t s1 = ReadMixedSample(waves, phase_ + phase_offset_);
-      phase_ += phase_increment;
-      int16_t s2 = ReadMixedSample(waves, phase_ + phase_offset_);
-      int32_t sample = (s1 + s2) >> 1;  // simple 2x oversampling
-      *output++ = (int16_t)sample;
+      // phase_ += phase_increment;
+      // int16_t s2 = ReadMixedSample(waves, phase_ + phase_offset_);
+      // int32_t sample = (s1 + s2) >> 1;  // simple 2x oversampling
+      *output++ = (int16_t)s1;
     }
   }
 
   // Used for UI/display, called from Core 0 only
-  inline static void CopyBuffers(int16_t dst[4][129]) {
-    for (int b = 0; b < 4; b++)
-      memcpy(dst[b], (const uint8_t*)buffers_[b], 129 * sizeof(int16_t));
-  }
-  inline static uint8_t GetWriteBuf() {
-    return write_buf_;
-  }
-  inline static uint8_t GetWritePos() {
-    return write_pos_[0];
+  inline static void CopyBuffers(int16_t dst[4][257]) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      tables_[i].copyTable(dst[i]);
+    }
   }
 
-  // Called from the MIDI handler in Core 0 only
-  inline static void PushSample(int16_t value) {
-    if (freeze_) return;
-
-    uint8_t pos = write_pos_[0];
-    uint8_t buf = write_buf_;
-    buffers_[buf][pos] = value;
-
-    if (capture_mode_ == CAPTURE_ROLLING || capture_mode_ == CAPTURE_ROLLING_BACKWARD) {
-      uint8_t direction = capture_mode_ == CAPTURE_ROLLING_BACKWARD ? -1 : 1;
-      write_pos_[0] = (pos + direction) & 0x7f;  // ring stays in buffer 0, wraps 0-127
-      buffers_[0][128] = buffers_[0][0];
-      return;
-    }
-
-    if (capture_mode_ == CAPTURE_REVERSE || capture_mode_ == CAPTURE_REV_FORWARD) {
-      if (pos == 0) {
-        buffers_[buf][128] = buffers_[buf][0];
-        uint8_t next_buffer = capture_mode_ == CAPTURE_REV_FORWARD ? 1 : -1;
-        write_buf_ = (buf + next_buffer) & 0x3;
-        write_pos_[0] = 127;
-      } else {
-        write_pos_[0] = pos - 1;
-      }
-      return;
-    }
-
-    // CAPTURE_FORWARD / CAPTURE_FOR_BACKWARD
-    if (pos == 0) {
-      uint8_t prev = capture_mode_ == CAPTURE_FOR_BACKWARD
-                       ? (buf + 1) & 0x3
-                       : (buf - 1) & 0x3;
-      buffers_[prev][128] = value;
-    }
-    if (++pos >= 128) {
-      pos = 0;
-      buffers_[buf][128] = buffers_[buf][0];  // self-wrap until next buf's first sample arrives
-      uint8_t next_buffer = capture_mode_ == CAPTURE_FOR_BACKWARD ? -1 : 1;
-      write_buf_ = (buf + next_buffer) & 0x3;
-    }
-    write_pos_[0] = pos;
+  inline static void PushSampleInBuffer(uint8_t idx, int16_t value) {
+    tables_[idx].pushSample(value);
+  }
+  inline static void setDoubleBuffer(bool on) {
+    for (uint8_t i = 0; i < 4; ++i) tables_[i].setDoubleBuffer(on);
   }
 
-  inline static void PushSampleInBuffer(int16_t value, uint8_t buf) {
-    if (freeze_) return;
-
-    uint8_t pos = write_pos_[buf];
-    buffers_[buf][pos] = value;
-
-    if (++pos >= 128) {
-      pos = 0;
-      buffers_[buf][128] = buffers_[buf][0];  // wraps
-    }
-    write_pos_[buf] = pos;
-  }
-
+  // ===
   // Other public API for the live wavetable mode
+  // ===
+
   inline static void setRetrigger(boolean retrigger) {
     retrigger_ = retrigger;
   }
-  inline static void freezeBuffers(boolean freeze) {
-    freeze_ = freeze;
+  inline static void resetWriteIndex(boolean reset) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      if (reset) {
+        tables_[i].resetWriteIndex();
+      }
+    }
+  }
+  inline static void resetAllWavetables(boolean reset) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      if (reset) {
+        tables_[i].reset();
+      }
+    }
+  }
+  inline static void freezeAllBuffers(boolean freeze) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      freezeBuffer(i, freeze);
+    }
+  }
+  inline static void freezeBuffer(uint8_t idx, boolean freeze) {
+    tables_[idx].freeze(freeze);
   }
   inline static void setPhaseOffset(int32_t offset) {
     phase_offset_ = offset;
   }
-  inline static void set_live_mode(bool on) {
+  inline static void setLiveMode(bool on) {
     live_ = on;
   }
-  inline static void setCaptureMode(CaptureMode mode) {
-    capture_mode_ = mode;
-    write_buf_ = 0;
-    write_pos_[0] = (mode == CAPTURE_REVERSE || mode == CAPTURE_REV_FORWARD || mode == CAPTURE_ROLLING_BACKWARD) ? 127 : 0;
+  inline static boolean isLiveMode() {
+    return live_;
   }
   inline static CaptureMode getCaptureMode() {
     return capture_mode_;
@@ -277,20 +273,16 @@ private:
   // Shared across Cores
   static volatile bool live_;
   static volatile CaptureMode capture_mode_;
-  static volatile int16_t buffers_[4][129];
   static volatile uint8_t write_buf_;
-  static volatile uint8_t write_pos_[4];
   static volatile bool retrigger_;
-  static volatile bool freeze_;
+  static LiveWavetable tables_[4];
   static volatile int32_t phase_offset_;
 };
 
 
-volatile int16_t WavetableStreamingOscillator::buffers_[4][129] = {};
 volatile uint8_t WavetableStreamingOscillator::write_buf_ = 0;
-volatile uint8_t WavetableStreamingOscillator::write_pos_[4] = {};
 volatile bool WavetableStreamingOscillator::retrigger_ = false;
-volatile bool WavetableStreamingOscillator::freeze_ = false;
 volatile int32_t WavetableStreamingOscillator::phase_offset_ = 0;
 volatile bool WavetableStreamingOscillator::live_ = false;
 volatile WavetableStreamingOscillator::CaptureMode WavetableStreamingOscillator::capture_mode_ = WavetableStreamingOscillator::CAPTURE_INDEPENDENT_BUFFER;
+LiveWavetable WavetableStreamingOscillator::tables_[4] = {};

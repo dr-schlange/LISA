@@ -13,7 +13,6 @@
 #include "wavetable_streaming.h"
 
 struct Voice {
-  // braids::MacroOscillator osc;
   WavetableStreamingOscillator osc;
   int pitch;
   float velocity;
@@ -33,8 +32,9 @@ int find_free_voice(Voice *voices) {
   int oldest = 0;
   uint32_t old_age = voices[0].age;
   for (int i = 0; i < MAX_VOICES; i++) {
-    if (!voices[i].active && voices[i].env == 0.f)
+    if (!voices[i].active && voices[i].env == 0.f) {
       return i;
+    }
     if (voices[i].age < old_age) {
       old_age = voices[i].age;
       oldest = i;

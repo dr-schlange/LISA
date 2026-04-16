@@ -17,7 +17,7 @@
 typedef struct __attribute__((packed)) {
   float master_volume, env_attack, env_release;
   float timbre, color, timb_mod, color_mod;
-  float cutoff, resonance;
+  float cutoff, resonance, type;
   float b1, b2, b3, b4, b5;
   // kinetic config
   float mv_kinetic_mass, mv_kinetic_damping, mv_kinetic_stiffness;
@@ -45,7 +45,7 @@ static inline SettingsSnapshot snapshot_from(const RuntimeState *s) {
   return (SettingsSnapshot){
     s->master_volume.value, s->env_attack.value, s->env_release.value,
     s->timbre.value, s->color.value, s->timbre_mod.value, s->color_mod.value,
-    s->cutoff.value, s->resonance.value,
+    s->cutoff.value, s->resonance.value, s->filter_type.value,
     s->b1.value, s->b2.value, s->b3.value, s->b4.value, s->b5.value,
     s->master_volume.kinetic.mass.value, s->master_volume.kinetic.damping.value, s->master_volume.kinetic.stiffness.value,
     s->env_attack.kinetic.mass.value, s->env_attack.kinetic.damping.value, s->env_attack.kinetic.stiffness.value,
@@ -93,6 +93,7 @@ inline bool save_settings(const RuntimeState *gstate) {
   doc["cmod"] = gstate->color_mod.value;
   doc["ctf"] = gstate->cutoff.value;
   doc["rsn"] = gstate->resonance.value;
+  doc["flttype"] = gstate->filter_type.value;
   doc["ch"] = gstate->midi_ch;
   doc["enc"] = (int)gstate->encoder.state;
   doc["osc"] = gstate->oscilloscope_enabled;
@@ -181,6 +182,7 @@ inline void load_settings(RuntimeState *gstate) {
   gstate->color_mod.value = doc["cmod"] | 0.0f;
   gstate->cutoff.value = doc["ctf"] | 0.5f;
   gstate->resonance.value = doc["rsn"] | 0.25f;
+  gstate->filter_type.value = doc["flttype"] | 0.f;
   gstate->midi_ch = doc["ch"] | 1;
   gstate->encoder.state = (EncoderState)(doc["enc"] | 0);
   gstate->oscilloscope_enabled = doc["osc"] | true;

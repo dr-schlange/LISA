@@ -104,15 +104,13 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   if (!has_msg) return;
   if ((status & 0x80) == 0) return;
   // Special case for MIDI channel and pitchwheel
-  if (WavetableStreamingOscillator::getCaptureMode() == WavetableStreamingOscillator::CAPTURE_INDEPENDENT_BUFFER 
-      && IS_MIDI_PITCHWHEEL(status) 
-      && MIDI_CHANNEL(status) >= 0 
-      && MIDI_CHANNEL(status) <= 3)
-  {
+  if (WavetableStreamingOscillator::isLiveMode()
+      && IS_MIDI_PITCHWHEEL(status)
+      && MIDI_CHANNEL(status) >= 0
+      && MIDI_CHANNEL(status) <= 3) {
     uint16_t raw = ((uint16_t)cc_value << 7) | pitch_or_cc;  // 0–16383
-    // WavetableStreamingOscillator::PushSampleInBuffer(raw >> 6, MIDI_CHANNEL(status));      // 0–255
     int16_t sample = ((int32_t)raw - 8192) << 2;
-    WavetableStreamingOscillator::PushSampleInBuffer(sample, MIDI_CHANNEL(status));
+    WavetableStreamingOscillator::PushSampleInBuffer(MIDI_CHANNEL(status), sample);
     return;
   }
   if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1)) return;
@@ -185,6 +183,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       case MIDI_CUTOFF:
         gstate->cutoff.value = cc_value / 127.f;
         break;
+      case MIDI_FILTER_TYPE:
+        gstate->filter_type.value = (cc_value / 127.f) * 3.f;  // scale on the number of filters in braids
+        break;
       case MIDI_FM_MOD:
         gstate->fm_mod.value = cc_value / 127.f;
         break;
@@ -198,12 +199,21 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         if (cc_value == 127) reset_usb_boot(0, 0);
         if (cc_value == 126) watchdog_reboot(0, 0, 0);
         break;
-      case MIDI_WT_CAPTURE_MODE:
-        WavetableStreamingOscillator::setCaptureMode(
-          (WavetableStreamingOscillator::CaptureMode)constrain(((int)cc_value * WavetableStreamingOscillator::CAPTURE_NUMBER + 63) / 127, 0, WavetableStreamingOscillator::CAPTURE_NUMBER - 1));
+      // case MIDI_WT_CAPTURE_MODE:
+      //   WavetableStreamingOscillator::setCaptureMode(
+      //     (WavetableStreamingOscillator::CaptureMode)constrain(((int)cc_value * WavetableStreamingOscillator::CAPTURE_NUMBER + 63) / 127, 0, WavetableStreamingOscillator::CAPTURE_NUMBER - 1));
+      //   break;
+      case MIDI_WT_DOUBLE_BUFFER:
+        WavetableStreamingOscillator::setDoubleBuffer(cc_value >= 64);
+        break;
+      case MIDI_WT_RESET_ALL_BUFFERS:
+        WavetableStreamingOscillator::resetAllWavetables(cc_value >= 64);
         break;
       case MIDI_WT_RETRIGGER:
         WavetableStreamingOscillator::setRetrigger(cc_value >= 64);
+        break;
+      case MIDI_WT_RESET_WRITE_IDX:
+        WavetableStreamingOscillator::resetWriteIndex(cc_value >= 64);
         break;
       case MIDI_WT_PHASE_OFFSET:
         WavetableStreamingOscillator::setPhaseOffset((int32_t)(cc_value - 64) << 25);
@@ -213,14 +223,19 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
           voices[i].osc.reset_phase();
         }
         break;
-      case MIDI_WT_FREEZE:
-        WavetableStreamingOscillator::freezeBuffers(cc_value >= 64);
+      case MIDI_WT_FREEZE_TABLE1:
+      case MIDI_WT_FREEZE_TABLE2:
+      case MIDI_WT_FREEZE_TABLE3:
+      case MIDI_WT_FREEZE_TABLE4:
+        WavetableStreamingOscillator::freezeBuffer(pitch_or_cc - MIDI_WT_FREEZE_TABLE1, cc_value >= 64);
+        break;
+      case MIDI_WT_FREEZE_ALL:
+        WavetableStreamingOscillator::freezeAllBuffers(cc_value >= 64);
         break;
     }
     SCHEDULE_REFRESH(gstate);
     gstate->last_param_change = millis();
   } else if (IS_MIDI_PITCHWHEEL(status)) {
-    uint16_t raw = ((uint16_t)cc_value << 7) | pitch_or_cc;  // 0–16383
-    WavetableStreamingOscillator::PushSample(raw >> 6);      // 0–255
+    // TODO for non live mode
   }
 }

@@ -143,17 +143,15 @@ inline void draw_live_scope(UIState *uistate) {
   display.clearDisplay();
 
   // Upper half
-  int16_t bufs[4][129];
+  int16_t bufs[4][257];
   WavetableStreamingOscillator::CopyBuffers(bufs);
-  uint8_t wbuf = WavetableStreamingOscillator::GetWriteBuf();
-  uint8_t wpos = WavetableStreamingOscillator::GetWritePos();
 
   for (int b = 0; b < 4; b++) {
     int xoff = b * 32;
     for (int i = 0; i < 31; i++) {
 
-      int16_t s1 = bufs[b][i * 4];
-      int16_t s2 = bufs[b][(i + 1) * 4];
+      int16_t s1 = bufs[b][i * 8];
+      int16_t s2 = bufs[b][(i + 1) * 8];
 
       int16_t y1 = 15 - (s1 >> 11);
       int16_t y2 = 15 - (s2 >> 11);
@@ -171,11 +169,6 @@ inline void draw_live_scope(UIState *uistate) {
       display.drawFastVLine(b * 32, y, current_dash, SCREEN_WHITE);
     }
   }
-
-  // Write-head cursor
-  // int wx = wbuf * 32 + (wpos / 4);
-  // display.drawPixel(wx, 0, SCREEN_WHITE);
-  // display.drawPixel(wx, 1, SCREEN_WHITE);
 
   // Lower half
   const float midY = 48.0f;
@@ -326,14 +319,14 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.print("fltr");
   draw_param(54, 43, "ctf", (Parameter *)&(gstate->cutoff));
   draw_param(79, 43, "res", (Parameter *)&(gstate->resonance));
-  draw_param(104, 43, "b4", (Parameter *)&(gstate->b4));
+  draw_param(104, 43, "typ", (Parameter *)&(gstate->filter_type));
 
   // Envelope
   display.setCursor(12, 54);
   display.print("envl");
   draw_param(54, 54, "atk", (Parameter *)&(gstate->env_attack));
   draw_param(79, 54, "rel", (Parameter *)&(gstate->env_release));
-  draw_param(104, 54, "b5", (Parameter *)&(gstate->b5));
+  draw_param(104, 54, "b4", (Parameter *)&(gstate->b4));
 
   display.display();
 }
