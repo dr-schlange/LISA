@@ -173,16 +173,11 @@ public:
       tables_[i].copyTable(waves[i]);
     }
 
-    // uint32_t phase_increment = ComputePhaseIncrement(pitch_) >> 1;
     uint32_t phase_increment = ComputePhaseIncrement(pitch_);
     while (size--) {
       phase_ += phase_increment;
       if (*sync++) phase_ = 0;
-      int16_t s1 = ReadMixedSample(waves, phase_ + phase_offset_);
-      // phase_ += phase_increment;
-      // int16_t s2 = ReadMixedSample(waves, phase_ + phase_offset_);
-      // int32_t sample = (s1 + s2) >> 1;  // simple 2x oversampling
-      *output++ = (int16_t)s1;
+      *output++ = ReadMixedSample(waves, phase_ + phase_offset_);
     }
   }
 

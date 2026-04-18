@@ -140,8 +140,14 @@ static inline void update_kinetic_physics(RuntimeState *gstate, ExtParameter *pa
 
   set_parameter_((Parameter *)param, param->value, gstate->controller_mode);
 
-  midi_cc_forward_(param->midi_cc, (uint8_t)(param->value * 127.f),
-                   gstate->midi_ch, gstate->controller_mode);
+  const uint8_t midi_value = (uint8_t)(param->value * 127.f);
+  const uint8_t last_midi = param->kinetic.last_midi_send;
+  // limit senf freq, seems to block the device otherwise when too much oscillation
+  if (midi_value != last_midi) {
+    midi_cc_forward_(param->midi_cc, midi_value,
+                     gstate->midi_ch, gstate->controller_mode);
+    param->kinetic.last_midi_send = midi_value;
+  }
 }
 
 #define SMOOTH_POT 0.06f

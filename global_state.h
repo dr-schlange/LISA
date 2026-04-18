@@ -100,6 +100,7 @@ struct ExtParameter {
       float velocity;
       unsigned long last_update_time;
       unsigned long last_move_time;
+      unsigned long last_midi_send;
     } kinetic;
     struct {
       Parameter min;
@@ -153,6 +154,7 @@ struct ExtParameter {
       .velocity = 0.f, \
       .last_update_time = 0, \
       .last_move_time = 0, \
+      .last_midi_send = 0, \
     } \
   }
 
