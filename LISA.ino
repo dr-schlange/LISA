@@ -94,15 +94,19 @@ void __not_in_flash_func(update_audio)() {
   static float releaseCoef = 0.f;
   static float last_atk = -1.f;
   static float last_rel = -1.f;
-  float atk = runtime_state.env_attack.value;
-  float rel = runtime_state.env_release.value;
-  if (atk != last_atk) {
+
+  const float minTime = 0.001f, maxTime = 5.0f;   // [1 ms, 5s]
+  float atk_knob = runtime_state.env_attack.value;
+  float rel_knob = runtime_state.env_release.value;
+  if (atk_knob != last_atk) {
+    float atk = minTime * powf(maxTime / minTime, atk_knob);
     attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
-    last_atk = atk;
+    last_atk = atk_knob;
   }
-  if (rel != last_rel) {
+  if (rel_knob != last_rel) {
+    float rel = minTime * powf(maxTime / minTime, rel_knob);
     releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
-    last_rel = rel;
+    last_rel = rel_knob;
   }
 
   float mix[AUDIO_BLOCK] = { 0 };

@@ -103,6 +103,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
 
   if (!has_msg) return;
   if ((status & 0x80) == 0) return;
+
   // Special case for MIDI channel and pitchwheel
   if (WavetableStreamingOscillator::isLiveMode()
       && IS_MIDI_PITCHWHEEL(status)
@@ -113,6 +114,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     WavetableStreamingOscillator::PushSampleInBuffer(MIDI_CHANNEL(status), sample);
     return;
   }
+  
   if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1)) return;
 
   // --- Special CC64 sustain handling ---
@@ -184,7 +186,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         gstate->cutoff.value = cc_value / 127.f;
         break;
       case MIDI_FILTER_TYPE:
-        gstate->filter_type.value = (cc_value / 127.f) * 3.f;  // scale on the number of filters in braids
+        gstate->filter_type.value = (cc_value / 127.f) * 2.f;  // scale on the number of filters in braids
         break;
       case MIDI_FM_MOD:
         gstate->fm_mod.value = cc_value / 127.f;

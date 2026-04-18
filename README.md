@@ -119,6 +119,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **64**        | Sustain (Hold notes)                                   |
 | **71**        | Filter Resonance                                       |
 | **74**        | Filter Cutoff                                          |
+| **75**        | Filter Type                                            |
 | **100**       | b1 (send CC only)                                      |
 | **101**       | b2 (send CC only)                                      |
 | **102**       | b3 (send CC only)                                      |
