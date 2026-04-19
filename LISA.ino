@@ -148,7 +148,7 @@ void __not_in_flash_func(update_audio)() {
   apply_stable_slew(timb_slew, timb_target, 0.01f);
   apply_stable_slew(color_slew, color_target, 0.01f);
 
-  const float block_gain = runtime_state.master_volume.value * 0.25f;
+  const float block_gain = runtime_state.master_volume.value * runtime_state.gain.value;
 
   for (int v = 0; v < MAX_VOICES; v++) {
     Voice &voice = voices[v];

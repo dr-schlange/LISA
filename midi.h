@@ -159,6 +159,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
 
   if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
+      case MIDI_GAIN:
+        gstate->gain.value = cc_value / 127.f;
+        break;
       case MIDI_MASTER_VOL:
         gstate->master_volume.value = cc_value / 127.f;
         break;

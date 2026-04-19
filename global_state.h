@@ -78,8 +78,8 @@ struct Parameter {
 #define ParameterNew(gpio_, midi_cc_, val_) \
   { \
     .extended = false, \
-    .value = 0, \
-    .last_value = 0, \
+    .value = val_, \
+    .last_value = (uint8_t)val_, \
     .smoothed = val_, \
     .gpio = gpio_, \
     .screen_locked = false, \
@@ -214,6 +214,7 @@ struct RuntimeState {
   ExtParameter env_attack;
   ExtParameter env_release;
   Parameter filter_type;
+  Parameter gain;
   // Extra params
   ExtParameter b1;
   ExtParameter b2;
@@ -241,6 +242,7 @@ const char *const all_parameters[] = {
   "envl atk",
   "envl rel",
   "filt. type",
+  "gain",
   "b1",
   "b2",
   "b3",
@@ -286,7 +288,8 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->b4 = ExtParameterNew(POT_C, MIDI_B4, 0.01f);
   gstate->b5 = ExtParameterNew(POT_C, MIDI_B5, 0.01f);
 
-  gstate->filter_type = ParameterNew(POT_A, MIDI_FILTER_TYPE, 0);
+  gstate->filter_type = ParameterNew(POT_A, MIDI_FILTER_TYPE, 0.f);
+  gstate->gain = ParameterNew(POT_B, MIDI_GAIN, 0.25f);
 
   gstate->A = (Parameter *)&(gstate->timbre);
   gstate->B = (Parameter *)&(gstate->color);
@@ -312,6 +315,7 @@ static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->b4.screen_locked = status;
   gstate->b5.screen_locked = status;
   gstate->filter_type.screen_locked = status;
+  gstate->gain.screen_locked = status;
 }
 
 static inline void lock_mapped_pots(RuntimeState *gstate, bool status) {

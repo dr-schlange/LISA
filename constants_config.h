@@ -46,6 +46,7 @@ const char *const modes[] = {
 #define SAVED_DISPLAY_MS 800
 
 // MIDI CCs
+#define MIDI_GAIN 3
 #define MIDI_MASTER_VOL 7
 #define MIDI_ENGINE_SEL 8
 #define MIDI_TIMBRE 9
