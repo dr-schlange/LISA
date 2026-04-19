@@ -174,10 +174,10 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         gstate->color.locked = true;
         break;
       case MIDI_ATTACK:
-        gstate->env_attack.value = 0.01f + (cc_value / 127.f) * 2.f;
+        gstate->env_attack.value = cc_value / 127.f;
         break;
       case MIDI_RELEASE:
-        gstate->env_release.value = 0.01f + (cc_value / 127.f) * 3.f;
+        gstate->env_release.value = cc_value / 127.f;
         break;
       case MIDI_RESONANCE:
         gstate->resonance.value = cc_value / 127.f;

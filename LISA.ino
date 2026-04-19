@@ -95,16 +95,15 @@ void __not_in_flash_func(update_audio)() {
   static float last_atk = -1.f;
   static float last_rel = -1.f;
 
-  const float minTime = 0.001f, maxTime = 5.0f;   // [1 ms, 5s]
   float atk_knob = runtime_state.env_attack.value;
   float rel_knob = runtime_state.env_release.value;
   if (atk_knob != last_atk) {
-    float atk = minTime * powf(maxTime / minTime, atk_knob);
+    float atk = 0.001f * powf(2000.f, atk_knob);   // 1ms to 2s
     attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
     last_atk = atk_knob;
   }
   if (rel_knob != last_rel) {
-    float rel = minTime * powf(maxTime / minTime, rel_knob);
+    float rel = 0.005f * powf(1000.f, rel_knob);   // 5ms to 5s
     releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
     last_rel = rel_knob;
   }
@@ -177,7 +176,7 @@ void __not_in_flash_func(update_audio)() {
 
     for (int i = 0; i < AUDIO_BLOCK; i++) {
       voice.env += (envTarget - voice.env) * coef;
-      if (voice.env < 0.0001f) voice.env = 0.0f;
+      if (envTarget == 0.0f && voice.env < 0.0001f) voice.env = 0.0f;
 
       mix[i] += (voice.buffer[i] * 0.000030517578125f) * (voice.env * voice.vel_smoothed * block_gain);
     }
@@ -243,7 +242,7 @@ void handle_menu(RuntimeState *gstate) {
             gstate->env_attack.value = constrain(gstate->env_attack.value + step * 0.01f, 0.001f, 1.f);
             break;
           case RELEASE_ADJUST:
-            gstate->env_release.value = constrain(gstate->env_release.value + step * 0.01f, 0.01f, 2.f);
+            gstate->env_release.value = constrain(gstate->env_release.value + step * 0.01f, 0.0f, 1.f);
             break;
           case FILTER_TOGGLE:
             gstate->filter_enabled = !gstate->filter_enabled;
