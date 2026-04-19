@@ -148,7 +148,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   }
 
   if (IS_MIDI_NOTE_ON(status)) {
-    int i = find_free_voice(voices);
+    int i = find_free_voice(voices, pitch_or_cc);
     voices[i].pitch = pitch_or_cc;
     voices[i].velocity = cc_value / 127.f;
     voices[i].env = 0.f;
