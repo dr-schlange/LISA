@@ -50,14 +50,13 @@ struct UIState {
   int last_engine_draw;
   unsigned long last_draw_time;
   volatile bool scope_ready;
-  volatile float scope_buffer[SCOPE_WIDTH];
-  volatile float scope_buffer_front[SCOPE_WIDTH];
-  volatile float scope_buffer_back[SCOPE_WIDTH];
+  volatile int32_t scope_buffer_front[SCOPE_WIDTH];
+  volatile int32_t scope_buffer_back[SCOPE_WIDTH];
 };
 
 #define UIStateNew() \
   { \
-    .last_engine_draw = -1, .last_draw_time = 0, .scope_ready = false, .scope_buffer = { 0 }, .scope_buffer_front = { 0 }, .scope_buffer_back = { 0 } \
+    .last_engine_draw = -1, .last_draw_time = 0, .scope_ready = false, .scope_buffer_front = { 0 }, .scope_buffer_back = { 0 } \
   }
 
 
@@ -121,16 +120,11 @@ inline void draw_scope(UIState *uistate) {
 
   display.clearDisplay();
 
-  const float midY = 40.0f;
-  const float current_gain = 150.0f;
-
   for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
-    int16_t y1 = (int16_t)(midY - (uistate->scope_buffer_back[i] * current_gain));
-    int16_t y2 = (int16_t)(midY - (uistate->scope_buffer_back[i + 1] * current_gain));
-    if (y1 < 0) y1 = 0;
-    if (y1 > 63) y1 = 63;
-    if (y2 < 0) y2 = 0;
-    if (y2 > 63) y2 = 63;
+    int16_t y1 =  40 - ((uistate->scope_buffer_back[i] * 150) >> 15);     
+    int16_t y2 =  40 - ((uistate->scope_buffer_back[i + 1] * 150) >> 15);     
+    y1 = constrain(y1, 0, 63);
+    y2 = constrain(y2, 0, 63);
     display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
   }
 
@@ -171,15 +165,11 @@ inline void draw_live_scope(UIState *uistate) {
   }
 
   // Lower half
-  const float midY = 48.0f;
-  const float gain = 100.0f;
   for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
-    int16_t y1 = (int16_t)(midY - uistate->scope_buffer_back[i] * gain);
-    int16_t y2 = (int16_t)(midY - uistate->scope_buffer_back[i + 1] * gain);
-    if (y1 < 32) y1 = 32;
-    if (y1 > 63) y1 = 63;
-    if (y2 < 32) y2 = 32;
-    if (y2 > 63) y2 = 63;
+    int16_t y1 = 48 - ((uistate->scope_buffer_back[i] * 100) >> 15);
+    int16_t y2 = 48 - ((uistate->scope_buffer_back[i + 1] * 100) >> 15);
+    y1 = constrain(y1, 32, 63);
+    y2 = constrain(y2, 32, 63);
     display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
   }
 
@@ -487,12 +477,13 @@ static inline void saved_feedback(RuntimeState *gstate) {
   }
 }
 
-static inline void scope_fill(UIState *uistate, float *mix, bool enabled) {
+static inline void scope_fill(UIState *uistate, int32_t *mix, bool enabled) {
   static int scope_idx = 0;
-  static float scopeSmooth = 0.0f;
+  static int32_t scopeSmooth = 0;
   if (!enabled || uistate->scope_ready) return;
+  const int32_t factor = (int32_t)(0.25f * 32767.f); 
   for (int i = 0; i < AUDIO_BLOCK; i += 4) {
-    scopeSmooth += (mix[i] - scopeSmooth) * 0.25f;
+    scopeSmooth += (mix[i] - scopeSmooth) * factor;
     uistate->scope_buffer_front[scope_idx++] = scopeSmooth;
     if (scope_idx >= SCOPE_WIDTH) {
       memcpy((void *)uistate->scope_buffer_back,

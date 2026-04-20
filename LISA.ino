@@ -108,7 +108,7 @@ void __not_in_flash_func(update_audio)() {
     last_rel = rel_knob;
   }
 
-  float mix[AUDIO_BLOCK] = { 0 };
+  int32_t mix[AUDIO_BLOCK] = { 0 };
 
   static float fm_slew = 0.0f;
   static float timb_slew = 0.0f;
@@ -148,7 +148,7 @@ void __not_in_flash_func(update_audio)() {
   apply_stable_slew(timb_slew, timb_target, 0.01f);
   apply_stable_slew(color_slew, color_target, 0.01f);
 
-  const float block_gain = runtime_state.master_volume.value * runtime_state.gain.value;
+  const int32_t block_gain = (int32_t)(runtime_state.master_volume.value * runtime_state.gain.value / MAX_VOICES * 32767.0f);
 
   for (int v = 0; v < MAX_VOICES; v++) {
     Voice &voice = voices[v];
@@ -174,11 +174,15 @@ void __not_in_flash_func(update_audio)() {
     float envTarget = (voice.active || voice.sustained) ? 1.0f : 0.0f;
     float coef = envTarget ? attackCoef : releaseCoef;
 
+    const int32_t env_q15 = (int32_t)(voice.env * 32767.0f);
+    const int32_t vel_q15 = (int32_t)(voice.vel_smoothed * 32767.0f);
+    const int32_t amp = ((env_q15 * vel_q15) >> 15) * block_gain >> 15;
+
     for (int i = 0; i < AUDIO_BLOCK; i++) {
       voice.env += (envTarget - voice.env) * coef;
       if (envTarget == 0.0f && voice.env < 0.0001f) voice.env = 0.0f;
 
-      mix[i] += (voice.buffer[i] * 0.000030517578125f) * (voice.env * voice.vel_smoothed * block_gain);
+      mix[i] += (voice.buffer[i] * amp) >> 15;
     }
   }
 
@@ -186,17 +190,15 @@ void __not_in_flash_func(update_audio)() {
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
 #endif
 
-  static float cut_slew = 0.0f;
-  static float res_slew = 0.0f;
-  static float mix_slew = 0.0f;
+  static int32_t cut_slew = 0, res_slew = 0, mix_slew = 0;
 
-  float cut_t = runtime_state.cutoff.value * 32767;
-  float res_t = runtime_state.resonance.value * 32767.f;
-  float mix_t = runtime_state.filter_enabled ? 1.0f : 0.0f;
+  const int32_t cut_t = (int32_t)(runtime_state.cutoff.value * 32767.f);
+  const int32_t res_t = (int32_t)(runtime_state.resonance.value * 32767.f);
+  const int32_t mix_t = runtime_state.filter_enabled ? 32767 : 0;  // 32767 stands for 1: ((1 << 15) - 1)
 
-  cut_slew += (cut_t - cut_slew) * 0.05f;
-  res_slew += (res_t - res_slew) * 0.05f;
-  mix_slew += (mix_t - mix_slew) * 0.01f;
+  cut_slew += ((cut_t - cut_slew) * 1638) >> 15;  // 1638 =  (int32_t)(0.05f * 32767.f)
+  res_slew += ((res_t - res_slew) * 1638) >> 15;
+  mix_slew += ((mix_t - mix_slew) * 327) >> 15;  // 327 =  (int32_t)(0.01f * 32767.f)                      
 
   global_filter.set_frequency((uint16_t)cut_slew);
   global_filter.set_resonance((uint16_t)res_slew);
@@ -207,15 +209,14 @@ void __not_in_flash_func(update_audio)() {
     previous_filter_mode = filter_type;
   }
 
-  const float dry_scale = (1.0f - mix_slew) * 32767.0f;
-  const float wet_scale = mix_slew;
+  const int32_t dry_scale = 32767 - mix_slew;
+  const int32_t wet_scale = mix_slew;
 
   for (int i = 0; i < AUDIO_BLOCK; i++) {
-    float dry_f = mix[i];
-    int32_t dry_int = (int32_t)(dry_f * 32767.0f);
-    float wet_f = global_filter.Process(dry_int);
-    float mixed_signal = (dry_f * dry_scale) + (wet_f * wet_scale);
-    int16_t s = (int16_t)fmaxf(-32767.0f, fminf(32767.0f, mixed_signal));
+    int32_t dry_int = mix[i];
+    int16_t wet_filter = global_filter.Process(dry_int);
+    int32_t mixed_signal = ((dry_int * dry_scale) >> 15) + ((wet_filter * wet_scale) >> 15);
+    int16_t s = constrain(mixed_signal, -32767, 32767);
     i2s_output.write16(s, s);
   }
 }
