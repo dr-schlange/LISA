@@ -1,6 +1,6 @@
 # LISA synthesizer
 
-LISA is a small semi-modular wavetable synthesizer and configurable kinetic MIDI controller for Raspberry PICO with live dynamic wavetable synthesis.
+LISA is a small semi-modular polyphonic wavetable synthesizer and configurable kinetic MIDI controller for Raspberry PICO with live dynamic wavetable synthesis.
 The synthesizer and MIDI controller are standalone, but gain extended capabilities and flexibility when paired with [Nallely](https://github.com/dr-schlange/nallely-midi) (e.g: LFOs, sequencers, sensors interactions, ...).
 
 LISA is a hard-fork of the [VIJA synthesizer v1.0.2](https://github.com/ledlaux/vija-pico-synth/releases/tag/v.1.0.2) for Raspberry PICO created by [Vadims Maksimovs](https://github.com/ledlaux). The original version is based on the port of the [Mutable Instruments Braids](https://github.com/poetaster/BRAIDS) macro oscillator.
@@ -10,7 +10,7 @@ LISA is a hard-fork of the [VIJA synthesizer v1.0.2](https://github.com/ledlaux/
 Features inherited from **VIJA**:
 
 - **40+ Oscillator Engines:** Includes VA, FM, Additive, Wavetable, Physical Modeling and Drums.
-- **4-Voice Polyphony:** Per-sample AR (Attack-Release) envelopes.
+- **4-Voices Polyphony:** Per-sample AR (Attack-Release) envelopes.
 - **OLED Interface:** Real-time feedback with a menu system and a oscilloscope.
 - **Modulation:** 2 pots, CV input and midi cc.
 - **Internal Filter:** Integrated State Variable Filter (SVF) with Low-Pass and Resonance.
@@ -18,6 +18,8 @@ Features inherited from **VIJA**:
 
 Features added in **LISA**:
 
+- **Up to 6 Voices Polyphony** at 44100 sampling rate, to 8 voices at 32000 sampling rate (depending on the engine, some will handle only 5 or 7 properly). 
+- **New LIVE engine: Live Dynamic Wavetable** stream wavetables directly from Nallely or any environement that can stream pitchwheel data on different channels. This allows you to shape in real-time the wavetables that are played by the LIVE engine (played while streamed), with bilinear (vector synthesis-like) interpolation.
 - **MIDI Controller** Support to send MIDI controls via USB.
 - **MIDI Controller extended configuration** Allows to either repeat the value set by the buttons, or to only send values without interacting with the synth part.
 - **Advanced configuration** Access all synth parameter configuration and more with the physical buttons.
@@ -176,7 +178,7 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 
 * **RP2040:** - Optimize: Fast (-O3)
   - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and needed voice count
-  - Sample rate: 32000 (4 voices) / 44100 (3 voices)
+  - Sample rate: 32000 (up to 8 voices depending on the engine) / 44100 (up to 6 voices depending on the engine)
 * **RP2350:** - Optimize: Fast (-Ofast)
   - Sample rate: 48000
 

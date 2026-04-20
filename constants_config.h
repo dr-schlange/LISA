@@ -20,7 +20,9 @@ const char *const engine_names[] = {
 constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
 const char *const modes[] = {
-  "normal", "kinetic", "attenuator",
+  "normal",
+  "kinetic",
+  "attenuator",
 };
 
 #define DEBUG false
@@ -29,9 +31,9 @@ const char *const modes[] = {
 #define USE_UART_MIDI 0  // 0 = USB MIDI, 1 = UART MIDI
 
 // Voices config (audio block and sample rate are related)
-#define MAX_VOICES 4
+#define MAX_VOICES 6
 #define AUDIO_BLOCK 32
-#define SAMPLE_RATE 32000
+#define SAMPLE_RATE 44100
 
 // Screen
 #define SSD1306 1  //ssd1306 display

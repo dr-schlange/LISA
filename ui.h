@@ -50,8 +50,8 @@ struct UIState {
   int last_engine_draw;
   unsigned long last_draw_time;
   volatile bool scope_ready;
-  volatile int32_t scope_buffer_front[SCOPE_WIDTH];
-  volatile int32_t scope_buffer_back[SCOPE_WIDTH];
+  volatile int16_t scope_buffer_front[SCOPE_WIDTH];
+  volatile int16_t scope_buffer_back[SCOPE_WIDTH];
 };
 
 #define UIStateNew() \
@@ -121,8 +121,8 @@ inline void draw_scope(UIState *uistate) {
   display.clearDisplay();
 
   for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
-    int16_t y1 =  40 - ((uistate->scope_buffer_back[i] * 150) >> 15);     
-    int16_t y2 =  40 - ((uistate->scope_buffer_back[i + 1] * 150) >> 15);     
+    int16_t y1 = 40 - ((uistate->scope_buffer_back[i] * 150) >> 15);
+    int16_t y2 = 40 - ((uistate->scope_buffer_back[i + 1] * 150) >> 15);
     y1 = constrain(y1, 0, 63);
     y2 = constrain(y2, 0, 63);
     display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
@@ -481,9 +481,9 @@ static inline void scope_fill(UIState *uistate, int32_t *mix, bool enabled) {
   static int scope_idx = 0;
   static int32_t scopeSmooth = 0;
   if (!enabled || uistate->scope_ready) return;
-  const int32_t factor = (int32_t)(0.25f * 32767.f); 
+  const int32_t factor = (int32_t)(0.25f * 32767.f);
   for (int i = 0; i < AUDIO_BLOCK; i += 4) {
-    scopeSmooth += (mix[i] - scopeSmooth) * factor;
+    scopeSmooth += ((mix[i] - scopeSmooth) * factor) >> 15;
     uistate->scope_buffer_front[scope_idx++] = scopeSmooth;
     if (scope_idx >= SCOPE_WIDTH) {
       memcpy((void *)uistate->scope_buffer_back,

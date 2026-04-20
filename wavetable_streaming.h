@@ -163,7 +163,7 @@ public:
     int32_t mix =
       Interpolate824(waves[0], phase) * w1_ + Interpolate824(waves[1], phase) * w2_ + Interpolate824(waves[2], phase) * w3_ + Interpolate824(waves[3], phase) * w4_;
 
-    return mix >> 15;  // normalize
+    return mix >> 15;  // go back to normal world
   }
 
   inline void RenderMixing(const uint8_t* sync, int16_t* output, size_t size) {

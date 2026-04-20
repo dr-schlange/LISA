@@ -32,7 +32,7 @@
 
   RP2040: - Optimize: Optimize Even More (-O3)
           - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and needed voice count
-          - Sample rate: 32000 (4 voices) / 44100 (3 voices)
+          - Sample rate: 32000 (up to 8 voice depending on the engine) / 44100 (up to 6 voices depending on the engine)
   RP2350:
          - Optimize: Optimize Even More (-O3)
          - Sample rate: 48000
@@ -98,12 +98,12 @@ void __not_in_flash_func(update_audio)() {
   float atk_knob = runtime_state.env_attack.value;
   float rel_knob = runtime_state.env_release.value;
   if (atk_knob != last_atk) {
-    float atk = 0.001f * powf(2000.f, atk_knob);   // 1ms to 2s
+    float atk = 0.001f * powf(2000.f, atk_knob);  // 1ms to 2s
     attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
     last_atk = atk_knob;
   }
   if (rel_knob != last_rel) {
-    float rel = 0.005f * powf(1000.f, rel_knob);   // 5ms to 5s
+    float rel = 0.005f * powf(1000.f, rel_knob);  // 5ms to 5s
     releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
     last_rel = rel_knob;
   }
@@ -198,7 +198,7 @@ void __not_in_flash_func(update_audio)() {
 
   cut_slew += ((cut_t - cut_slew) * 1638) >> 15;  // 1638 =  (int32_t)(0.05f * 32767.f)
   res_slew += ((res_t - res_slew) * 1638) >> 15;
-  mix_slew += ((mix_t - mix_slew) * 327) >> 15;  // 327 =  (int32_t)(0.01f * 32767.f)                      
+  mix_slew += ((mix_t - mix_slew) * 327) >> 15;  // 327 =  (int32_t)(0.01f * 32767.f)
 
   global_filter.set_frequency((uint16_t)cut_slew);
   global_filter.set_resonance((uint16_t)res_slew);
