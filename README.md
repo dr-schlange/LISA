@@ -3,7 +3,12 @@
 LISA is a small semi-modular polyphonic wavetable synthesizer and configurable kinetic MIDI controller for Raspberry PICO with live dynamic wavetable synthesis.
 The synthesizer and MIDI controller are standalone, but gain extended capabilities and flexibility when paired with [Nallely](https://github.com/dr-schlange/nallely-midi) (e.g: LFOs, sequencers, sensors interactions, ...).
 
-LISA is a hard-fork of the [VIJA synthesizer v1.0.2](https://github.com/ledlaux/vija-pico-synth/releases/tag/v.1.0.2) for Raspberry PICO created by [Vadims Maksimovs](https://github.com/ledlaux). The original version is based on the port of the [Mutable Instruments Braids](https://github.com/poetaster/BRAIDS) macro oscillator.
+LISA is a hard-fork of the [VIJA synthesizer v1.0.2](https://github.com/ledlaux/vija-pico-synth/releases/tag/v.1.0.2) for Raspberry PICO created by [Vadims Maksimovs]
+(https://github.com/ledlaux). The original version is based on the port of the [Mutable Instruments Braids](https://github.com/poetaster/BRAIDS) macro oscillator.
+
+
+[![LISA prototype YouTube video](https://img.youtube.com/vi/1RY8hzp2-kY/0.jpg)](https://www.youtube.com/watch?v=1RY8hzp2-kY;start=11)
+
 
 ## Features
 
