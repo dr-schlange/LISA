@@ -1,0 +1,1 @@
+default_fqbn: rp2040:rp2040:rpipicow:flash=2097152_65536,freq=240,opt=Optimize3,dbgport=Serial,wificountry=mexico,usbstack=tinyusb

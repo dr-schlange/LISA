@@ -1,4 +1,3 @@
-#include "wavetable_streaming.h"
 /*
   LISA (v0.0.1)
 
@@ -8,6 +7,7 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
+#include "wavetable_streaming.h"
 #include <pico/stdlib.h>
 #include <Adafruit_TinyUSB.h>
 #include "voices.h"
@@ -114,7 +114,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     WavetableStreamingOscillator::PushSampleInBuffer(MIDI_CHANNEL(status), sample);
     return;
   }
-  
+
   if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1)) return;
 
   // --- Special CC64 sustain handling ---
