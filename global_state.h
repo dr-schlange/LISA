@@ -215,6 +215,7 @@ struct RuntimeState {
   ExtParameter env_release;
   Parameter filter_type;
   Parameter gain;
+  Parameter fm_slew;
   // Extra params
   ExtParameter b1;
   ExtParameter b2;
@@ -243,6 +244,7 @@ const char *const all_parameters[] = {
   "envl rel",
   "filt. type",
   "gain",
+  "fm_slew",
   "b1",
   "b2",
   "b3",
@@ -290,6 +292,7 @@ static inline void init_global_state(RuntimeState *gstate) {
 
   gstate->filter_type = ParameterNew(POT_A, MIDI_FILTER_TYPE, 0.f);
   gstate->gain = ParameterNew(POT_B, MIDI_GAIN, 0.25f);
+  gstate->fm_slew = ParameterNew(POT_C, MIDI_FM_SLEW, 0.05f);
 
   gstate->A = (Parameter *)&(gstate->timbre);
   gstate->B = (Parameter *)&(gstate->color);
@@ -316,6 +319,7 @@ static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->b5.screen_locked = status;
   gstate->filter_type.screen_locked = status;
   gstate->gain.screen_locked = status;
+  gstate->fm_slew.screen_locked = status;
 }
 
 static inline void lock_mapped_pots(RuntimeState *gstate, bool status) {

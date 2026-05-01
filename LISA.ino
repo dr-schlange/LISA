@@ -144,7 +144,7 @@ void __not_in_flash_func(update_audio)() {
     }
   };
 
-  apply_stable_slew(fm_slew, fm_target, 0.05f);
+  apply_stable_slew(fm_slew, fm_target, runtime_state.fm_slew.value);
   apply_stable_slew(timb_slew, timb_target, 0.01f);
   apply_stable_slew(color_slew, color_target, 0.01f);
 

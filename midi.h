@@ -194,6 +194,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       case MIDI_FM_MOD:
         gstate->fm_mod.value = cc_value / 127.f;
         break;
+      case MIDI_FM_SLEW:
+        gstate->fm_slew.value = cc_value / 127.f;
+        break;
       case MIDI_TIMBRE_MOD:
         gstate->timbre_mod.value = cc_value / 127.f;
         break;

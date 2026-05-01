@@ -118,6 +118,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **15**        | FM Modulation                                          |
 | **16**        | Timbre Modulation Amount                               |
 | **17**        | Color Modulation Amount                                |
+| **18**        | FM slew                                                |
 | **64**        | Sustain (Hold notes)                                   |
 | **71**        | Filter Resonance                                       |
 | **74**        | Filter Cutoff                                          |

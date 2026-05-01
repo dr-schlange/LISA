@@ -23,12 +23,12 @@ lisa.wavetable.stream_table4 = lfo2.scale(-8192, 8192)
 time.sleep(1)
 
 print("* Test 6 notes voicing 4s")
-lisa.note_on(50)
-lisa.note_on(52)
-lisa.note_on(54)
-lisa.note_on(56)
-lisa.note_on(58)
-lisa.note_on(60)
+lisa.note_on(50, velocity=70)
+lisa.note_on(52, velocity=80)
+lisa.note_on(54, velocity=90)
+lisa.note_on(56, velocity=95)
+lisa.note_on(58, velocity=99)
+lisa.note_on(60, velocity=127)
 time.sleep(2)
 
 print("* Plug LFO to the cutoff")
@@ -45,5 +45,19 @@ lisa.filter.cutoff -= lfo1
 lisa.filter.cutoff = 50
 time.sleep(2)
 
+print("* Tests fm slew")
+lisa.modulation.FM_slew = lfo1.scale(0, 127)
+lisa.modulation.FM_mod = 10
+time.sleep(1)
+lisa.modulation.FM_mod = 70
+time.sleep(1)
+lisa.modulation.FM_mod = 127
+time.sleep(1)
+lisa.modulation.FM_mod = 10
+time.sleep(2)
+lisa.modulation.FM_slew -= lfo1
+
+
 print("Stopping now...")
+lisa.wavetable.reset_all_wt = "ON"
 stop_all_connected_devices()
