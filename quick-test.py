@@ -7,8 +7,8 @@ print("Start LISA quick test")
 lisa = Lisa()
 lisa.general.engine_select = 127
 
-lfo1 = LFO(waveform="sine", speed=1, sampling_rate=259, auto_srate="OFF", autoconnect=True)
-lfo2 = LFO(waveform="sawtooth", speed=1, sampling_rate=259, auto_srate="OFF", autoconnect=True)
+lfo1 = LFO(waveform="sine", speed=1, sampling_rate=258, auto_srate="OFF", autoconnect=True)
+lfo2 = LFO(waveform="sawtooth", speed=1, sampling_rate=258, auto_srate="OFF", autoconnect=True)
 
 print("* Reset wavetables and wait 0.5s...")
 lisa.wavetable.reset_all_wt = "ON"
@@ -46,16 +46,26 @@ lisa.filter.cutoff = 50
 time.sleep(2)
 
 print("* Tests fm slew")
-lisa.modulation.FM_slew = lfo1.scale(0, 127)
-lisa.modulation.FM_mod = 10
-time.sleep(1)
-lisa.modulation.FM_mod = 70
-time.sleep(1)
-lisa.modulation.FM_mod = 127
-time.sleep(1)
-lisa.modulation.FM_mod = 10
-time.sleep(2)
-lisa.modulation.FM_slew -= lfo1
+lisa.keys.notes -= lfo1
+fm_lfo = LFO(waveform="step", speed=0.1, autoconnect=True)
+print("Slew rate 1")
+lisa.modulation.FM_slew = 1
+lisa.modulation.FM_mod = fm_lfo
+lisa.note_on(54)
+input("Press enter for next value...")
+print("Slew rate 30")
+lisa.modulation.FM_slew = 30
+input("Press enter for next value...")
+print("Slew rate 64")
+lisa.modulation.FM_slew = 64
+input("Press enter for next value...")
+print("Slew rate 127")
+lisa.modulation.FM_slew = 127
+input("Press enter for next value...")
+print("Slew rate 1")
+lisa.modulation.FM_slew = 1
+input("Press enter...")
+lisa.modulation.FM_mod -= lfo1
 
 
 print("Stopping now...")
