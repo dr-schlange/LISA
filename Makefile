@@ -17,7 +17,8 @@ upload: $(BUILD_DIR)/rp2040.rp2040.rpipicow/LISA.ino.uf2
 fulltest: upload test
 test:
 	python quick-test.py
-
+test%:
+	python quick-test.py $*
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -188,6 +188,18 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 * **RP2350:** - Optimize: Fast (-Ofast)
   - Sample rate: 48000
 
+### Quick deployment and testing using Nallely
+
+If you have Nallely installed as a library somewhere on your system (i.e: accessible from Python when doing `import nallely`) and `arduino-cli` installed and configured properly (i.e: configuration pointing to the shared folder where all the third-party libraries are located), you can use the `Makefile` to have a quick update or dev workflow:
+
+```
+make           # builds the firmware in `build`
+make upload    # builds the firmware if necessary and uploads it to your LISA synth
+make fulltest  # builds the firmware if necessary, uploads it to your LISA synth and runs the tests (interactive audio test)
+make test      # runs the all the defined tests
+make testX     # runs the test X (e.g: "make test3" runs the test3)
+```
+
 ## Schematic & Wiring
 
 For this project I use RP2040 Zero model, so adjust GPIO numbers for your board.
@@ -256,6 +268,7 @@ This project is an independent fork and is not affiliated with or endorsed by th
 
 ## Version history
 
+- 2026-05-02 - LISA v0.0.1 first version with LIVE engine
 - 2026-03-24 - LISA v0.0.0 hard-fork from VIJA
 - 2026-02-26 - VIJA v1.0.2
 - 2026-02-03 - VIJA v1.0.1
