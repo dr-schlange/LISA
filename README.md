@@ -25,6 +25,8 @@ Features added in **LISA**:
 
 - **Up to 6 Voices Polyphony** at 44100 sampling rate, to 8 voices at 32000 sampling rate (depending on the engine, some will handle only 5 or 7 properly). 
 - **New LIVE engine: Live Dynamic Wavetable** stream wavetables directly from Nallely or any environement that can stream pitchwheel data on different channels. This allows you to shape in real-time the wavetables that are played by the LIVE engine (played while streamed), with bilinear (vector synthesis-like) interpolation.
+- **Envelope Adaptation** Envelope attack/release can go from nothing to quite long (up to 5s)
+- **New internal parameters exposed** Gain, FM slew (slew between FM jumps if FM is modulated)
 - **MIDI Controller** Support to send MIDI controls via USB.
 - **MIDI Controller extended configuration** Allows to either repeat the value set by the buttons, or to only send values without interacting with the synth part.
 - **Advanced configuration** Access all synth parameter configuration and more with the physical buttons.
