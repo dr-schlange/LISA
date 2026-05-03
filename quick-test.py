@@ -150,7 +150,25 @@ def test5(lisa, lfo1, lfo2):
     print("[mono] Play notes cluster and one note by one note off...")
     play_cluster(lisa, [54, 47], duration=1)
 
-tests = [test1, test2, test3, test4, test5]
+# filters test
+def test6(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.envelope.release = 70
+    lisa.filter.cutoff = 64
+    # low pass filter
+    lisa.filter.type = "lowpass"
+    print(lisa.filter.type, int(lisa.filter.type))
+    play_cluster(lisa, [42, 45, 47])
+    # high pass filter
+    lisa.filter.type = "highpass"
+    print(lisa.filter.type, int(lisa.filter.type))
+    play_cluster(lisa, [42, 45, 47])
+    # band pass filter
+    lisa.filter.type = "bandpass"
+    print(lisa.filter.type, int(lisa.filter.type))
+    play_cluster(lisa, [42, 45, 47])
+
+tests = [test1, test2, test3, test4, test5, test6]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:

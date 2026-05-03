@@ -11,6 +11,10 @@
 
 * Voices pitch is now float instead of an int
 
+## Fixes
+
+* Fix sneaky bug on filter type selection
+
 
 ## 0.0.1 -- Initial Version
 

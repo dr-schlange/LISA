@@ -32,6 +32,18 @@ static inline void setup_USB() {
   usb_midi.begin();
 }
 
+static inline uint8_t midi_get_group(uint8_t value, uint8_t ngroup) {
+  uint8_t group_size = 128 / ngroup;
+  uint8_t g = value / group_size;
+
+  return (g >= ngroup) ? (ngroup - 1) : g;
+}
+
+static inline uint8_t norm_get_group(float value, uint8_t ngroup) {
+  int g = (int)(value * ngroup);
+  return (g >= ngroup) ? (ngroup - 1) : g;
+}
+
 static inline void send_midi_cc(uint8_t cc, uint8_t value, uint8_t channel) {
 #if USE_UART_MIDI
   Serial1.write(0xB0 | (channel - 1));
@@ -173,7 +185,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
     case MIDI_VOICE_MODE:
-      mode = (VoiceMode)round(((cc_value / 127.f) * (float)NUM_VOICE_MODE));
+      mode = (VoiceMode)midi_get_group(cc_value, NUM_VOICE_MODE);
       if (mode != prev_voice_mode) {
         reset_all_voices(voices);
         gstate->voice_mode = mode;
@@ -210,9 +222,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       gstate->cutoff.value = cc_value / 127.f;
       break;
     case MIDI_FILTER_TYPE:
-      gstate->filter_type.value =
-          (cc_value / 127.f) *
-          2.f; // scale on the number of filters in braids - 1
+      gstate->filter_type.value = cc_value / 127.f;
       break;
     case MIDI_FM_MOD:
       gstate->fm_mod.value = cc_value / 127.f;
