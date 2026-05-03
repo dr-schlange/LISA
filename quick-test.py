@@ -31,7 +31,7 @@ def test1(lisa, lfo1, lfo2):
     lisa.note_on(56, velocity=95)
     lisa.note_on(58, velocity=99)
     lisa.note_on(60, velocity=127)
-    time.sleep(2)
+    time.sleep(4)
 
 
 def test2(lisa, lfo1, lfo2):
@@ -57,7 +57,7 @@ def test3(lisa, lfo1, lfo2):
     print("Slew rate 1")
     lisa.modulation.FM_slew = 1
     lisa.modulation.FM_mod = fm_lfo
-    lisa.note_on(54)
+    lisa.note_on(54, velocity=126)
     input("Press enter for next value...")
     print("Slew rate 5")
     lisa.modulation.FM_slew = 5
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         autoconnect=True,
     )
     setup(lisa, lfo1, lfo2)
-    if testtorun:
+    if testtorun is not None:
         tests[testtorun](lisa, lfo1, lfo2)
     else:
         for test in tests:
