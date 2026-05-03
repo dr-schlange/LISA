@@ -5,25 +5,25 @@
   Licensed under GNU GPLv3
 */
 #pragma once
-#include <cstdint>
-#include <pico/stdlib.h>
 #include "constants_config.h"
 #include "encoder.h"
+#include <cstdint>
+#include <pico/stdlib.h>
 
-enum DisplayMode { ENGINE_SELECT_MODE,
-                   ENGINE_SETTINGS_CONFIG,
-                   OSCILLOSCOPE_MODE,
-                   ALL_PARAMS_MODE,
-                   GLOBAL_SETTINGS
+enum DisplayMode {
+  ENGINE_SELECT_MODE,
+  ENGINE_SETTINGS_CONFIG,
+  OSCILLOSCOPE_MODE,
+  ALL_PARAMS_MODE,
+  GLOBAL_SETTINGS
 };
 
-
-enum MidiControllerMode { CONTROLLER_MODE_OFF,
-                          CONTROLLER_BOTH,
-                          CONTROLLER_ONLY,
-                          CONTROLLER_NUM,
+enum MidiControllerMode {
+  CONTROLLER_MODE_OFF,
+  CONTROLLER_BOTH,
+  CONTROLLER_ONLY,
+  CONTROLLER_NUM,
 };
-
 
 enum ResolutionMode {
   RES_RAW,
@@ -48,8 +48,8 @@ enum PotsRow {
   ROW_FILTER,
   ROW_ENVELOPE,
   ROW_NUM,
-  ROW_EDIT_ENGINE,  // hidden state edit engine
-  ROW_PAGE_SELECT,  // hidden state set all parameters page
+  ROW_EDIT_ENGINE, // hidden state edit engine
+  ROW_PAGE_SELECT, // hidden state set all parameters page
 };
 
 enum GlobalSettings {
@@ -62,29 +62,27 @@ enum GlobalSettings {
   SETTING_EDIT_MODE,
 };
 
-#define BASE_PARAMETER \
-  bool extended; \
-  volatile float value; \
-  uint8_t last_value; \
-  float smoothed; \
-  uint8_t gpio; \
-  bool screen_locked; \
+#define BASE_PARAMETER                                                         \
+  bool extended;                                                               \
+  volatile float value;                                                        \
+  uint8_t last_value;                                                          \
+  float smoothed;                                                              \
+  uint8_t gpio;                                                                \
+  bool screen_locked;                                                          \
   ResolutionMode resolution_mode
 
 struct Parameter {
   BASE_PARAMETER;
 };
 
-#define ParameterNew(gpio_, midi_cc_, val_) \
-  { \
-    .extended = false, \
-    .value = val_, \
-    .last_value = (uint8_t)val_, \
-    .smoothed = val_, \
-    .gpio = gpio_, \
-    .screen_locked = false, \
-    .resolution_mode = RES_CATCHUP \
-  }
+#define ParameterNew(gpio_, midi_cc_, val_)                                    \
+  {.extended = false,                                                          \
+   .value = val_,                                                              \
+   .last_value = (uint8_t)val_,                                                \
+   .smoothed = val_,                                                           \
+   .gpio = gpio_,                                                              \
+   .screen_locked = false,                                                     \
+   .resolution_mode = RES_CATCHUP}
 
 struct ExtParameter {
   BASE_PARAMETER;
@@ -110,54 +108,49 @@ struct ExtParameter {
   };
 };
 
-#define ExtParameterNew(gpio_, midi_cc_, val_) \
-  { \
-    .extended = true, \
-    .value = val_, \
-    .last_value = (uint8_t)val_, \
-    .smoothed = val_, \
-    .gpio = gpio_, \
-    .screen_locked = false, \
-    .resolution_mode = RES_CATCHUP, \
-    .mode = POT_NORMAL, \
-    .midi_cc = midi_cc_, \
-    .locked = false, \
-    .kinetic = { \
-      .mass = { \
-        .extended = false, \
-        .value = 0.2f, \
-        .last_value = (uint8_t)0.2f, \
-        .smoothed = 0.2f, \
-        .gpio = gpio_, \
-        .screen_locked = false, \
-        .resolution_mode = RES_CATCHUP, \
-      }, \
-      .damping = { \
-        .extended = false, \
-        .value = 0.4f, \
-        .last_value = (uint8_t)0.4, \
-        .smoothed = 0.4f, \
-        .gpio = gpio_, \
-        .screen_locked = false, \
-        .resolution_mode = RES_CATCHUP, \
-      }, \
-      .stiffness = { \
-        .extended = false, \
-        .value = 0.4f, \
-        .last_value = (uint8_t)0.4f, \
-        .smoothed = 0.4f, \
-        .gpio = gpio_, \
-        .screen_locked = false, \
-        .resolution_mode = RES_CATCHUP, \
-      }, \
-      .last_pos = 0.f, \
-      .velocity = 0.f, \
-      .last_update_time = 0, \
-      .last_move_time = 0, \
-      .last_midi_send = 0, \
-    } \
+#define ExtParameterNew(gpio_, midi_cc_, val_)                                 \
+  {                                                                            \
+    .extended = true, .value = val_, .last_value = (uint8_t)val_,              \
+    .smoothed = val_, .gpio = gpio_, .screen_locked = false,                   \
+    .resolution_mode = RES_CATCHUP, .mode = POT_NORMAL, .midi_cc = midi_cc_,   \
+    .locked = false, .kinetic = {                                              \
+      .mass =                                                                  \
+          {                                                                    \
+              .extended = false,                                               \
+              .value = 0.2f,                                                   \
+              .last_value = (uint8_t)0.2f,                                     \
+              .smoothed = 0.2f,                                                \
+              .gpio = gpio_,                                                   \
+              .screen_locked = false,                                          \
+              .resolution_mode = RES_CATCHUP,                                  \
+          },                                                                   \
+      .damping =                                                               \
+          {                                                                    \
+              .extended = false,                                               \
+              .value = 0.4f,                                                   \
+              .last_value = (uint8_t)0.4,                                      \
+              .smoothed = 0.4f,                                                \
+              .gpio = gpio_,                                                   \
+              .screen_locked = false,                                          \
+              .resolution_mode = RES_CATCHUP,                                  \
+          },                                                                   \
+      .stiffness =                                                             \
+          {                                                                    \
+              .extended = false,                                               \
+              .value = 0.4f,                                                   \
+              .last_value = (uint8_t)0.4f,                                     \
+              .smoothed = 0.4f,                                                \
+              .gpio = gpio_,                                                   \
+              .screen_locked = false,                                          \
+              .resolution_mode = RES_CATCHUP,                                  \
+          },                                                                   \
+      .last_pos = 0.f,                                                         \
+      .velocity = 0.f,                                                         \
+      .last_update_time = 0,                                                   \
+      .last_move_time = 0,                                                     \
+      .last_midi_send = 0,                                                     \
+    }                                                                          \
   }
-
 
 #define REFRESH_IS_SCHEDULED(runtime) (runtime)->engine_updated
 #define SCHEDULE_REFRESH(runtime) (runtime)->engine_updated = true
@@ -165,12 +158,15 @@ struct ExtParameter {
 
 #define SET_SYSTEM_READY(runtime) (runtime)->system_ready = true
 #define IS_OSCILLOSCOPE_ON(runtime) (runtime)->oscilloscope_enabled
-#define TOGGLE_OSCILLOSCOPE(runtime) ((runtime)->oscilloscope_enabled = !(runtime)->oscilloscope_enabled)
+#define TOGGLE_OSCILLOSCOPE(runtime)                                           \
+  ((runtime)->oscilloscope_enabled = !(runtime)->oscilloscope_enabled)
 #define IS_OSCILLOSCOPE_OFF(runtime) (!(runtime)->oscilloscope_enabled)
-#define IS_OSCILLOSCOPE_MODE(runtime) (runtime)->display_state == OSCILLOSCOPE_MODE
-#define IS_ENGINE_SETTINGS_CONFIG(runtime) (runtime)->display_state == ENGINE_SETTINGS_CONFIG
-#define IS_ENGINE_SELECT_MODE(runtime) (runtime)->display_state == ENGINE_SELECT_MODE
-
+#define IS_OSCILLOSCOPE_MODE(runtime)                                          \
+  (runtime)->display_state == OSCILLOSCOPE_MODE
+#define IS_ENGINE_SETTINGS_CONFIG(runtime)                                     \
+  (runtime)->display_state == ENGINE_SETTINGS_CONFIG
+#define IS_ENGINE_SELECT_MODE(runtime)                                         \
+  (runtime)->display_state == ENGINE_SELECT_MODE
 
 struct RuntimeState {
   uint8_t midi_ch;
@@ -232,26 +228,12 @@ struct RuntimeState {
 };
 
 const char *const all_parameters[] = {
-  "tmbr amt",
-  "colr amt",
-  "cutoff",
-  "resonance",
-  "tmbr mod",
-  "colr mod",
-  "fm mod",
-  "mast vol",
-  "envl atk",
-  "envl rel",
-  "filt. type",
-  "gain",
-  "fm_slew",
-  "b1",
-  "b2",
-  "b3",
-  "b4",
-  "b5",
+    "tmbr amt", "colr amt", "cutoff",   "resonance", "tmbr mod",   "colr mod",
+    "fm mod",   "mast vol", "envl atk", "envl rel",  "filt. type", "gain",
+    "fm_slew",  "b1",       "b2",       "b3",        "b4",         "b5",
 };
-constexpr uint8_t ALL_PARAMETERS_NUM = sizeof(all_parameters) / sizeof(all_parameters[0]);
+constexpr uint8_t ALL_PARAMETERS_NUM =
+    sizeof(all_parameters) / sizeof(all_parameters[0]);
 
 static inline void init_global_state(RuntimeState *gstate) {
   gstate->midi_ch = 1;
@@ -328,7 +310,8 @@ static inline void lock_mapped_pots(RuntimeState *gstate, bool status) {
   gstate->C->screen_locked = status;
 }
 
-static inline void map_abc_pots(RuntimeState *gstate, Parameter *A, Parameter *B, Parameter *C) {
+static inline void map_abc_pots(RuntimeState *gstate, Parameter *A,
+                                Parameter *B, Parameter *C) {
   if (gstate->A = A) {
     gstate->A->gpio = POT_A;
   }
@@ -340,19 +323,21 @@ static inline void map_abc_pots(RuntimeState *gstate, Parameter *A, Parameter *B
   }
 }
 
-static inline void set_parameter_resolution(Parameter *param, ResolutionMode mode) {
+static inline void set_parameter_resolution(Parameter *param,
+                                            ResolutionMode mode) {
   param->resolution_mode = mode;
 }
 
-static inline void set_ext_param_resolution(ExtParameter *param, ResolutionMode mode) {
+static inline void set_ext_param_resolution(ExtParameter *param,
+                                            ResolutionMode mode) {
   set_parameter_resolution((Parameter *)param, mode);
   set_parameter_resolution(&(param->kinetic.damping), mode);
   set_parameter_resolution(&(param->kinetic.stiffness), mode);
   set_parameter_resolution(&(param->kinetic.mass), mode);
 }
 
-
-static inline void set_all_resolution(RuntimeState *gstate, ResolutionMode mode) {
+static inline void set_all_resolution(RuntimeState *gstate,
+                                      ResolutionMode mode) {
   set_ext_param_resolution(&(gstate->timbre), mode);
   set_ext_param_resolution(&(gstate->color), mode);
   set_ext_param_resolution(&(gstate->cutoff), mode);
@@ -396,7 +381,8 @@ static inline void set_pot_mode(RuntimeState *gstate, PotMode mode) {
   gstate->glob_settings_edit_param->mode = mode;
 }
 
-static inline void set_resolution_mode(RuntimeState *gstate, ResolutionMode mode) {
+static inline void set_resolution_mode(RuntimeState *gstate,
+                                       ResolutionMode mode) {
   if (gstate->glob_settings_edit_param == NULL) {
     set_all_resolution(gstate, mode);
     return;

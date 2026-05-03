@@ -20,5 +20,8 @@ test:
 test%:
 	python quick-test.py $*
 
+format: $(SOURCES)
+	clang-format -i --style=LLVM $(SOURCES)
+
 clean:
 	rm -rf $(BUILD_DIR)

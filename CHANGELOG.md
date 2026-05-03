@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 0.1.0
+
+## Features
+
+## Changes
+
+* Voices pitch is now float instead of an int
+
 ## 0.0.1 -- Initial Version
 
 First LISA release since fork from Vija v1.0.2

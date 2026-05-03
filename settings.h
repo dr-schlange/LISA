@@ -7,12 +7,12 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
-#include <Arduino.h>
-#include <pico/stdlib.h>
-#include <LittleFS.h>
-#include <ArduinoJson.h>
 #include "constants_config.h"
 #include "global_state.h"
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <LittleFS.h>
+#include <pico/stdlib.h>
 
 typedef struct __attribute__((packed)) {
   float master_volume, env_attack, env_release;
@@ -25,10 +25,13 @@ typedef struct __attribute__((packed)) {
   float envrel_kinetic_mass, envrel_kinetic_damping, envrel_kinetic_stiffness;
   float timbre_kinetic_mass, timbre_kinetic_damping, timbre_kinetic_stiffness;
   float color_kinetic_mass, color_kinetic_damping, color_kinetic_stiffness;
-  float timbmod_kinetic_mass, timbmod_kinetic_damping, timbmod_kinetic_stiffness;
-  float colormod_kinetic_mass, colormod_kinetic_damping, colormod_kinetic_stiffness;
+  float timbmod_kinetic_mass, timbmod_kinetic_damping,
+      timbmod_kinetic_stiffness;
+  float colormod_kinetic_mass, colormod_kinetic_damping,
+      colormod_kinetic_stiffness;
   float cutoff_kinetic_mass, cutoff_kinetic_damping, cutoff_kinetic_stiffness;
-  float resonance_kinetic_mass, resonance_kinetic_damping, resonance_kinetic_stiffness;
+  float resonance_kinetic_mass, resonance_kinetic_damping,
+      resonance_kinetic_stiffness;
   float b1_kinetic_mass, b1_kinetic_damping, b1_kinetic_stiffness;
   float b2_kinetic_mass, b2_kinetic_damping, b2_kinetic_stiffness;
   float b3_kinetic_mass, b3_kinetic_damping, b3_kinetic_stiffness;
@@ -42,29 +45,71 @@ typedef struct __attribute__((packed)) {
 } SettingsSnapshot;
 
 static inline SettingsSnapshot snapshot_from(const RuntimeState *s) {
-  return (SettingsSnapshot){
-    s->master_volume.value, s->env_attack.value, s->env_release.value,
-    s->timbre.value, s->color.value, s->timbre_mod.value, s->color_mod.value,
-    s->cutoff.value, s->resonance.value, s->filter_type.value,
-    s->b1.value, s->b2.value, s->b3.value, s->b4.value, s->b5.value,
-    s->master_volume.kinetic.mass.value, s->master_volume.kinetic.damping.value, s->master_volume.kinetic.stiffness.value,
-    s->env_attack.kinetic.mass.value, s->env_attack.kinetic.damping.value, s->env_attack.kinetic.stiffness.value,
-    s->env_release.kinetic.mass.value, s->env_release.kinetic.damping.value, s->env_release.kinetic.stiffness.value,
-    s->timbre.kinetic.mass.value, s->timbre.kinetic.damping.value, s->timbre.kinetic.stiffness.value,
-    s->color.kinetic.mass.value, s->color.kinetic.damping.value, s->color.kinetic.stiffness.value,
-    s->timbre_mod.kinetic.mass.value, s->timbre_mod.kinetic.damping.value, s->timbre_mod.kinetic.stiffness.value,
-    s->color_mod.kinetic.mass.value, s->color_mod.kinetic.damping.value, s->color_mod.kinetic.stiffness.value,
-    s->cutoff.kinetic.mass.value, s->cutoff.kinetic.damping.value, s->cutoff.kinetic.stiffness.value,
-    s->resonance.kinetic.mass.value, s->resonance.kinetic.damping.value, s->resonance.kinetic.stiffness.value,
-    s->b1.kinetic.mass.value, s->b1.kinetic.damping.value, s->b1.kinetic.stiffness.value,
-    s->b2.kinetic.mass.value, s->b2.kinetic.damping.value, s->b2.kinetic.stiffness.value,
-    s->b3.kinetic.mass.value, s->b3.kinetic.damping.value, s->b3.kinetic.stiffness.value,
-    s->b4.kinetic.mass.value, s->b4.kinetic.damping.value, s->b4.kinetic.stiffness.value,
-    s->b5.kinetic.mass.value, s->b5.kinetic.damping.value, s->b5.kinetic.stiffness.value,
-    s->engine_idx, s->midi_ch,
-    s->filter_enabled, s->midi_enabled, s->cv_mod1_enabled, s->cv_mod2_enabled,
-    s->oscilloscope_enabled, (uint8_t)s->encoder.state
-  };
+  return (SettingsSnapshot){s->master_volume.value,
+                            s->env_attack.value,
+                            s->env_release.value,
+                            s->timbre.value,
+                            s->color.value,
+                            s->timbre_mod.value,
+                            s->color_mod.value,
+                            s->cutoff.value,
+                            s->resonance.value,
+                            s->filter_type.value,
+                            s->b1.value,
+                            s->b2.value,
+                            s->b3.value,
+                            s->b4.value,
+                            s->b5.value,
+                            s->master_volume.kinetic.mass.value,
+                            s->master_volume.kinetic.damping.value,
+                            s->master_volume.kinetic.stiffness.value,
+                            s->env_attack.kinetic.mass.value,
+                            s->env_attack.kinetic.damping.value,
+                            s->env_attack.kinetic.stiffness.value,
+                            s->env_release.kinetic.mass.value,
+                            s->env_release.kinetic.damping.value,
+                            s->env_release.kinetic.stiffness.value,
+                            s->timbre.kinetic.mass.value,
+                            s->timbre.kinetic.damping.value,
+                            s->timbre.kinetic.stiffness.value,
+                            s->color.kinetic.mass.value,
+                            s->color.kinetic.damping.value,
+                            s->color.kinetic.stiffness.value,
+                            s->timbre_mod.kinetic.mass.value,
+                            s->timbre_mod.kinetic.damping.value,
+                            s->timbre_mod.kinetic.stiffness.value,
+                            s->color_mod.kinetic.mass.value,
+                            s->color_mod.kinetic.damping.value,
+                            s->color_mod.kinetic.stiffness.value,
+                            s->cutoff.kinetic.mass.value,
+                            s->cutoff.kinetic.damping.value,
+                            s->cutoff.kinetic.stiffness.value,
+                            s->resonance.kinetic.mass.value,
+                            s->resonance.kinetic.damping.value,
+                            s->resonance.kinetic.stiffness.value,
+                            s->b1.kinetic.mass.value,
+                            s->b1.kinetic.damping.value,
+                            s->b1.kinetic.stiffness.value,
+                            s->b2.kinetic.mass.value,
+                            s->b2.kinetic.damping.value,
+                            s->b2.kinetic.stiffness.value,
+                            s->b3.kinetic.mass.value,
+                            s->b3.kinetic.damping.value,
+                            s->b3.kinetic.stiffness.value,
+                            s->b4.kinetic.mass.value,
+                            s->b4.kinetic.damping.value,
+                            s->b4.kinetic.stiffness.value,
+                            s->b5.kinetic.mass.value,
+                            s->b5.kinetic.damping.value,
+                            s->b5.kinetic.stiffness.value,
+                            s->engine_idx,
+                            s->midi_ch,
+                            s->filter_enabled,
+                            s->midi_enabled,
+                            s->cv_mod1_enabled,
+                            s->cv_mod2_enabled,
+                            s->oscilloscope_enabled,
+                            (uint8_t)s->encoder.state};
 }
 
 static SettingsSnapshot last_snapshot;
@@ -76,7 +121,8 @@ inline bool save_settings(const RuntimeState *gstate) {
     return false;
   }
 
-  if (!LittleFS.begin()) return false;
+  if (!LittleFS.begin())
+    return false;
 
   JsonDocument doc;
   doc["vol"] = gstate->master_volume.value;
@@ -147,7 +193,8 @@ inline bool save_settings(const RuntimeState *gstate) {
   doc["b5kinstf"] = gstate->b5.kinetic.stiffness.value;
 
   File f = LittleFS.open(SETTINGS_FILE, "w");
-  if (!f) return false;
+  if (!f)
+    return false;
 
   if (serializeJson(doc, f) != 0) {
     last_snapshot = current;
@@ -156,17 +203,19 @@ inline bool save_settings(const RuntimeState *gstate) {
   return true;
 }
 
-
 inline void load_settings(RuntimeState *gstate) {
-  if (!LittleFS.begin() || !LittleFS.exists(SETTINGS_FILE)) return;
+  if (!LittleFS.begin() || !LittleFS.exists(SETTINGS_FILE))
+    return;
 
   File f = LittleFS.open(SETTINGS_FILE, "r");
-  if (!f) return;
+  if (!f)
+    return;
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, f);
   f.close();
-  if (err) return;
+  if (err)
+    return;
 
   gstate->master_volume.value = doc["vol"] | 0.7f;
   gstate->env_attack.value = doc["atk"] | 0.001f;
@@ -249,7 +298,8 @@ static inline bool setup_LittleFS() {
       DEBUG_PRINTLN("LittleFS Formatted and Mounted successfully.");
       return true;
     } else {
-      DEBUG_PRINTLN("LittleFS Critical Error: Hardware issue or Flash size not set!");
+      DEBUG_PRINTLN(
+          "LittleFS Critical Error: Hardware issue or Flash size not set!");
       return false;
     }
   }

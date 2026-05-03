@@ -14,13 +14,35 @@ def setup(lisa, lfo1, lfo2):
     lisa.wavetable.stream_table2 = lfo1.scale(-8192, 8192)
     lisa.wavetable.stream_table3 = lfo2.scale(-8192, 8192)
     lisa.wavetable.stream_table4 = lfo2.scale(-8192, 8192)
-    time.sleep(1)
+    input("Press enter to start tests or ctrl+c to cancel...")
 
 
 def teardown(lisa):
     print("Stopping now...")
+    lisa.force_all_notes_off()
     lisa.wavetable.reset_all_wt = "ON"
     stop_all_connected_devices()
+
+
+def play_sequence(lisa, notes):
+    for note in notes:
+        print("note on", note)
+        lisa.note_on(note)
+        time.sleep(0.5)
+        print("note off", note)
+        lisa.note_off(note)
+
+
+def play_cluster(lisa, notes, duration=4):
+    for note in notes:
+        print("note on", note)
+        lisa.note_on(note)
+    print(f"Wait for {duration}s")
+    time.sleep(duration)
+    for note in notes[::-1]:
+        print("note off", note)
+        lisa.note_off(note)
+        time.sleep(1)
 
 
 def test1(lisa, lfo1, lfo2):
@@ -77,7 +99,21 @@ def test3(lisa, lfo1, lfo2):
     lisa.modulation.FM_mod -= lfo1
 
 
-tests = [test1, test2, test3]
+# unison test
+def test4(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    print("Note on 54")
+    lisa.note_on(54)
+    time.sleep(4)
+    print("Note off")
+    lisa.note_off(54)
+    input("Note off...")
+    input("Press enter to play notes sequences...")
+    play_sequence(lisa, [54, 47, 42, 58])
+    input("Press enter to play notes cluster...")
+    play_cluster(lisa, [54, 47, 42])
+
+tests = [test1, test2, test3, test4]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -100,9 +136,12 @@ if __name__ == "__main__":
         autoconnect=True,
     )
     setup(lisa, lfo1, lfo2)
-    if testtorun is not None:
-        tests[testtorun](lisa, lfo1, lfo2)
-    else:
-        for test in tests:
-            test(lisa, lfo1, lfo2)
+    try:
+        if testtorun is not None:
+            tests[testtorun](lisa, lfo1, lfo2)
+        else:
+            for test in tests:
+                test(lisa, lfo1, lfo2)
+    except KeyboardInterrupt:
+        print("* tests canceled")
     teardown(lisa)

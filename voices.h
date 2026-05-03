@@ -7,14 +7,14 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
-#include <pico/stdlib.h>
-#include <BRAIDS.h>
 #include "constants_config.h"
 #include "wavetable_streaming.h"
+#include <BRAIDS.h>
+#include <pico/stdlib.h>
 
 struct Voice {
   WavetableStreamingOscillator osc;
-  int pitch;
+  float pitch;
   float velocity;
   float vel_smoothed;
   bool active;
@@ -26,9 +26,9 @@ struct Voice {
   bool sustained;
 };
 
+static uint32_t global_age = 0;
 
-
-int find_free_voice(Voice *voices, int for_pitch) {
+inline int find_free_voice(Voice *voices, float for_pitch) {
   int oldest = 0;
   uint32_t old_age = voices[0].age;
   for (int i = 0; i < MAX_VOICES; i++) {
@@ -47,9 +47,71 @@ int find_free_voice(Voice *voices, int for_pitch) {
   return oldest;
 }
 
-
-int find_voice_by_pitch(Voice *voices, int pitch) {
+inline int find_voice_by_pitch(Voice *voices, float pitch) {
   for (int i = 0; i < MAX_VOICES; i++)
-    if (voices[i].active && voices[i].pitch == pitch) return i;
+    if (voices[i].active && voices[i].pitch == pitch)
+      return i;
   return -1;
+}
+
+static inline void setup_voice(Voice *voice, float pitch, float velocity) {
+  voice->pitch = pitch;
+  voice->velocity = velocity;
+  voice->env = 0.f;
+  voice->active = true;
+  voice->age = global_age++;
+}
+
+inline Voice *allocate_oldest_voice(Voice *voices, float pitch,
+                                    float velocity) {
+  int i = find_free_voice(voices, pitch);
+  Voice *voice = voices + i;
+  setup_voice(voice, pitch, velocity);
+  return voice;
+}
+
+inline void free_voice_by_pitch(Voice *voices, float pitch,
+                                int sustain_enabled) {
+  int i = find_voice_by_pitch(voices, pitch);
+  if (i >= 0) {
+    if (sustain_enabled) {
+      voices[i].sustained = true;
+      voices[i].active = false;
+    } else {
+      voices[i].active = false;
+      voices[i].sustained = false;
+    }
+  }
+}
+
+inline Voice *allocate_voice_unison(Voice *voices, float pitch,
+                                    float velocity) {
+  Voice *primary = allocate_oldest_voice(voices, pitch, velocity);
+  Voice *secondary = primary + 1;
+  setup_voice(secondary, pitch * 1.00289, velocity);
+  return primary;
+}
+
+inline void free_voice_unison(Voice *voices, float pitch, int sustain_enabled) {
+  int i = find_voice_by_pitch(voices, pitch);
+  if (i >= 0) {
+    Voice *primary = voices + i;
+    Voice *secondary = primary + 1;
+    if (sustain_enabled) {
+      primary->sustained = true;
+      secondary->sustained = true;
+      primary->active = false;
+      secondary->active = false;
+    } else {
+      primary->sustained = false;
+      secondary->sustained = false;
+      primary->active = false;
+      secondary->active = false;
+    }
+  }
+}
+
+inline void reset_all_voices(Voices *voices) {
+  for (uint8_t i = 0; i < MAX_VOICES; i++) {
+  }
 }

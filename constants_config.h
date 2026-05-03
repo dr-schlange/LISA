@@ -10,25 +10,23 @@
 #define SETTINGS_FILE "/lisa_settings.json"
 
 const char *const engine_names[] = {
-  "CSAW", "/\\-_", "//-_", "FOLD", "uuuu", "SUB-", "SUB/", "SYN-", "SYN/",
-  "//x3", "-_x3", "/\\x3", "SIx3", "RING", "////", "//uu", "TOY*", "ZLPF", "ZPKF",
-  "ZBPF", "ZHPF", "VOSM", "VOWL", "VFOF", "HARM", "-FM-", "FBFM", "WTFM",
-  "PLUK", "BOWD", "BLOW", "FLUT", "BELL", "DRUM", "KICK", "CYMB", "SNAR",
-  "WTBL", "WMAP", "WLIN", "WTx4", "NOIS", "TWNQ", "CLKN", "CLOU", "PRTC",
-  "QPSK", "????", "LIVE"
-};
+    "CSAW", "/\\-_", "//-_",  "FOLD", "uuuu", "SUB-", "SUB/", "SYN-", "SYN/",
+    "//x3", "-_x3",  "/\\x3", "SIx3", "RING", "////", "//uu", "TOY*", "ZLPF",
+    "ZPKF", "ZBPF",  "ZHPF",  "VOSM", "VOWL", "VFOF", "HARM", "-FM-", "FBFM",
+    "WTFM", "PLUK",  "BOWD",  "BLOW", "FLUT", "BELL", "DRUM", "KICK", "CYMB",
+    "SNAR", "WTBL",  "WMAP",  "WLIN", "WTx4", "NOIS", "TWNQ", "CLKN", "CLOU",
+    "PRTC", "QPSK",  "????",  "LIVE"};
 constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
 const char *const modes[] = {
-  "normal",
-  "kinetic",
-  "attenuator",
+    "normal",
+    "kinetic",
+    "attenuator",
 };
 
 #define DEBUG false
 
-
-#define USE_UART_MIDI 0  // 0 = USB MIDI, 1 = UART MIDI
+#define USE_UART_MIDI 0 // 0 = USB MIDI, 1 = UART MIDI
 
 // Voices config (audio block and sample rate are related)
 #define MAX_VOICES 6
@@ -36,7 +34,7 @@ const char *const modes[] = {
 #define SAMPLE_RATE 44100
 
 // Screen
-#define SSD1306 1  //ssd1306 display
+#define SSD1306 1 // ssd1306 display
 // #define SH110X 1// sh110x display
 #define USE_SCREEN 1
 #define OLED_SDA 0
@@ -80,14 +78,12 @@ const char *const modes[] = {
 #define MIDI_WT_PHASE_RESET 126
 #define MIDI_DEV 127
 
-
 // Buttons, Encoders
 #define BUTTON_DEBOUNCE_MS 200
 #define ENCODER_DEBOUNCE_COUNT 4
 #define ENCODER_DEBOUNCE_MS 30
 #define ENCODER_LONGPRESS_MS 1000
 #define ENCODER_PRESS_MS 100
-
 
 // I2S Config
 #define I2S_DATA_PIN 9
@@ -115,12 +111,12 @@ const char *const modes[] = {
 #define POT_B A1
 #define POT_C A2
 #define POT_D A3
-#define POT_TIMBRE A0      // GPIO26
-#define POT_COLOR A1       // GPIO27
-#define POT_TIMBRE_MOD A2  // GPIO28
-#define POT_CUTOFF A2      // GPIO28
-#define POT_COLOR_MOD A3   // GPIO29
-#define POT_RESONANCE A3   // GPIO29
+#define POT_TIMBRE A0     // GPIO26
+#define POT_COLOR A1      // GPIO27
+#define POT_TIMBRE_MOD A2 // GPIO28
+#define POT_CUTOFF A2     // GPIO28
+#define POT_COLOR_MOD A3  // GPIO29
+#define POT_RESONANCE A3  // GPIO29
 // RPI Pico W doen't have GPIO29
 #if defined(ARDUINO_RASPBERRY_PI_PICO) || defined(ARDUINO_RASPBERRY_PI_PICO_W)
 #define HAS_4_POTS 0

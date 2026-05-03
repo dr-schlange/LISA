@@ -6,34 +6,40 @@
 */
 #pragma once
 #include "constants_config.h"
-#include "midi.h"
 #include "encoder.h"
 #include "global_state.h"
+#include "midi.h"
 #include <cstdint>
 
-static inline void midi_cc_forward(RuntimeState *gstate, uint8_t cc, uint8_t raw_value) {
-  if (gstate->controller_mode == CONTROLLER_BOTH || gstate->controller_mode == CONTROLLER_ONLY)
+static inline void midi_cc_forward(RuntimeState *gstate, uint8_t cc,
+                                   uint8_t raw_value) {
+  if (gstate->controller_mode == CONTROLLER_BOTH ||
+      gstate->controller_mode == CONTROLLER_ONLY)
     send_midi_cc(cc, raw_value, gstate->midi_ch);
 }
 
-static inline void midi_cc_forward_(uint8_t cc, uint8_t raw_value, uint8_t midi_ch, MidiControllerMode mode) {
+static inline void midi_cc_forward_(uint8_t cc, uint8_t raw_value,
+                                    uint8_t midi_ch, MidiControllerMode mode) {
   if (mode == CONTROLLER_BOTH || mode == CONTROLLER_ONLY)
     send_midi_cc(cc, raw_value, midi_ch);
 }
 
-
-static inline void set_parameter(RuntimeState *gstate, volatile float *field, float val) {
-  if (gstate->controller_mode == CONTROLLER_BOTH || gstate->controller_mode == CONTROLLER_MODE_OFF)
+static inline void set_parameter(RuntimeState *gstate, volatile float *field,
+                                 float val) {
+  if (gstate->controller_mode == CONTROLLER_BOTH ||
+      gstate->controller_mode == CONTROLLER_MODE_OFF)
     *field = val;
 }
 
-static inline void set_parameter_(Parameter *param, volatile float val, MidiControllerMode mode) {
+static inline void set_parameter_(Parameter *param, volatile float val,
+                                  MidiControllerMode mode) {
   if (mode == CONTROLLER_BOTH || mode == CONTROLLER_MODE_OFF) {
     param->value = val;
   }
 }
 
-static inline uint8_t peek_pot_quantized(Parameter *param, float smoothing_factor) {
+static inline uint8_t peek_pot_quantized(Parameter *param,
+                                         float smoothing_factor) {
   if (param == NULL) {
     return 0;
   }
@@ -41,8 +47,10 @@ static inline uint8_t peek_pot_quantized(Parameter *param, float smoothing_facto
 
   // smoothing the noise
   param->smoothed += (new_value - param->smoothed) * smoothing_factor;
-  if (param->smoothed > 0.999f) param->smoothed = 1.0f;
-  if (param->smoothed < 0.001f) param->smoothed = 0.0f;
+  if (param->smoothed > 0.999f)
+    param->smoothed = 1.0f;
+  if (param->smoothed < 0.001f)
+    param->smoothed = 0.0f;
 
   // quantizing for comparison
   return (uint8_t)(param->smoothed * 127.f);
@@ -50,7 +58,8 @@ static inline uint8_t peek_pot_quantized(Parameter *param, float smoothing_facto
 
 #define CLOSENESS 0.01f
 
-static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, float smoothing_factor) {
+static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate,
+                                        float smoothing_factor) {
   if (param == NULL) {
     return;
   }
@@ -85,25 +94,31 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate, 
     // RAW
     set_parameter_(param, param->smoothed, mode);
     if (param->extended) {
-      midi_cc_forward_(((ExtParameter *)param)->midi_cc, quantized, gstate->midi_ch, mode);
+      midi_cc_forward_(((ExtParameter *)param)->midi_cc, quantized,
+                       gstate->midi_ch, mode);
     }
   }
 
   SCHEDULE_REFRESH(gstate);
 }
 
-static inline void update_kinetic_physics(RuntimeState *gstate, ExtParameter *param) {
-  if (param->mode != POT_KINETIC) return;
+static inline void update_kinetic_physics(RuntimeState *gstate,
+                                          ExtParameter *param) {
+  if (param->mode != POT_KINETIC)
+    return;
   uint32_t now = micros();
   uint32_t dt_us = now - param->kinetic.last_update_time;
   param->kinetic.last_update_time = now;
-  if (dt_us == 0) return;
-  if (dt_us > 20000) dt_us = 20000;
+  if (dt_us == 0)
+    return;
+  if (dt_us > 20000)
+    dt_us = 20000;
 
   // Reduce dt step
   float dt = dt_us * 1e-6f;
 
-  if (dt <= 0.f) return;
+  if (dt <= 0.f)
+    return;
 
   float error = param->smoothed - param->value;
   float velocity = param->kinetic.velocity;
@@ -130,10 +145,10 @@ static inline void update_kinetic_physics(RuntimeState *gstate, ExtParameter *pa
 
   if (next_value > 1.0f) {
     next_value = 1.0f;
-    velocity *= -0.2f;  // bounce against the limit
+    velocity *= -0.2f; // bounce against the limit
   } else if (next_value < 0.0f) {
     next_value = 0.0f;
-    velocity *= -0.2f;  // bounce against the limit
+    velocity *= -0.2f; // bounce against the limit
   }
   param->value = next_value;
   param->kinetic.velocity = velocity;
@@ -142,10 +157,11 @@ static inline void update_kinetic_physics(RuntimeState *gstate, ExtParameter *pa
 
   const uint8_t midi_value = (uint8_t)(param->value * 127.f);
   const uint8_t last_midi = param->kinetic.last_midi_send;
-  // limit senf freq, seems to block the device otherwise when too much oscillation
+  // limit senf freq, seems to block the device otherwise when too much
+  // oscillation
   if (midi_value != last_midi) {
-    midi_cc_forward_(param->midi_cc, midi_value,
-                     gstate->midi_ch, gstate->controller_mode);
+    midi_cc_forward_(param->midi_cc, midi_value, gstate->midi_ch,
+                     gstate->controller_mode);
     param->kinetic.last_midi_send = midi_value;
   }
 }
@@ -184,7 +200,9 @@ void handle_control(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
   }
 
-  if (gstate->display_state == GLOBAL_SETTINGS && gstate->glob_settings_edit_param == NULL && glob_get_pot_mode(gstate) == POT_KINETIC) {
+  if (gstate->display_state == GLOBAL_SETTINGS &&
+      gstate->glob_settings_edit_param == NULL &&
+      glob_get_pot_mode(gstate) == POT_KINETIC) {
     sync_all_kinetic_values(gstate);
   }
 
@@ -200,21 +218,21 @@ void handle_control(RuntimeState *gstate) {
   float p1_smooth_pot, p2_smooth_pot, p3_smooth_pot;
   if (gstate->display_state == ALL_PARAMS_MODE) {
     switch (gstate->pots_row_state) {
-      case ROW_GENERAL:
-        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
-        break;
-      case ROW_TIMBRE:
-        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
-        break;
-      case ROW_COLOR:
-        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
-        break;
-      case ROW_FILTER:
-        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
-        break;
-      case ROW_ENVELOPE:
-        p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
-        break;
+    case ROW_GENERAL:
+      p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+      break;
+    case ROW_TIMBRE:
+      p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+      break;
+    case ROW_COLOR:
+      p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+      break;
+    case ROW_FILTER:
+      p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+      break;
+    case ROW_ENVELOPE:
+      p1_smooth_pot = p2_smooth_pot = p3_smooth_pot = SMOOTH_POT;
+      break;
     }
   } else {
     p1_smooth_pot = p2_smooth_pot = SMOOTH_POT;
@@ -227,12 +245,14 @@ void handle_control(RuntimeState *gstate) {
     smoothC += (rC - smoothC) * 0.15f;
 
     // --- Smooth the modulation sources ---
-    smoothTMod += (srcT - smoothTMod) * 0.1f;  // slower smoothing
+    smoothTMod += (srcT - smoothTMod) * 0.1f; // slower smoothing
     smoothCMod += (srcC - smoothCMod) * 0.1f;
 
     // --- Apply modulation depth with soft scaling ---
-    gstate->timbre_mod.value += ((smoothT * smoothTMod) - gstate->timbre_mod.value) * 0.05f;
-    gstate->color_mod.value += ((smoothC * smoothCMod) - gstate->color_mod.value) * 0.05f;
+    gstate->timbre_mod.value +=
+        ((smoothT * smoothTMod) - gstate->timbre_mod.value) * 0.05f;
+    gstate->color_mod.value +=
+        ((smoothC * smoothCMod) - gstate->color_mod.value) * 0.05f;
 
     // --- Set base values for other modes ---
     gstate->timbre.value = 0.5f;

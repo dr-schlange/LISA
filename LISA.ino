@@ -11,8 +11,8 @@
   This file has been modified from the original version VIJA v1.0.2.
   Licensed under GNU GPLv3.
 
-  Raspberry PICO polyphonic synthesizer based on Mutable Instruments Braids macro oscillator
-  in semi-modular format.
+  Raspberry PICO polyphonic synthesizer based on Mutable Instruments Braids
+  macro oscillator in semi-modular format.
 
   Features:
   - 40+ digital oscillator engines
@@ -23,17 +23,20 @@
   - Synth controls via potentiometers or MIDI CC
 
   Hardware:
-  - RP2040 or RP2350 board, I2S PCM5102 DAC, SSD1306 OLED, rotary encoder with button, 2 pots, 2 cv jacks or 2 more pots
+  - RP2040 or RP2350 board, I2S PCM5102 DAC, SSD1306 OLED, rotary encoder with
+  button, 2 pots, 2 cv jacks or 2 more pots
   - MIDI via USB or UART
 
-  For this project I use RP2040 Zero model, so adjust GPIO numbers to your board.
+  For this project I use RP2040 Zero model, so adjust GPIO numbers to your
+  board.
 
   Compilation:
 
   RP2040: - Optimize: Optimize Even More (-O3)
-          - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and needed voice count
-          - Sample rate: 32000 (up to 8 voice depending on the engine) / 44100 (up to 6 voices depending on the engine)
-  RP2350:
+          - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and
+  needed voice count
+          - Sample rate: 32000 (up to 8 voice depending on the engine) / 44100
+  (up to 6 voices depending on the engine) RP2350:
          - Optimize: Optimize Even More (-O3)
          - Sample rate: 48000
 
@@ -46,20 +49,19 @@
     Copyright (c) 2020 (emilie.o.gillet@gmail.com)
     MIT License
 */
-#include <Arduino.h>
-#include <I2S.h>
-#include <STMLIB.h>
-#include <BRAIDS.h>
-#include <pico/stdlib.h>
 #include "constants_config.h"
-#include "voices.h"
+#include "controls.h"
 #include "encoder.h"
 #include "global_state.h"
 #include "midi.h"
-#include "ui.h"
-#include "controls.h"
 #include "settings.h"
-
+#include "ui.h"
+#include "voices.h"
+#include <Arduino.h>
+#include <BRAIDS.h>
+#include <I2S.h>
+#include <STMLIB.h>
+#include <pico/stdlib.h>
 
 // Synth states & global vars
 #if USE_SCREEN
@@ -78,12 +80,13 @@ static braids::SvfMode previous_filter_mode;
 void __not_in_flash_func(update_audio)() {
 
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
-    bool use_streaming = (runtime_state.engine_idx >= braids::MACRO_OSC_SHAPE_LAST);
+    bool use_streaming =
+        (runtime_state.engine_idx >= braids::MACRO_OSC_SHAPE_LAST);
     for (int v = 0; v < MAX_VOICES; v++) {
       voices[v].osc.setLiveMode(use_streaming);
       if (!use_streaming) {
         braids::MacroOscillatorShape shape =
-          (braids::MacroOscillatorShape)runtime_state.engine_idx;
+            (braids::MacroOscillatorShape)runtime_state.engine_idx;
         voices[v].osc.set_shape(shape);
       }
     }
@@ -98,17 +101,17 @@ void __not_in_flash_func(update_audio)() {
   float atk_knob = runtime_state.env_attack.value;
   float rel_knob = runtime_state.env_release.value;
   if (atk_knob != last_atk) {
-    float atk = 0.001f * powf(2000.f, atk_knob);  // 1ms to 2s
+    float atk = 0.001f * powf(2000.f, atk_knob); // 1ms to 2s
     attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
     last_atk = atk_knob;
   }
   if (rel_knob != last_rel) {
-    float rel = 0.005f * powf(1000.f, rel_knob);  // 5ms to 5s
+    float rel = 0.005f * powf(1000.f, rel_knob); // 5ms to 5s
     releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
     last_rel = rel_knob;
   }
 
-  int32_t mix[AUDIO_BLOCK] = { 0 };
+  int32_t mix[AUDIO_BLOCK] = {0};
 
   static float fm_slew = 0.0f;
   static float timb_slew = 0.0f;
@@ -133,7 +136,8 @@ void __not_in_flash_func(update_audio)() {
     float abs_diff = fabsf(diff);
 
     if (abs_diff < 0.005f) {
-      if (target == 0.0f && abs_diff < 0.01f) current = 0.0f;
+      if (target == 0.0f && abs_diff < 0.01f)
+        current = 0.0f;
       return;
     }
 
@@ -148,7 +152,9 @@ void __not_in_flash_func(update_audio)() {
   apply_stable_slew(timb_slew, timb_target, 0.01f);
   apply_stable_slew(color_slew, color_target, 0.01f);
 
-  const int32_t block_gain = (int32_t)(runtime_state.master_volume.value * runtime_state.gain.value / MAX_VOICES * 32767.0f);
+  const int32_t block_gain =
+      (int32_t)(runtime_state.master_volume.value * runtime_state.gain.value /
+                MAX_VOICES * 32767.0f);
 
   for (int v = 0; v < MAX_VOICES; v++) {
     Voice &voice = voices[v];
@@ -180,7 +186,8 @@ void __not_in_flash_func(update_audio)() {
 
     for (int i = 0; i < AUDIO_BLOCK; i++) {
       voice.env += (envTarget - voice.env) * coef;
-      if (envTarget == 0.0f && voice.env < 0.0001f) voice.env = 0.0f;
+      if (envTarget == 0.0f && voice.env < 0.0001f)
+        voice.env = 0.0f;
 
       mix[i] += (voice.buffer[i] * amp) >> 15;
     }
@@ -194,16 +201,21 @@ void __not_in_flash_func(update_audio)() {
 
   const int32_t cut_t = (int32_t)(runtime_state.cutoff.value * 32767.f);
   const int32_t res_t = (int32_t)(runtime_state.resonance.value * 32767.f);
-  const int32_t mix_t = runtime_state.filter_enabled ? 32767 : 0;  // 32767 stands for 1: ((1 << 15) - 1)
+  const int32_t mix_t = runtime_state.filter_enabled
+                            ? 32767
+                            : 0; // 32767 stands for 1: ((1 << 15) - 1)
 
-  cut_slew += ((cut_t - cut_slew) * 1638) >> 15;  // 1638 =  (int32_t)(0.05f * 32767.f)
+  cut_slew +=
+      ((cut_t - cut_slew) * 1638) >> 15; // 1638 =  (int32_t)(0.05f * 32767.f)
   res_slew += ((res_t - res_slew) * 1638) >> 15;
-  mix_slew += ((mix_t - mix_slew) * 327) >> 15;  // 327 =  (int32_t)(0.01f * 32767.f)
+  mix_slew +=
+      ((mix_t - mix_slew) * 327) >> 15; // 327 =  (int32_t)(0.01f * 32767.f)
 
   global_filter.set_frequency((uint16_t)cut_slew);
   global_filter.set_resonance((uint16_t)res_slew);
 
-  braids::SvfMode filter_type = (braids::SvfMode)(runtime_state.filter_type.value * 3.f);
+  braids::SvfMode filter_type =
+      (braids::SvfMode)(runtime_state.filter_type.value * 3.f);
   if (filter_type != previous_filter_mode) {
     global_filter.set_mode(filter_type);
     previous_filter_mode = filter_type;
@@ -215,7 +227,8 @@ void __not_in_flash_func(update_audio)() {
   for (int i = 0; i < AUDIO_BLOCK; i++) {
     int32_t dry_int = mix[i];
     int16_t wet_filter = global_filter.Process(dry_int);
-    int32_t mixed_signal = ((dry_int * dry_scale) >> 15) + ((wet_filter * wet_scale) >> 15);
+    int32_t mixed_signal =
+        ((dry_int * dry_scale) >> 15) + ((wet_filter * wet_scale) >> 15);
     int16_t s = constrain(mixed_signal, -32767, 32767);
     i2s_output.write16(s, s);
   }
@@ -228,252 +241,283 @@ void handle_menu(RuntimeState *gstate) {
   if (step) {
     // Encoder rotation reaction depending on display state
     switch (gstate->display_state) {
-      case ENGINE_SELECT_MODE:
-        gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
-        send_midi_cc(MIDI_ENGINE_SEL, (uint8_t)((gstate->engine_idx * 127.f) / (NUM_ENGINES - 1)), gstate->midi_ch);
-        SCHEDULE_REFRESH(gstate);
-        break;
+    case ENGINE_SELECT_MODE:
+      gstate->engine_idx =
+          (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
+      send_midi_cc(MIDI_ENGINE_SEL,
+                   (uint8_t)((gstate->engine_idx * 127.f) / (NUM_ENGINES - 1)),
+                   gstate->midi_ch);
+      SCHEDULE_REFRESH(gstate);
+      break;
 
-      case ENGINE_SETTINGS_CONFIG:
-        switch (encoder->state) {
-          case VOLUME_ADJUST:
-            gstate->master_volume.value = constrain(gstate->master_volume.value + step * 0.01f, 0.f, 1.f);
-            break;
-          case ATTACK_ADJUST:
-            gstate->env_attack.value = constrain(gstate->env_attack.value + step * 0.01f, 0.001f, 1.f);
-            break;
-          case RELEASE_ADJUST:
-            gstate->env_release.value = constrain(gstate->env_release.value + step * 0.01f, 0.0f, 1.f);
-            break;
-          case FILTER_TOGGLE:
-            gstate->filter_enabled = !gstate->filter_enabled;
-            gstate->cv_mod1_enabled = false;
-            gstate->cv_mod2_enabled = false;
-            break;
-          case MIDI_MOD:
-            gstate->midi_enabled = !gstate->midi_enabled;
-            break;
-          case CV_MOD1:
-            gstate->cv_mod1_enabled = !gstate->cv_mod1_enabled;
-            gstate->filter_enabled = false;
-            gstate->cv_mod2_enabled = false;
-            break;
-          case CV_MOD2:
-            gstate->cv_mod2_enabled = !gstate->cv_mod2_enabled;
-            gstate->cv_mod1_enabled = false;
-            gstate->filter_enabled = false;
-            break;
-          case MIDI_CH:
-            gstate->midi_ch = constrain(gstate->midi_ch + step, 1, 16);
-            break;
-          case SCOPE_TOGGLE:
-            TOGGLE_OSCILLOSCOPE(gstate);
-            if (IS_OSCILLOSCOPE_OFF(gstate) && IS_OSCILLOSCOPE_MODE(gstate)) {
-              gstate->display_state = ENGINE_SELECT_MODE;
+    case ENGINE_SETTINGS_CONFIG:
+      switch (encoder->state) {
+      case VOLUME_ADJUST:
+        gstate->master_volume.value =
+            constrain(gstate->master_volume.value + step * 0.01f, 0.f, 1.f);
+        break;
+      case ATTACK_ADJUST:
+        gstate->env_attack.value =
+            constrain(gstate->env_attack.value + step * 0.01f, 0.001f, 1.f);
+        break;
+      case RELEASE_ADJUST:
+        gstate->env_release.value =
+            constrain(gstate->env_release.value + step * 0.01f, 0.0f, 1.f);
+        break;
+      case FILTER_TOGGLE:
+        gstate->filter_enabled = !gstate->filter_enabled;
+        gstate->cv_mod1_enabled = false;
+        gstate->cv_mod2_enabled = false;
+        break;
+      case MIDI_MOD:
+        gstate->midi_enabled = !gstate->midi_enabled;
+        break;
+      case CV_MOD1:
+        gstate->cv_mod1_enabled = !gstate->cv_mod1_enabled;
+        gstate->filter_enabled = false;
+        gstate->cv_mod2_enabled = false;
+        break;
+      case CV_MOD2:
+        gstate->cv_mod2_enabled = !gstate->cv_mod2_enabled;
+        gstate->cv_mod1_enabled = false;
+        gstate->filter_enabled = false;
+        break;
+      case MIDI_CH:
+        gstate->midi_ch = constrain(gstate->midi_ch + step, 1, 16);
+        break;
+      case SCOPE_TOGGLE:
+        TOGGLE_OSCILLOSCOPE(gstate);
+        if (IS_OSCILLOSCOPE_OFF(gstate) && IS_OSCILLOSCOPE_MODE(gstate)) {
+          gstate->display_state = ENGINE_SELECT_MODE;
 #if USE_SCREEN
-              ui_state.scope_ready = false;
+          ui_state.scope_ready = false;
 #endif
-            }
-            break;
-          default:
-            gstate->display_state = ENGINE_SELECT_MODE;
-            gstate->midi_enabled = true;
-            gstate->cv_mod1_enabled = false;
-            gstate->cv_mod2_enabled = false;
-            gstate->filter_enabled = false;
-            SCHEDULE_REFRESH(gstate);
-            break;
         }
-        SCHEDULE_REFRESH(gstate);
         break;
-
-      case OSCILLOSCOPE_MODE:
+      default:
         gstate->display_state = ENGINE_SELECT_MODE;
+        gstate->midi_enabled = true;
+        gstate->cv_mod1_enabled = false;
+        gstate->cv_mod2_enabled = false;
+        gstate->filter_enabled = false;
         SCHEDULE_REFRESH(gstate);
         break;
+      }
+      SCHEDULE_REFRESH(gstate);
+      break;
 
-      case ALL_PARAMS_MODE:
-        // lock the already mapped pots
-        lock_mapped_pots(gstate, true);
-        if (gstate->pots_row_state == ROW_EDIT_ENGINE) {
-          gstate->engine_idx = (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
-          SCHEDULE_REFRESH(gstate);
+    case OSCILLOSCOPE_MODE:
+      gstate->display_state = ENGINE_SELECT_MODE;
+      SCHEDULE_REFRESH(gstate);
+      break;
+
+    case ALL_PARAMS_MODE:
+      // lock the already mapped pots
+      lock_mapped_pots(gstate, true);
+      if (gstate->pots_row_state == ROW_EDIT_ENGINE) {
+        gstate->engine_idx =
+            (gstate->engine_idx + step + NUM_ENGINES) % NUM_ENGINES;
+        SCHEDULE_REFRESH(gstate);
+      } else {
+        int next_row = (int)(((uint8_t)gstate->pots_row_state) - step);
+        if (next_row < 0) {
+          gstate->pots_row_state = (PotsRow)(ROW_NUM - 1);
         } else {
-          int next_row = (int)(((uint8_t)gstate->pots_row_state) - step);
-          if (next_row < 0) {
-            gstate->pots_row_state = (PotsRow)(ROW_NUM - 1);
-          } else {
-            gstate->pots_row_state = (PotsRow)(next_row % ROW_NUM);
-          }
-          switch (gstate->pots_row_state) {
-            case ROW_GENERAL:
-              map_abc_pots(gstate, (Parameter *)&(gstate->master_volume), (Parameter *)&(gstate->b1), (Parameter *)&(gstate->b2));
-              break;
-            case ROW_TIMBRE:
-              map_abc_pots(gstate, (Parameter *)&(gstate->timbre), (Parameter *)&(gstate->timbre_mod), (Parameter *)&(gstate->fm_mod));
-              break;
-            case ROW_COLOR:
-              map_abc_pots(gstate, (Parameter *)&(gstate->color), (Parameter *)&(gstate->color_mod), (Parameter *)&(gstate->b3));
-              break;
-            case ROW_FILTER:
-              map_abc_pots(gstate,
-                           gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL,
-                           gstate->filter_enabled ? (Parameter *)&(gstate->resonance) : NULL,
-                           gstate->filter_enabled ? &(gstate->filter_type) : NULL);
-              break;
-            case ROW_ENVELOPE:
-              map_abc_pots(gstate, (Parameter *)&(gstate->env_attack), (Parameter *)&(gstate->env_release), (Parameter *)&(gstate->b4));
-              break;
-          }
-          // lock the new mapped pots
-          lock_mapped_pots(gstate, true);
-          SCHEDULE_REFRESH(gstate);
+          gstate->pots_row_state = (PotsRow)(next_row % ROW_NUM);
+        }
+        switch (gstate->pots_row_state) {
+        case ROW_GENERAL:
+          map_abc_pots(gstate, (Parameter *)&(gstate->master_volume),
+                       (Parameter *)&(gstate->b1), (Parameter *)&(gstate->b2));
+          break;
+        case ROW_TIMBRE:
+          map_abc_pots(gstate, (Parameter *)&(gstate->timbre),
+                       (Parameter *)&(gstate->timbre_mod),
+                       (Parameter *)&(gstate->fm_mod));
+          break;
+        case ROW_COLOR:
+          map_abc_pots(gstate, (Parameter *)&(gstate->color),
+                       (Parameter *)&(gstate->color_mod),
+                       (Parameter *)&(gstate->b3));
+          break;
+        case ROW_FILTER:
+          map_abc_pots(
+              gstate,
+              gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL,
+              gstate->filter_enabled ? (Parameter *)&(gstate->resonance) : NULL,
+              gstate->filter_enabled ? &(gstate->filter_type) : NULL);
+          break;
+        case ROW_ENVELOPE:
+          map_abc_pots(gstate, (Parameter *)&(gstate->env_attack),
+                       (Parameter *)&(gstate->env_release),
+                       (Parameter *)&(gstate->b4));
           break;
         }
-      case GLOBAL_SETTINGS:
-        ExtParameter *main_parameter = gstate->glob_settings_edit_param;
-        const PotMode pot_mode = glob_get_pot_mode(gstate);
-        const ResolutionMode res_mode = glob_get_res_mode(gstate);
-        const int8_t param_offset = main_parameter == NULL ? -1 : main_parameter - &(gstate->timbre);
-        switch (gstate->glob_settings_state) {
-          case SETTING_EDIT_RES:
-            if (res_mode == RES_UNKNOWN) {
-              set_resolution_mode(gstate, RES_CATCHUP);
-            } else {
-              set_resolution_mode(gstate, (ResolutionMode)((((uint8_t)res_mode) + step + RES_NUM) % RES_NUM));
-            }
-            break;
-          case SETTING_EDIT_MODE:
-            if (pot_mode == POT_UNKNOWN) {
-              set_pot_mode(gstate, POT_NORMAL);
-            } else {
-              set_pot_mode(gstate, (PotMode)((((uint8_t)pot_mode) + step + POT_MODE_NUM) % POT_MODE_NUM));
-            }
-            break;
-          case SETTING_EDIT_PARAMETER:
-            if (param_offset + step >= ALL_PARAMETERS_NUM) {
-              gstate->glob_settings_edit_param = (&(gstate->timbre)) + (ALL_PARAMETERS_NUM - 1);
-            } else if (param_offset + step < 0) {
-              gstate->glob_settings_edit_param = NULL;
-            } else {
-              gstate->glob_settings_edit_param = (main_parameter == NULL ? &(gstate->timbre) - 1 : main_parameter) + step;
-            }
-            break;
-          default:
-            gstate->glob_settings_state = (GlobalSettings)((((uint8_t)gstate->glob_settings_state) + SETTING_NUM - step) % SETTING_NUM);
-            break;
-        }
-        if (glob_get_pot_mode(gstate) == POT_KINETIC) {
-          if (gstate->glob_settings_edit_param == NULL) {
-            map_abc_pots(gstate,
-                         &(gstate->timbre.kinetic.mass),
-                         &(gstate->timbre.kinetic.damping),
-                         &(gstate->timbre.kinetic.stiffness));
-            lock_mapped_pots(gstate, true);
-          } else {
-            map_abc_pots(gstate,
-                         &(gstate->glob_settings_edit_param->kinetic.mass),
-                         &(gstate->glob_settings_edit_param->kinetic.damping),
-                         &(gstate->glob_settings_edit_param->kinetic.stiffness));
-            lock_mapped_pots(gstate, true);
-          }
+        // lock the new mapped pots
+        lock_mapped_pots(gstate, true);
+        SCHEDULE_REFRESH(gstate);
+        break;
+      }
+    case GLOBAL_SETTINGS:
+      ExtParameter *main_parameter = gstate->glob_settings_edit_param;
+      const PotMode pot_mode = glob_get_pot_mode(gstate);
+      const ResolutionMode res_mode = glob_get_res_mode(gstate);
+      const int8_t param_offset =
+          main_parameter == NULL ? -1 : main_parameter - &(gstate->timbre);
+      switch (gstate->glob_settings_state) {
+      case SETTING_EDIT_RES:
+        if (res_mode == RES_UNKNOWN) {
+          set_resolution_mode(gstate, RES_CATCHUP);
+        } else {
+          set_resolution_mode(
+              gstate, (ResolutionMode)((((uint8_t)res_mode) + step + RES_NUM) %
+                                       RES_NUM));
         }
         break;
+      case SETTING_EDIT_MODE:
+        if (pot_mode == POT_UNKNOWN) {
+          set_pot_mode(gstate, POT_NORMAL);
+        } else {
+          set_pot_mode(gstate,
+                       (PotMode)((((uint8_t)pot_mode) + step + POT_MODE_NUM) %
+                                 POT_MODE_NUM));
+        }
+        break;
+      case SETTING_EDIT_PARAMETER:
+        if (param_offset + step >= ALL_PARAMETERS_NUM) {
+          gstate->glob_settings_edit_param =
+              (&(gstate->timbre)) + (ALL_PARAMETERS_NUM - 1);
+        } else if (param_offset + step < 0) {
+          gstate->glob_settings_edit_param = NULL;
+        } else {
+          gstate->glob_settings_edit_param =
+              (main_parameter == NULL ? &(gstate->timbre) - 1
+                                      : main_parameter) +
+              step;
+        }
+        break;
+      default:
+        gstate->glob_settings_state =
+            (GlobalSettings)((((uint8_t)gstate->glob_settings_state) +
+                              SETTING_NUM - step) %
+                             SETTING_NUM);
+        break;
+      }
+      if (glob_get_pot_mode(gstate) == POT_KINETIC) {
+        if (gstate->glob_settings_edit_param == NULL) {
+          map_abc_pots(gstate, &(gstate->timbre.kinetic.mass),
+                       &(gstate->timbre.kinetic.damping),
+                       &(gstate->timbre.kinetic.stiffness));
+          lock_mapped_pots(gstate, true);
+        } else {
+          map_abc_pots(gstate,
+                       &(gstate->glob_settings_edit_param->kinetic.mass),
+                       &(gstate->glob_settings_edit_param->kinetic.damping),
+                       &(gstate->glob_settings_edit_param->kinetic.stiffness));
+          lock_mapped_pots(gstate, true);
+        }
+      }
+      break;
     }
   }
 
   const EncoderStatus status = gstate->encoder_status;
   if (status == DBL_PRESSED) {
     switch (gstate->display_state) {
-      case OSCILLOSCOPE_MODE:
-        gstate->display_state = ALL_PARAMS_MODE;
-        gstate->pots_row_state = ROW_GENERAL;
-        lock_all_parameters(gstate, true);
-        map_abc_pots(gstate, (Parameter *)&(gstate->master_volume), (Parameter *)&(gstate->b1), (Parameter *)&(gstate->b2));
-        SCHEDULE_REFRESH(gstate);
-        break;
-      case ENGINE_SETTINGS_CONFIG:
-        gstate->display_state = GLOBAL_SETTINGS;
-        if (glob_get_pot_mode(gstate) == POT_KINETIC) {
-          if (gstate->glob_settings_edit_param == NULL) {
-            map_abc_pots(gstate,
-                         &(gstate->timbre.kinetic.mass),
-                         &(gstate->timbre.kinetic.damping),
-                         &(gstate->timbre.kinetic.stiffness));
-            lock_mapped_pots(gstate, true);
-          } else {
-            map_abc_pots(gstate,
-                         &(gstate->glob_settings_edit_param->kinetic.mass),
-                         &(gstate->glob_settings_edit_param->kinetic.damping),
-                         &(gstate->glob_settings_edit_param->kinetic.stiffness));
-            lock_mapped_pots(gstate, true);
-          }
+    case OSCILLOSCOPE_MODE:
+      gstate->display_state = ALL_PARAMS_MODE;
+      gstate->pots_row_state = ROW_GENERAL;
+      lock_all_parameters(gstate, true);
+      map_abc_pots(gstate, (Parameter *)&(gstate->master_volume),
+                   (Parameter *)&(gstate->b1), (Parameter *)&(gstate->b2));
+      SCHEDULE_REFRESH(gstate);
+      break;
+    case ENGINE_SETTINGS_CONFIG:
+      gstate->display_state = GLOBAL_SETTINGS;
+      if (glob_get_pot_mode(gstate) == POT_KINETIC) {
+        if (gstate->glob_settings_edit_param == NULL) {
+          map_abc_pots(gstate, &(gstate->timbre.kinetic.mass),
+                       &(gstate->timbre.kinetic.damping),
+                       &(gstate->timbre.kinetic.stiffness));
+          lock_mapped_pots(gstate, true);
+        } else {
+          map_abc_pots(gstate,
+                       &(gstate->glob_settings_edit_param->kinetic.mass),
+                       &(gstate->glob_settings_edit_param->kinetic.damping),
+                       &(gstate->glob_settings_edit_param->kinetic.stiffness));
+          lock_mapped_pots(gstate, true);
         }
-        SCHEDULE_REFRESH(gstate);
-        break;
-      case GLOBAL_SETTINGS:
-        gstate->display_state = ENGINE_SETTINGS_CONFIG;
-        gstate->glob_settings_state = SETTING_PARAMETER;
-        lock_all_parameters(gstate, glob_get_res_mode(gstate) == RES_CATCHUP);
-        map_abc_pots(gstate,
-                     (Parameter *)&(gstate->timbre),
-                     (Parameter *)&(gstate->color),
-                     gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL);
-        SCHEDULE_REFRESH(gstate);
-        break;
-      case ALL_PARAMS_MODE:
-        gstate->display_state = OSCILLOSCOPE_MODE;
-        lock_all_parameters(gstate, glob_get_res_mode(gstate) == RES_CATCHUP);
-        map_abc_pots(gstate,
-                     (Parameter *)&(gstate->timbre),
-                     (Parameter *)&(gstate->color),
-                     gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL);
-        SCHEDULE_REFRESH(gstate);
-        break;
+      }
+      SCHEDULE_REFRESH(gstate);
+      break;
+    case GLOBAL_SETTINGS:
+      gstate->display_state = ENGINE_SETTINGS_CONFIG;
+      gstate->glob_settings_state = SETTING_PARAMETER;
+      lock_all_parameters(gstate, glob_get_res_mode(gstate) == RES_CATCHUP);
+      map_abc_pots(
+          gstate, (Parameter *)&(gstate->timbre), (Parameter *)&(gstate->color),
+          gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL);
+      SCHEDULE_REFRESH(gstate);
+      break;
+    case ALL_PARAMS_MODE:
+      gstate->display_state = OSCILLOSCOPE_MODE;
+      lock_all_parameters(gstate, glob_get_res_mode(gstate) == RES_CATCHUP);
+      map_abc_pots(
+          gstate, (Parameter *)&(gstate->timbre), (Parameter *)&(gstate->color),
+          gstate->filter_enabled ? (Parameter *)&(gstate->cutoff) : NULL);
+      SCHEDULE_REFRESH(gstate);
+      break;
     }
   }
 
   if (status == PRESSED) {
     // Encoder sw press reaction depending on the mode
     switch (gstate->display_state) {
-      case ENGINE_SELECT_MODE:
-        gstate->display_state = ENGINE_SETTINGS_CONFIG;
-        gstate->encoder.state = VOLUME_ADJUST;
-        SCHEDULE_REFRESH(gstate);
-        break;
+    case ENGINE_SELECT_MODE:
+      gstate->display_state = ENGINE_SETTINGS_CONFIG;
+      gstate->encoder.state = VOLUME_ADJUST;
+      SCHEDULE_REFRESH(gstate);
+      break;
 
-      case ENGINE_SETTINGS_CONFIG:
-        gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
-        SCHEDULE_REFRESH(gstate);
-        break;
+    case ENGINE_SETTINGS_CONFIG:
+      gstate->encoder.state =
+          (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
+      SCHEDULE_REFRESH(gstate);
+      break;
 
-      case OSCILLOSCOPE_MODE:
-        gstate->display_state = ENGINE_SETTINGS_CONFIG;
-        gstate->encoder.state = (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
-        SCHEDULE_REFRESH(gstate);
-        break;
+    case OSCILLOSCOPE_MODE:
+      gstate->display_state = ENGINE_SETTINGS_CONFIG;
+      gstate->encoder.state =
+          (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
+      SCHEDULE_REFRESH(gstate);
+      break;
 
-      case ALL_PARAMS_MODE:
-        switch (gstate->pots_row_state) {
-          case ROW_ENGINE_SELECT:
-            gstate->pots_row_state = ROW_EDIT_ENGINE;
-            break;
-          case ROW_EDIT_ENGINE:
-            gstate->pots_row_state = ROW_ENGINE_SELECT;
-            break;
-          default:
-            lock_mapped_pots(gstate, !(gstate->A->screen_locked));
-            break;
-        }
-        SCHEDULE_REFRESH(gstate);
+    case ALL_PARAMS_MODE:
+      switch (gstate->pots_row_state) {
+      case ROW_ENGINE_SELECT:
+        gstate->pots_row_state = ROW_EDIT_ENGINE;
         break;
-      case GLOBAL_SETTINGS:
-        if (gstate->glob_settings_state > SETTING_NUM) {
-          gstate->glob_settings_state = (GlobalSettings)(((uint8_t)gstate->glob_settings_state) - (SETTING_NUM + 1));
-        } else {
-          gstate->glob_settings_state = (GlobalSettings)(((uint8_t)gstate->glob_settings_state) + (SETTING_NUM + 1));  // switch to the edit hidden state
-        }
+      case ROW_EDIT_ENGINE:
+        gstate->pots_row_state = ROW_ENGINE_SELECT;
         break;
+      default:
+        lock_mapped_pots(gstate, !(gstate->A->screen_locked));
+        break;
+      }
+      SCHEDULE_REFRESH(gstate);
+      break;
+    case GLOBAL_SETTINGS:
+      if (gstate->glob_settings_state > SETTING_NUM) {
+        gstate->glob_settings_state =
+            (GlobalSettings)(((uint8_t)gstate->glob_settings_state) -
+                             (SETTING_NUM + 1));
+      } else {
+        gstate->glob_settings_state =
+            (GlobalSettings)(((uint8_t)gstate->glob_settings_state) +
+                             (SETTING_NUM +
+                              1)); // switch to the edit hidden state
+      }
+      break;
     }
   }
 }
@@ -482,9 +526,7 @@ void handle_menu(RuntimeState *gstate) {
 // Setup and main loop for Core0
 // ==============================
 #if DEBUG
-static inline void setup_debug_serial() {
-  Serial.begin(115200);
-}
+static inline void setup_debug_serial() { Serial.begin(115200); }
 #endif
 
 static inline void setup_serial() {
@@ -515,7 +557,7 @@ void setup() {
 
 void loop() {
   if (!runtime_state.system_ready) {
-    yield();  // Wait for Core 1 to finish DSP initialisation & init global state
+    yield(); // Wait for Core 1 to finish DSP initialisation & init global state
     return;
   }
 
