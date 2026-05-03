@@ -49,19 +49,21 @@
     Copyright (c) 2020 (emilie.o.gillet@gmail.com)
     MIT License
 */
+// clang-format off
+#include <Arduino.h>
+#include <I2S.h>
+#include <STMLIB.h>
+#include <BRAIDS.h>
+#include <pico/stdlib.h>
 #include "constants_config.h"
-#include "controls.h"
+#include "voices.h"
 #include "encoder.h"
 #include "global_state.h"
 #include "midi.h"
-#include "settings.h"
 #include "ui.h"
-#include "voices.h"
-#include <Arduino.h>
-#include <BRAIDS.h>
-#include <I2S.h>
-#include <STMLIB.h>
-#include <pico/stdlib.h>
+#include "controls.h"
+#include "settings.h"
+// clang-format on
 
 // Synth states & global vars
 #if USE_SCREEN

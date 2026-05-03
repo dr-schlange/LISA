@@ -102,16 +102,32 @@ def test3(lisa, lfo1, lfo2):
 # unison test
 def test4(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
-    print("Note on 54")
+    # Poly first to hear the difference
+    lisa.general.voice_mode = "poly"
+    print("[poly] Play note 54")
     lisa.note_on(54)
-    time.sleep(4)
-    print("Note off")
+    time.sleep(2)
     lisa.note_off(54)
-    input("Note off...")
-    input("Press enter to play notes sequences...")
+    time.sleep(2)
+    print("[poly] Play notes sequences...")
     play_sequence(lisa, [54, 47, 42, 58])
-    input("Press enter to play notes cluster...")
+    print("[poly] Play notes cluster and one note by one note off...")
     play_cluster(lisa, [54, 47, 42])
+    # unison now to hear the difference
+    lisa.general.voice_mode = "unison"
+    print("[unison] Play note 54")
+    lisa.note_on(54)
+    time.sleep(2)
+    lisa.note_off(54)
+    time.sleep(2)
+    print("[unison] Play notes sequences...")
+    play_sequence(lisa, [54, 47, 42, 58])
+    print("[unison] Play notes cluster and one note by one note off...")
+    play_cluster(lisa, [54, 47, 42])
+
+
+
+
 
 tests = [test1, test2, test3, test4]
 

@@ -7,12 +7,14 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
-#include "braids/settings.h"
-#include "constants_config.h"
-#include "global_state.h"
-#include "wavetable_streaming.h"
-#include <Wire.h>
+// clang-format off
 #include <pico/stdlib.h>
+#include <Wire.h>
+#include "global_state.h"
+#include "constants_config.h"
+#include "wavetable_streaming.h"
+#include "braids/settings.h"
+// clang-format on
 
 #if SSD1306
 #include <Adafruit_SSD1306.h>

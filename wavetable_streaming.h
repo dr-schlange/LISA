@@ -5,11 +5,12 @@
   Licensed under GNU GPLv3
 */
 #pragma once
-
+// clang-format off
+#include <cstring>
 #include "braids/macro_oscillator.h"
 #include "braids/resources.h"
 #include "stmlib/utils/dsp.h"
-#include <cstring>
+// clang-format on
 
 using namespace stmlib;
 

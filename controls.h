@@ -5,11 +5,13 @@
   Licensed under GNU GPLv3
 */
 #pragma once
+// clang-format off
 #include "constants_config.h"
+#include "midi.h"
 #include "encoder.h"
 #include "global_state.h"
-#include "midi.h"
 #include <cstdint>
+// clang-format on
 
 static inline void midi_cc_forward(RuntimeState *gstate, uint8_t cc,
                                    uint8_t raw_value) {

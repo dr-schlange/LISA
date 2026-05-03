@@ -7,12 +7,14 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
+// clang-format off
+#include <Arduino.h>
+#include <pico/stdlib.h>
+#include <LittleFS.h>
+#include <ArduinoJson.h>
 #include "constants_config.h"
 #include "global_state.h"
-#include <Arduino.h>
-#include <ArduinoJson.h>
-#include <LittleFS.h>
-#include <pico/stdlib.h>
+// clang-format on
 
 typedef struct __attribute__((packed)) {
   float master_volume, env_attack, env_release;

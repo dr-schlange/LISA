@@ -5,9 +5,11 @@
   Licensed under GNU GPLv3
 */
 #pragma once
-#include "constants_config.h"
-#include <Arduino.h>
+// clang-format off
 #include <pico/stdlib.h>
+#include <Arduino.h>
+#include "constants_config.h"
+// clang-format on
 
 enum EncoderState {
   ENGINE_SELECT,

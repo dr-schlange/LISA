@@ -7,11 +7,13 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
-#include "constants_config.h"
-#include "voices.h"
+// clang-format off
 #include "wavetable_streaming.h"
-#include <Adafruit_TinyUSB.h>
 #include <pico/stdlib.h>
+#include <Adafruit_TinyUSB.h>
+#include "voices.h"
+#include "constants_config.h"
+// clang-format on
 
 #define IS_MIDI_NOTE_OFF(status, value)                                        \
   (((status & 0xF0) == 0x80) || ((status & 0xF0) == 0x90 && value == 0))
@@ -137,19 +139,41 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   }
 
   if (IS_MIDI_NOTE_OFF(status, cc_value)) {
-    free_voice_by_pitch(voices, pitch_or_cc, gstate->sustain_enabled);
-    // free_voice_unison(voices, pitch_or_cc, gstate->sustain_enabled);
+    switch (gstate->voice_mode) {
+    case VOICE_POLY:
+      free_voice_by_pitch(voices, pitch_or_cc, gstate->sustain_enabled);
+      break;
+    case VOICE_UNISON:
+      free_voice_unison(voices, pitch_or_cc, gstate->sustain_enabled);
+      break;
+    }
     return;
   }
 
   if (IS_MIDI_NOTE_ON(status)) {
-    allocate_oldest_voice(voices, pitch_or_cc, cc_value / 127.f);
-    // allocate_voice_unison(voices, pitch_or_cc, cc_value / 127.f);
+    switch (gstate->voice_mode) {
+    case VOICE_POLY:
+      allocate_oldest_voice(voices, pitch_or_cc, cc_value / 127.f);
+      break;
+    case VOICE_UNISON:
+      allocate_voice_unison(voices, pitch_or_cc, cc_value / 127.f);
+      break;
+    }
     return;
   }
 
+  static VoiceMode prev_voice_mode = gstate->voice_mode;
+  VoiceMode mode;
   if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
+    case MIDI_VOICE_MODE:
+      mode = (VoiceMode)((cc_value / 127.f) * 2.f);
+      if (mode != prev_voice_mode) {
+        reset_all_voices(voices);
+        gstate->voice_mode = mode;
+        prev_voice_mode = mode;
+      }
+      break;
     case MIDI_GAIN:
       gstate->gain.value = cc_value / 127.f;
       break;
@@ -181,7 +205,8 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       break;
     case MIDI_FILTER_TYPE:
       gstate->filter_type.value =
-          (cc_value / 127.f) * 2.f; // scale on the number of filters in braids
+          (cc_value / 127.f) *
+          2.f; // scale on the number of filters in braids - 1
       break;
     case MIDI_FM_MOD:
       gstate->fm_mod.value = cc_value / 127.f;
@@ -201,12 +226,6 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       if (cc_value == 126)
         watchdog_reboot(0, 0, 0);
       break;
-    // case MIDI_WT_CAPTURE_MODE:
-    //   WavetableStreamingOscillator::setCaptureMode(
-    //     (WavetableStreamingOscillator::CaptureMode)constrain(((int)cc_value *
-    //     WavetableStreamingOscillator::CAPTURE_NUMBER + 63) / 127, 0,
-    //     WavetableStreamingOscillator::CAPTURE_NUMBER - 1));
-    //   break;
     case MIDI_WT_DOUBLE_BUFFER:
       WavetableStreamingOscillator::setDoubleBuffer(cc_value >= 64);
       break;

@@ -5,10 +5,12 @@
   Licensed under GNU GPLv3
 */
 #pragma once
-#include "constants_config.h"
-#include "encoder.h"
+// clang-format off
 #include <cstdint>
 #include <pico/stdlib.h>
+#include "constants_config.h"
+#include "encoder.h"
+// clang-format on
 
 enum DisplayMode {
   ENGINE_SELECT_MODE,
@@ -60,6 +62,12 @@ enum GlobalSettings {
   SETTING_EDIT_PARAMETER,
   SETTING_EDIT_RES,
   SETTING_EDIT_MODE,
+};
+
+enum VoiceMode {
+  VOICE_POLY,
+  VOICE_UNISON,
+  NUM_VOICE_MODE,
 };
 
 #define BASE_PARAMETER                                                         \
@@ -198,6 +206,9 @@ struct RuntimeState {
   // MIDI controller mode
   MidiControllerMode controller_mode;
 
+  // Voice mode
+  VoiceMode voice_mode;
+
   // Parameters
   ExtParameter timbre;
   ExtParameter color;
@@ -255,6 +266,9 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW);
   gstate->encoder_status = NO_ACTION;
   gstate->controller_mode = CONTROLLER_BOTH;
+
+  gstate->voice_mode = VOICE_POLY;
+
   gstate->timbre = ExtParameterNew(POT_A, MIDI_TIMBRE, 0.4f);
   gstate->color = ExtParameterNew(POT_B, MIDI_COLOR, 0.3f);
   gstate->cutoff = ExtParameterNew(POT_C, MIDI_CUTOFF, 0.5f);

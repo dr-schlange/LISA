@@ -7,10 +7,12 @@
   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
 */
 #pragma once
+// clang-format off
+#include <pico/stdlib.h>
+#include <BRAIDS.h>
 #include "constants_config.h"
 #include "wavetable_streaming.h"
-#include <BRAIDS.h>
-#include <pico/stdlib.h>
+// clang-format on
 
 struct Voice {
   WavetableStreamingOscillator osc;
@@ -111,7 +113,11 @@ inline void free_voice_unison(Voice *voices, float pitch, int sustain_enabled) {
   }
 }
 
-inline void reset_all_voices(Voices *voices) {
+inline void reset_all_voices(Voice *voices) {
   for (uint8_t i = 0; i < MAX_VOICES; i++) {
+    voices[i].active = false;
+    voices[i].sustained = false;
+    voices[i].last_trig = false;
+    voices[i].env = 0.f;
   }
 }
