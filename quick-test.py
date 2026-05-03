@@ -14,33 +14,32 @@ def setup(lisa, lfo1, lfo2):
     lisa.wavetable.stream_table2 = lfo1.scale(-8192, 8192)
     lisa.wavetable.stream_table3 = lfo2.scale(-8192, 8192)
     lisa.wavetable.stream_table4 = lfo2.scale(-8192, 8192)
-    input("Press enter to start tests or ctrl+c to cancel...")
 
 
 def teardown(lisa):
     print("Stopping now...")
     lisa.force_all_notes_off()
-    lisa.wavetable.reset_all_wt = "ON"
+    # lisa.wavetable.reset_all_wt = "ON"
     stop_all_connected_devices()
 
 
 def play_sequence(lisa, notes):
     for note in notes:
-        print("note on", note)
+        print("  note on", note)
         lisa.note_on(note)
         time.sleep(0.5)
-        print("note off", note)
+        print("  note off", note)
         lisa.note_off(note)
 
 
 def play_cluster(lisa, notes, duration=4):
     for note in notes:
-        print("note on", note)
+        print("  note on", note)
         lisa.note_on(note)
-    print(f"Wait for {duration}s")
+    print(f"  Wait for {duration}s")
     time.sleep(duration)
     for note in notes[::-1]:
-        print("note off", note)
+        print("  note off", note)
         lisa.note_off(note)
         time.sleep(1)
 
@@ -125,11 +124,33 @@ def test4(lisa, lfo1, lfo2):
     print("[unison] Play notes cluster and one note by one note off...")
     play_cluster(lisa, [54, 47, 42])
 
+# mono test
+def test5(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    # Poly first to hear the difference
+    lisa.general.voice_mode = "poly"
+    lisa.envelope.release = 90
+    print(lisa.general.voice_mode, int(lisa.general.voice_mode))
+    print("[poly] Play notes sequences...")
+    play_sequence(lisa, [54, 47, 42, 58])
+    print("[poly] Play notes cluster and one note by one note off...")
+    play_cluster(lisa, [54, 47])
+    # unison now to hear the difference
+    lisa.general.voice_mode = "unison"
+    print(lisa.general.voice_mode, int(lisa.general.voice_mode))
+    print("[unison] Play notes sequences...")
+    play_sequence(lisa, [54, 47, 42, 58])
+    print("[unison] Play notes cluster and one note by one note off...")
+    play_cluster(lisa, [54, 47])
+    # mono now to hear the difference
+    lisa.general.voice_mode = "mono"
+    print(lisa.general.voice_mode, int(lisa.general.voice_mode))
+    print("[mono] Play notes sequences...")
+    play_sequence(lisa, [54, 47, 42, 58])
+    print("[mono] Play notes cluster and one note by one note off...")
+    play_cluster(lisa, [54, 47], duration=1)
 
-
-
-
-tests = [test1, test2, test3, test4]
+tests = [test1, test2, test3, test4, test5]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -142,20 +163,23 @@ if __name__ == "__main__":
     lisa.general.engine_select = 127
 
     lfo1 = LFO(
-        waveform="sine", speed=1, sampling_rate=258, auto_srate="OFF", autoconnect=True
+        waveform="sine", speed=1, sampling_rate=260, auto_srate="OFF", autoconnect=True
     )
     lfo2 = LFO(
         waveform="sawtooth",
         speed=1,
-        sampling_rate=258,
+        sampling_rate=260,
         auto_srate="OFF",
         autoconnect=True,
     )
     setup(lisa, lfo1, lfo2)
     try:
         if testtorun is not None:
+            print(f"Run test{testtorun + 1} in 2s...")
+            time.sleep(2)
             tests[testtorun](lisa, lfo1, lfo2)
         else:
+            input("Press enter to start tests or ctrl+c to cancel...")
             for test in tests:
                 test(lisa, lfo1, lfo2)
     except KeyboardInterrupt:

@@ -67,6 +67,7 @@ enum GlobalSettings {
 enum VoiceMode {
   VOICE_POLY,
   VOICE_UNISON,
+  VOICE_MONO,
   NUM_VOICE_MODE,
 };
 

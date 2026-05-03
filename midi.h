@@ -146,6 +146,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     case VOICE_UNISON:
       free_voice_unison(voices, pitch_or_cc, gstate->sustain_enabled);
       break;
+    case VOICE_MONO:
+      free_voice_mono(voices, pitch_or_cc, gstate->sustain_enabled);
+      break;
     }
     return;
   }
@@ -158,6 +161,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     case VOICE_UNISON:
       allocate_voice_unison(voices, pitch_or_cc, cc_value / 127.f);
       break;
+    case VOICE_MONO:
+      allocate_voice_mono(voices, pitch_or_cc, cc_value / 127.f);
+      break;
     }
     return;
   }
@@ -167,7 +173,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
     case MIDI_VOICE_MODE:
-      mode = (VoiceMode)((cc_value / 127.f) * 2.f);
+      mode = (VoiceMode)round(((cc_value / 127.f) * (float)NUM_VOICE_MODE));
       if (mode != prev_voice_mode) {
         reset_all_voices(voices);
         gstate->voice_mode = mode;

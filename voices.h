@@ -121,3 +121,34 @@ inline void reset_all_voices(Voice *voices) {
     voices[i].env = 0.f;
   }
 }
+
+inline void allocate_voice_mono(Voice *voices, float pitch, float velocity) {
+  static Voice *last = voices + (MAX_VOICES - 1);
+  static Voice *head = last;
+  head->sustained = false;
+  head->active = false;
+
+  if (head == last) {
+    head = voices; // circle to first voice
+  } else {
+    head++;
+  }
+  setup_voice(head, pitch, velocity);
+}
+
+inline void free_voice_mono(Voice *voices, float _pitch, bool sustained) {
+  // we keep pitch to be kind of polymorphic, perhaps loading later the
+  // functions in a table
+  for (uint8_t i = 0; i < MAX_VOICES; i++) {
+    if (voices[i].active) {
+      if (sustained) {
+        voices[i].sustained = true;
+        voices[i].active = false;
+      } else {
+        voices[i].sustained = false;
+        voices[i].active = false;
+      }
+      break;
+    }
+  }
+}

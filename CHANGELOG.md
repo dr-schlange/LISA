@@ -4,9 +4,13 @@
 
 ## Features
 
+* Add unison mode
+* Add mono mode
+
 ## Changes
 
 * Voices pitch is now float instead of an int
+
 
 ## 0.0.1 -- Initial Version
 
