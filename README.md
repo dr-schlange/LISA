@@ -132,6 +132,10 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **71**        | Filter Resonance                                       |
 | **74**        | Filter Cutoff                                          |
 | **75**        | Filter Type                                            |
+| **96**        | Wavetable 1 mix level                                  |
+| **97**        | Wavetable 2 mix level                                  |
+| **98**        | Wavetable 3 mix level                                  |
+| **99**        | Wavetable 4 mix level                                  |
 | **100**       | b1 (send CC only)                                      |
 | **101**       | b2 (send CC only)                                      |
 | **102**       | b3 (send CC only)                                      |

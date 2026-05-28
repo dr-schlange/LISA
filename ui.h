@@ -19,11 +19,13 @@
 #if SSD1306
 #include <Adafruit_SSD1306.h>
 #define SCREEN_WHITE SSD1306_WHITE
+#define SCREEN_BLACK SSD1306_BLACK
 #endif
 
 #if SH110X
 #include <Adafruit_SH110X.h>
 #define SCREEN_WHITE SH110X_WHITE
+#define SCREEN_BLACK SH110X_BLACK
 #endif
 
 // Splash screen
@@ -128,27 +130,30 @@ inline void draw_scope(UIState *uistate) {
   uistate->scope_ready = false;
 }
 
-inline void draw_live_scope(UIState *uistate) {
+inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
   if (!uistate->scope_ready)
     return;
   display.clearDisplay();
 
-  // Upper half
+  // Upper half, wavetables
   int16_t bufs[4][257];
   WavetableStreamingOscillator::CopyBuffers(bufs);
 
   for (int b = 0; b < 4; b++) {
     int xoff = b * 32;
     for (int i = 0; i < 31; i++) {
-
       int16_t s1 = bufs[b][i * 8];
       int16_t s2 = bufs[b][(i + 1) * 8];
-
       int16_t y1 = 15 - (s1 >> 11);
       int16_t y2 = 15 - (s2 >> 11);
-
       display.drawLine(xoff + i, y1, xoff + i + 1, y2, SCREEN_WHITE);
     }
+
+    // Mix levels
+    int bar_w =
+        (int32_t)WavetableStreamingOscillator::getBufferLevel(b) * 32 >> 15;
+    if (bar_w > 0)
+      display.fillRect(xoff, 30, bar_w, 2, SCREEN_WHITE);
   }
 
   const uint8_t dash_height = 3;
@@ -161,7 +166,7 @@ inline void draw_live_scope(UIState *uistate) {
     }
   }
 
-  // Lower half
+  // Lower half, normal scope (original one)
   for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
     int16_t y1 = 48 - ((uistate->scope_buffer_back[i] * 100) >> 15);
     int16_t y2 = 48 - ((uistate->scope_buffer_back[i + 1] * 100) >> 15);
@@ -169,6 +174,13 @@ inline void draw_live_scope(UIState *uistate) {
     y2 = constrain(y2, 32, 63);
     display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
   }
+
+  // XY bilinear mix position
+  display.fillRect(116, 52, 11, 11, SCREEN_BLACK);
+  display.drawRect(115, 51, 13, 13, SCREEN_WHITE);
+  int dot_x = 117 + (int)(gstate->timbre.value * 9.f);
+  int dot_y = 60 - (int)(gstate->color.value * 9.f);
+  display.drawPixel(dot_x, dot_y, SCREEN_WHITE);
 
   display.display();
   uistate->scope_ready = false;
@@ -452,7 +464,7 @@ static inline void draw_ui(RuntimeState *gstate, UIState *uistate) {
     switch (gstate->display_state) {
     case OSCILLOSCOPE_MODE:
       if (gstate->engine_idx >= braids::MACRO_OSC_SHAPE_LAST)
-        draw_live_scope(uistate);
+        draw_live_scope(uistate, gstate);
       else
         draw_scope(uistate);
       break;

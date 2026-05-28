@@ -1,11 +1,11 @@
 /*
-  LISA (v0.0.1)
+   LISA (v0.0.1)
 
-  Copyright (c) 2026 Dr Schlange
-  Licensed under GNU GPLv3
+   Copyright (c) 2026 Dr Schlange
+   Licensed under GNU GPLv3
 
-  Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
-*/
+   Based on VIJA by Vadims Maksimovs (ledlaux.github.com)
+ */
 #pragma once
 // clang-format off
 #include "wavetable_streaming.h"
@@ -241,6 +241,14 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
         reset_usb_boot(0, 0);
       if (cc_value == 126)
         watchdog_reboot(0, 0, 0);
+      break;
+    case MIDI_WT_LEVEL_TABLE1:
+    case MIDI_WT_LEVEL_TABLE2:
+    case MIDI_WT_LEVEL_TABLE3:
+    case MIDI_WT_LEVEL_TABLE4:
+      WavetableStreamingOscillator::setBufferLevel(
+          pitch_or_cc - MIDI_WT_LEVEL_TABLE1,
+          (uint16_t)(cc_value * 32767 / 127));
       break;
     case MIDI_WT_DOUBLE_BUFFER:
       WavetableStreamingOscillator::setDoubleBuffer(cc_value >= 64);

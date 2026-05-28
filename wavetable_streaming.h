@@ -22,6 +22,7 @@ public:
     double_buffer_ = false;
     read_idx_ = 0;
     write_idx_ = 1;
+    level_ = 32767;
     reset();
   }
 
@@ -62,6 +63,10 @@ public:
     }
   }
 
+  inline void setLevel(uint16_t level) { level_ = level; }
+
+  inline uint16_t getLevel() { return level_; }
+
   inline void copyTable(int16_t dst[257]) {
     memcpy(dst, (const int16_t *)buffers_[read_idx_], 257 * sizeof(int16_t));
   }
@@ -70,6 +75,7 @@ private:
   volatile uint16_t write_pos_;
   volatile boolean freeze_;
   volatile bool double_buffer_;
+  volatile uint16_t level_;
   volatile int16_t buffers_[2][257];
   volatile uint8_t read_idx_;
   volatile uint8_t write_idx_;
@@ -156,20 +162,23 @@ public:
     // TODO: rewrite the other modes
   }
 
-  inline int16_t ReadMixedSample(int16_t waves[4][257], uint32_t phase) {
-    int32_t mix = Interpolate824(waves[0], phase) * w1_ +
-                  Interpolate824(waves[1], phase) * w2_ +
-                  Interpolate824(waves[2], phase) * w3_ +
-                  Interpolate824(waves[3], phase) * w4_;
-
+  inline int16_t ReadMixedSample(int16_t waves[4][257], uint32_t phase,
+                                 uint16_t levels[4]) {
+    int32_t mix =
+        Interpolate824(waves[0], phase) * ((w1_ * (int32_t)levels[0]) >> 15) +
+        Interpolate824(waves[1], phase) * ((w2_ * (int32_t)levels[1]) >> 15) +
+        Interpolate824(waves[2], phase) * ((w3_ * (int32_t)levels[2]) >> 15) +
+        Interpolate824(waves[3], phase) * ((w4_ * (int32_t)levels[3]) >> 15);
     return mix >> 15; // go back to normal world
   }
 
   inline void RenderMixing(const uint8_t *sync, int16_t *output, size_t size) {
     int16_t waves[4][257];
+    uint16_t levels[4];
 
     for (uint8_t i = 0; i < 4; ++i) {
       tables_[i].copyTable(waves[i]);
+      levels[i] = tables_[i].getLevel();
     }
 
     uint32_t phase_increment = ComputePhaseIncrement(pitch_);
@@ -177,7 +186,7 @@ public:
       phase_ += phase_increment;
       if (*sync++)
         phase_ = 0;
-      *output++ = ReadMixedSample(waves, phase_ + phase_offset_);
+      *output++ = ReadMixedSample(waves, phase_ + phase_offset_, levels);
     }
   }
 
@@ -222,6 +231,12 @@ public:
   }
   inline static void freezeBuffer(uint8_t idx, boolean freeze) {
     tables_[idx].freeze(freeze);
+  }
+  inline static void setBufferLevel(uint8_t idx, uint16_t level) {
+    tables_[idx].setLevel(level);
+  }
+  inline static uint16_t getBufferLevel(uint8_t idx) {
+    return tables_[idx].getLevel();
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setLiveMode(bool on) { live_ = on; }

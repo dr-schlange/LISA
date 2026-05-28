@@ -61,6 +61,10 @@ const char *const modes[] = {
 #define MIDI_TIMBRE_MOD 16
 #define MIDI_COLOR_MOD 17
 #define MIDI_FM_SLEW 18
+#define MIDI_WT_LEVEL_TABLE1 96
+#define MIDI_WT_LEVEL_TABLE2 97
+#define MIDI_WT_LEVEL_TABLE3 98
+#define MIDI_WT_LEVEL_TABLE4 99
 #define MIDI_B1 100
 #define MIDI_B2 101
 #define MIDI_B3 102

@@ -124,6 +124,7 @@ def test4(lisa, lfo1, lfo2):
     print("[unison] Play notes cluster and one note by one note off...")
     play_cluster(lisa, [54, 47, 42])
 
+
 # mono test
 def test5(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
@@ -150,6 +151,7 @@ def test5(lisa, lfo1, lfo2):
     print("[mono] Play notes cluster and one note by one note off...")
     play_cluster(lisa, [54, 47], duration=1)
 
+
 # filters test
 def test6(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
@@ -168,7 +170,63 @@ def test6(lisa, lfo1, lfo2):
     print(lisa.filter.type, int(lisa.filter.type))
     play_cluster(lisa, [42, 45, 47])
 
-tests = [test1, test2, test3, test4, test5, test6]
+
+# levels test
+def test7(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    # force filter to a valid value
+    lisa.envelope.release = 70
+    lisa.filter.cutoff = 64
+    # low pass filter
+    lisa.filter.type = "lowpass"
+    lisa.wavetable.level_table1 = 127
+    lisa.wavetable.level_table2 = 127
+    lisa.wavetable.level_table3 = 127
+    lisa.wavetable.level_table4 = 127
+    print(
+        "All levels full",
+        [
+            lisa.wavetable.level_table1,
+            lisa.wavetable.level_table2,
+            lisa.wavetable.level_table3,
+            lisa.wavetable.level_table4,
+        ],
+    )
+    play_cluster(lisa, [42, 45, 47])
+
+    # table 1 50%
+    print("Wavetable 1 50%")
+    lisa.wavetable.level_table1 = 64
+    play_cluster(lisa, [42, 45, 47])
+
+    # table 2 50%
+    print("Wavetable 2 50%")
+    lisa.wavetable.level_table2 = 64
+    play_cluster(lisa, [42, 45, 47])
+
+    # table 3 50%
+    print("Wavetable 2 50%")
+    lisa.wavetable.level_table3 = 64
+    play_cluster(lisa, [42, 45, 47])
+
+    # table 4 50%
+    print("Wavetable 4 50%")
+    lisa.wavetable.level_table4 = 64
+    play_cluster(lisa, [42, 45, 47])
+
+    # lfo on wt1 and wt3
+    print("Plug an LFO on wt1 and wt3")
+    lfo = LFO(speed=1, sampling_rate=259, auto_srate="OFF")
+    lisa.wavetable.level_table1 = lfo.scale(127, 30)
+    lisa.wavetable.level_table2 = lfo.scale(127, 30)
+    lisa.wavetable.level_table3 = lfo.scale(0, 127)
+    lisa.wavetable.level_table4 = lfo.scale(45, 80)
+    lfo.start()
+    play_cluster(lisa, [42, 45, 47])
+    lfo.stop()
+
+
+tests = [test1, test2, test3, test4, test5, test6, test7]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -179,14 +237,15 @@ if __name__ == "__main__":
     print("Start LISA quick test")
     lisa = Lisa()
     lisa.general.engine_select = 127
+    lisa.general.gain = 127
 
     lfo1 = LFO(
-        waveform="sine", speed=1, sampling_rate=260, auto_srate="OFF", autoconnect=True
+        waveform="sine", speed=1, sampling_rate=259, auto_srate="OFF", autoconnect=True
     )
     lfo2 = LFO(
         waveform="sawtooth",
         speed=1,
-        sampling_rate=260,
+        sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,
     )

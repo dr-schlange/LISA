@@ -1,17 +1,23 @@
 # CHANGELOG
 
+## 0.2.0
+
+### Features 
+
+* Add level-mix for each wavetable 
+
 ## 0.1.0
 
-## Features
+### Features
 
 * Add unison mode
 * Add mono mode
 
-## Changes
+### Changes
 
 * Voices pitch is now float instead of an int
 
-## Fixes
+### Fixes
 
 * Fix sneaky bug on filter type selection
 
