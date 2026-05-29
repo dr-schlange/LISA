@@ -15,7 +15,7 @@
 using namespace stmlib;
 
 #define FIELD_FREEZE 1
-#defind FIELD_DBUFF 2
+#define FIELD_DBUFF  2
 
 class LiveWavetable {
 public:
@@ -94,17 +94,17 @@ private:
 
 class WavetableStreamingOscillator : public braids::MacroOscillator {
 public:
-  enum CaptureMode : uint8_t {
-    CAPTURE_INDEPENDENT_BUFFER = 0, // independent buffers (4 streaming entries)
-    CAPTURE_FORWARD,                // fill 0 to 127
-    CAPTURE_REVERSE,                // fill 127 to 0
-    CAPTURE_ROLLING,          // always most recent 128 samples on buffer 0
-    CAPTURE_REV_FORWARD,      // fill 127 to 0, going forward on buffers
-    CAPTURE_FOR_BACKWARD,     // fill 0 to 127, going backward on buffers
-    CAPTURE_ROLLING_BACKWARD, // always most recent 128 samples on buffer 0
-                              // write in reverse
-    CAPTURE_NUMBER,
-  };
+  // enum CaptureMode : uint8_t {
+  //   CAPTURE_INDEPENDENT_BUFFER = 0, // independent buffers (4 streaming
+  //   entries) CAPTURE_FORWARD,                // fill 0 to 127
+  //   CAPTURE_REVERSE,                // fill 127 to 0
+  //   CAPTURE_ROLLING,          // always most recent 128 samples on buffer 0
+  //   CAPTURE_REV_FORWARD,      // fill 127 to 0, going forward on buffers
+  //   CAPTURE_FOR_BACKWARD,     // fill 0 to 127, going backward on buffers
+  //   CAPTURE_ROLLING_BACKWARD, // always most recent 128 samples on buffer 0
+  //                             // write in reverse
+  //   CAPTURE_NUMBER,
+  // };
   inline void Init(float sr) {
     braids::MacroOscillator::Init(sr);
     srFactor_ = 96000.f / sr;
@@ -166,11 +166,11 @@ public:
       return;
     }
 
-    if (capture_mode_ == CAPTURE_INDEPENDENT_BUFFER) {
-      RenderMixing(sync, buffer, size);
-      return;
-    }
-    // TODO: rewrite the other modes
+    // TODO: rewrite all the other modes
+    // if (capture_mode_ == CAPTURE_INDEPENDENT_BUFFER) {
+    RenderMixing(sync, buffer, size);
+    //   return;
+    // }
   }
 
   inline int16_t ReadMixedSample(int16_t waves[4][257], uint32_t phase,
@@ -256,7 +256,7 @@ public:
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setLiveMode(bool on) { live_ = on; }
   inline static boolean isLiveMode() { return live_; }
-  inline static CaptureMode getCaptureMode() { return capture_mode_; }
+  // inline static CaptureMode getCaptureMode() { return capture_mode_; }
 
 private:
   static const uint16_t kPitchTableStart = 128 * 128;
@@ -289,7 +289,7 @@ private:
 
   // Shared across Cores
   static volatile bool live_;
-  static volatile CaptureMode capture_mode_;
+  // static volatile CaptureMode capture_mode_;
   static volatile uint8_t write_buf_;
   static volatile bool retrigger_;
   static LiveWavetable tables_[4];
@@ -300,7 +300,7 @@ volatile uint8_t WavetableStreamingOscillator::write_buf_ = 0;
 volatile bool WavetableStreamingOscillator::retrigger_ = false;
 volatile int32_t WavetableStreamingOscillator::phase_offset_ = 0;
 volatile bool WavetableStreamingOscillator::live_ = false;
-volatile WavetableStreamingOscillator::CaptureMode
-    WavetableStreamingOscillator::capture_mode_ =
-        WavetableStreamingOscillator::CAPTURE_INDEPENDENT_BUFFER;
+// volatile WavetableStreamingOscillator::CaptureMode
+// WavetableStreamingOscillator::capture_mode_ =
+//     WavetableStreamingOscillator::CAPTURE_INDEPENDENT_BUFFER;
 LiveWavetable WavetableStreamingOscillator::tables_[4] = {};

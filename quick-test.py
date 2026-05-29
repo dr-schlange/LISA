@@ -206,7 +206,7 @@ def test7(lisa, lfo1, lfo2):
     play_cluster(lisa, [42, 45, 47])
 
     # table 3 50%
-    print("Wavetable 2 50%")
+    print("Wavetable 3 50%")
     lisa.wavetable.level_table3 = 64
     play_cluster(lisa, [42, 45, 47])
 
