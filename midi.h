@@ -141,9 +141,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     } else {
       gstate->sustain_enabled = false;
       for (int i = 0; i < MAX_VOICES; i++) {
-        if (voices[i].sustained) {
-          voices[i].active = false;
-          voices[i].sustained = false;
+        if (is_sustained(voices[i].flags)) {
+          reset_active(voices[i].flags);
+          reset_sustained(voices[i].flags);
         }
       }
     }

@@ -161,25 +161,34 @@ void __not_in_flash_func(update_audio)() {
   for (int v = 0; v < MAX_VOICES; v++) {
     Voice &voice = voices[v];
 
-    if (!voice.active && !voice.sustained && voice.env < 0.0001f)
+    if (!is_active(voice.flags) && !is_sustained(voice.flags) &&
+        voice.env < 0.0001f)
       continue;
 
     voice.vel_smoothed += (voice.velocity - voice.vel_smoothed) * 0.25f;
 
     float pitch = voice.pitch * 128.0f + fm_slew * 1536.0f;
+    // float detune_cents = (runtime_state.unison_detune.value - 0.5f) * 100.0f;
+    if (is_secondary(voice.flags))
+      pitch += 5 * 1.28f;
     voice.osc.set_pitch(pitch);
 
     float t = constrain(runtime_state.timbre.value + timb_slew, 0.0f, 1.0f);
     float m = constrain(runtime_state.color.value + color_slew, 0.0f, 1.0f);
     voice.osc.set_parameters(t * 32767.0f, m * 32767.0f);
 
-    if (voice.active && !voice.last_trig)
+    if (is_active(voice.flags) && !is_last_trig(voice.flags))
       voice.osc.Strike();
 
-    voice.last_trig = voice.active;
+    if (is_active(voice.flags)) {
+      set_active(voice.flags);
+    } else {
+      reset_active(voice.flags);
+    }
     voice.osc.Render(voice.sync_buffer, voice.buffer, AUDIO_BLOCK);
 
-    float envTarget = (voice.active || voice.sustained) ? 1.0f : 0.0f;
+    float envTarget =
+        (is_active(voice.flags) || is_sustained(voice.flags)) ? 1.0f : 0.0f;
     float coef = envTarget ? attackCoef : releaseCoef;
 
     const int32_t env_q15 = (int32_t)(voice.env * 32767.0f);
@@ -590,7 +599,7 @@ static inline void setup_soundcard() {
 static inline void setup_voices() {
   for (int v = 0; v < MAX_VOICES; v++) {
     voices[v].osc.Init(SAMPLE_RATE);
-    voices[v].active = false;
+    reset_active(voices[v].flags);
   }
 }
 
