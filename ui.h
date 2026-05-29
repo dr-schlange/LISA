@@ -317,8 +317,8 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.setCursor(12, 11);
   display.print("gnrl");
   draw_param(54, 10, "vol", (Parameter *)&(gstate->master_volume));
-  draw_param(79, 10, "b1", (Parameter *)&(gstate->b1));
-  draw_param(104, 10, "b2", (Parameter *)&(gstate->b2));
+  draw_param(79, 10, "dtu", (Parameter *)&(gstate->unison_detune));
+  draw_param(104, 10, "b1", (Parameter *)&(gstate->b1));
 
   // timbre
   display.setCursor(12, 22);
@@ -332,7 +332,7 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.print("colr");
   draw_param(54, 32, "amt", (Parameter *)&(gstate->color));
   draw_param(79, 32, "mod", (Parameter *)&(gstate->color_mod));
-  draw_param(104, 32, "b3", (Parameter *)&(gstate->b3));
+  draw_param(104, 32, "b2", (Parameter *)&(gstate->b2));
 
   // filter
   display.setCursor(12, 44);
@@ -346,7 +346,7 @@ static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {
   display.print("envl");
   draw_param(54, 54, "atk", (Parameter *)&(gstate->env_attack));
   draw_param(79, 54, "rel", (Parameter *)&(gstate->env_release));
-  draw_param(104, 54, "b4", (Parameter *)&(gstate->b4));
+  draw_param(104, 54, "b3", (Parameter *)&(gstate->b3));
 
   display.display();
 }

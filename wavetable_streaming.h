@@ -15,7 +15,7 @@
 using namespace stmlib;
 
 #define FIELD_FREEZE 1
-#define FIELD_DBUFF  2
+#define FIELD_DBUFF 2
 
 class LiveWavetable {
 public:

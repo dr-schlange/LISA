@@ -118,6 +118,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | :------------ | :----------------------------------------------------- |
 | **2**         | Voice mode (0: poly, 64: unison)  from v0.1.0          |
 | **3**         | Gain                                                   |
+| **4**         | Detune cents for unison mode (0: -50cents, 12: 50cents)|
 | **7**         | Master Volume                                          |
 | **8**         | Engine Select                                          |
 | **9**         | Timbre                                                 |

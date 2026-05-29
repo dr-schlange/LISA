@@ -48,6 +48,7 @@ const char *const modes[] = {
 // MIDI CCs
 #define MIDI_VOICE_MODE 2
 #define MIDI_GAIN 3
+#define MIDI_UNISON_DETUNE 4
 #define MIDI_MASTER_VOL 7
 #define MIDI_ENGINE_SEL 8
 #define MIDI_TIMBRE 9

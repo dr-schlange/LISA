@@ -227,7 +227,45 @@ def test7(lisa, lfo1, lfo2):
     lfo.stop()
 
 
-tests = [test1, test2, test3, test4, test5, test6, test7]
+# detune test
+def test8(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    # force filter to a valid value and unison mode
+    lisa.general.voice_mode = "unison"
+    lisa.envelope.release = 70
+    lisa.filter.cutoff = 64
+    # low pass filter
+    lisa.filter.type = "lowpass"
+    print("Play cluster with detune at 0 (no detune)")
+    lisa.general.detune = 64
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Play cluster with light +detune")
+    lisa.general.detune = 75
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Play cluster with harsh +detune")
+    lisa.general.detune = 127
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Play cluster with light -detune")
+    lisa.general.detune = 58
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Play cluster with harsh -detune")
+    lisa.general.detune = 0
+    play_cluster(lisa, [42, 45, 47])
+
+    # lfo on detune
+    print("Plug an LFO on detune")
+    lfo = LFO(speed=5)
+    lisa.general.detune = lfo.scale(0, 127)
+    lfo.start()
+    play_cluster(lisa, [42, 45, 47])
+    lfo.stop()
+
+
+tests = [test1, test2, test3, test4, test5, test6, test7, test8]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -238,7 +276,7 @@ if __name__ == "__main__":
     print("Start LISA quick test")
     lisa = Lisa()
     lisa.general.engine_select = 127
-    lisa.general.gain = 127
+    lisa.general.gain = 64
 
     lfo1 = LFO(
         waveform="sine", speed=1, sampling_rate=259, auto_srate="OFF", autoconnect=True

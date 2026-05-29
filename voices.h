@@ -80,6 +80,7 @@ static inline void setup_voice(Voice *voice, float pitch, float velocity) {
   voice->velocity = velocity;
   voice->env = 0.f;
   set_active(voice->flags);
+  reset_secondary(voice->flags);
   voice->age = global_age++;
 }
 
@@ -130,6 +131,7 @@ inline void free_voice_unison(Voice *voices, float pitch, int sustain_enabled) {
       reset_sustained(secondary->flags);
       reset_active(primary->flags);
       reset_active(secondary->flags);
+      reset_secondary(secondary->flags);
     }
   }
 }
@@ -139,6 +141,7 @@ inline void reset_all_voices(Voice *voices) {
     reset_active(voices[i].flags);
     reset_sustained(voices[i].flags);
     reset_last_trig(voices[i].flags);
+    reset_secondary(voices[i].flags);
     voices[i].env = 0.f;
   }
 }

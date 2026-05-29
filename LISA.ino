@@ -168,9 +168,9 @@ void __not_in_flash_func(update_audio)() {
     voice.vel_smoothed += (voice.velocity - voice.vel_smoothed) * 0.25f;
 
     float pitch = voice.pitch * 128.0f + fm_slew * 1536.0f;
-    // float detune_cents = (runtime_state.unison_detune.value - 0.5f) * 100.0f;
+    float detune_cents = (runtime_state.unison_detune.value - 0.5f) * 100.0f;
     if (is_secondary(voice.flags))
-      pitch += 5 * 1.28f;
+      pitch += detune_cents * 1.28f;
     voice.osc.set_pitch(pitch);
 
     float t = constrain(runtime_state.timbre.value + timb_slew, 0.0f, 1.0f);

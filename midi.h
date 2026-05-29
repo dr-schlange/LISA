@@ -236,6 +236,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     case MIDI_COLOR_MOD:
       gstate->color_mod.value = cc_value / 127.f;
       break;
+    case MIDI_UNISON_DETUNE:
+      gstate->unison_detune.value = cc_value / 127.f;
+      break;
     case MIDI_DEV:
       if (cc_value == 127)
         reset_usb_boot(0, 0);

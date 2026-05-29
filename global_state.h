@@ -224,6 +224,8 @@ struct RuntimeState {
   Parameter filter_type;
   Parameter gain;
   Parameter fm_slew;
+  ExtParameter unison_detune;
+
   // Extra params
   ExtParameter b1;
   ExtParameter b2;
@@ -240,10 +242,10 @@ struct RuntimeState {
 };
 
 const char *const all_parameters[] = {
-    "tmbr amt", "colr amt", "cutoff",   "resonance", "tmbr mod",   "colr mod",
-    "fm mod",   "mast vol", "envl atk", "envl rel",  "filt. type", "gain",
-    "fm_slew",  "b1",       "b2",       "b3",        "b4",         "b5",
-};
+    "tmbr amt",   "colr amt", "cutoff",   "resonance",    "tmbr mod",
+    "colr mod",   "fm mod",   "mast vol", "envl atk",     "envl rel",
+    "filt. type", "gain",     "fm_slew",  "b1",           "b2",
+    "b3",         "b4",       "b5",       "unison_detune"};
 constexpr uint8_t ALL_PARAMETERS_NUM =
     sizeof(all_parameters) / sizeof(all_parameters[0]);
 
@@ -290,6 +292,7 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->filter_type = ParameterNew(POT_A, MIDI_FILTER_TYPE, 0.f);
   gstate->gain = ParameterNew(POT_B, MIDI_GAIN, 0.25f);
   gstate->fm_slew = ParameterNew(POT_C, MIDI_FM_SLEW, 0.05f);
+  gstate->unison_detune = ExtParameterNew(POT_C, MIDI_UNISON_DETUNE, 0.55f);
 
   gstate->A = (Parameter *)&(gstate->timbre);
   gstate->B = (Parameter *)&(gstate->color);
@@ -317,6 +320,7 @@ static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->filter_type.screen_locked = status;
   gstate->gain.screen_locked = status;
   gstate->fm_slew.screen_locked = status;
+  gstate->unison_detune.screen_locked = status;
 }
 
 static inline void lock_mapped_pots(RuntimeState *gstate, bool status) {
@@ -386,6 +390,7 @@ static inline void set_all_mode(RuntimeState *gstate, PotMode mode) {
   gstate->b3.mode = mode;
   gstate->b4.mode = mode;
   gstate->b5.mode = mode;
+  gstate->unison_detune.mode = mode;
 }
 
 static inline void set_pot_mode(RuntimeState *gstate, PotMode mode) {
