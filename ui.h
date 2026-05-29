@@ -149,9 +149,8 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
       display.drawLine(xoff + i, y1, xoff + i + 1, y2, SCREEN_WHITE);
     }
 
-    // Mix levels
-    int bar_w =
-        (int32_t)WavetableStreamingOscillator::getBufferLevel(b) * 32 >> 15;
+    // Level bar: from 0-255 to 0-31 (>>3 == /8), loose 1px, it's ok
+    int bar_w = WavetableStreamingOscillator::getBufferLevel(b) >> 3;
     if (bar_w > 0)
       display.fillRect(xoff, 30, bar_w, 2, SCREEN_WHITE);
   }
@@ -175,7 +174,7 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
     display.drawLine(i, y1, i + 1, y2, SCREEN_WHITE);
   }
 
-  // XY bilinear mix position
+  // XY bilinear mix position (bottom-right, flush to screen edge)
   display.fillRect(116, 52, 11, 11, SCREEN_BLACK);
   display.drawRect(115, 51, 13, 13, SCREEN_WHITE);
   int dot_x = 117 + (int)(gstate->timbre.value * 9.f);

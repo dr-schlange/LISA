@@ -14,29 +14,41 @@
 
 using namespace stmlib;
 
+#define FIELD_FREEZE 1
+#defind FIELD_DBUFF 2
+
 class LiveWavetable {
 public:
   LiveWavetable() {
     write_pos_ = 0;
-    freeze_ = false;
-    double_buffer_ = false;
+    flags_ = 0b00000000;
+    level_ = 255;
     read_idx_ = 0;
     write_idx_ = 1;
-    level_ = 32767;
     reset();
   }
 
-  inline void freeze(boolean freeze) { freeze_ = freeze; }
+  inline void freeze(boolean f) {
+    if (f)
+      flags_ |= FIELD_FREEZE;
+    else
+      flags_ &= ~FIELD_FREEZE;
+  }
 
   inline void resetWriteIndex() { write_pos_ = 0; }
 
-  inline void setDoubleBuffer(bool on) { double_buffer_ = on; }
+  inline void setDoubleBuffer(bool on) {
+    if (on)
+      flags_ |= FIELD_DBUFF;
+    else
+      flags_ &= ~FIELD_DBUFF;
+  }
 
   inline void pushSample(int16_t value) {
-    if (freeze_)
+    if (flags_ & 1)
       return;
     uint16_t pos = write_pos_;
-    if (double_buffer_) {
+    if (flags_ & 2) {
       buffers_[write_idx_][pos] = value;
       if (pos == 0)
         buffers_[write_idx_][256] = value;
@@ -63,9 +75,9 @@ public:
     }
   }
 
-  inline void setLevel(uint16_t level) { level_ = level; }
+  inline void setLevel(uint8_t level) { level_ = level; }
 
-  inline uint16_t getLevel() { return level_; }
+  inline uint8_t getLevel() { return level_; }
 
   inline void copyTable(int16_t dst[257]) {
     memcpy(dst, (const int16_t *)buffers_[read_idx_], 257 * sizeof(int16_t));
@@ -73,9 +85,8 @@ public:
 
 private:
   volatile uint16_t write_pos_;
-  volatile boolean freeze_;
-  volatile bool double_buffer_;
-  volatile uint16_t level_;
+  volatile uint8_t flags_; // bit0=freeze, bit1=double_buffer
+  volatile uint8_t level_; // fp8
   volatile int16_t buffers_[2][257];
   volatile uint8_t read_idx_;
   volatile uint8_t write_idx_;
@@ -163,30 +174,34 @@ public:
   }
 
   inline int16_t ReadMixedSample(int16_t waves[4][257], uint32_t phase,
-                                 uint16_t levels[4]) {
-    int32_t mix =
-        Interpolate824(waves[0], phase) * ((w1_ * (int32_t)levels[0]) >> 15) +
-        Interpolate824(waves[1], phase) * ((w2_ * (int32_t)levels[1]) >> 15) +
-        Interpolate824(waves[2], phase) * ((w3_ * (int32_t)levels[2]) >> 15) +
-        Interpolate824(waves[3], phase) * ((w4_ * (int32_t)levels[3]) >> 15);
-    return mix >> 15; // go back to normal world
+                                 int32_t lw1, int32_t lw2, int32_t lw3,
+                                 int32_t lw4) {
+    int32_t mix = Interpolate824(waves[0], phase) * lw1 +
+                  Interpolate824(waves[1], phase) * lw2 +
+                  Interpolate824(waves[2], phase) * lw3 +
+                  Interpolate824(waves[3], phase) * lw4;
+    return mix >> 15;
   }
 
   inline void RenderMixing(const uint8_t *sync, int16_t *output, size_t size) {
     int16_t waves[4][257];
-    uint16_t levels[4];
 
-    for (uint8_t i = 0; i < 4; ++i) {
+    for (uint8_t i = 0; i < 4; ++i)
       tables_[i].copyTable(waves[i]);
-      levels[i] = tables_[i].getLevel();
-    }
+
+    // level is fp8
+    int32_t lw1 = (w1_ * (int32_t)tables_[0].getLevel()) >> 8;
+    int32_t lw2 = (w2_ * (int32_t)tables_[1].getLevel()) >> 8;
+    int32_t lw3 = (w3_ * (int32_t)tables_[2].getLevel()) >> 8;
+    int32_t lw4 = (w4_ * (int32_t)tables_[3].getLevel()) >> 8;
 
     uint32_t phase_increment = ComputePhaseIncrement(pitch_);
     while (size--) {
       phase_ += phase_increment;
       if (*sync++)
         phase_ = 0;
-      *output++ = ReadMixedSample(waves, phase_ + phase_offset_, levels);
+      *output++ =
+          ReadMixedSample(waves, phase_ + phase_offset_, lw1, lw2, lw3, lw4);
     }
   }
 
@@ -232,10 +247,10 @@ public:
   inline static void freezeBuffer(uint8_t idx, boolean freeze) {
     tables_[idx].freeze(freeze);
   }
-  inline static void setBufferLevel(uint8_t idx, uint16_t level) {
+  inline static void setBufferLevel(uint8_t idx, uint8_t level) {
     tables_[idx].setLevel(level);
   }
-  inline static uint16_t getBufferLevel(uint8_t idx) {
+  inline static uint8_t getBufferLevel(uint8_t idx) {
     return tables_[idx].getLevel();
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }

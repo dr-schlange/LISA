@@ -175,6 +175,7 @@ def test6(lisa, lfo1, lfo2):
 def test7(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
     # force filter to a valid value
+    lisa.general.voice_mode = "unison"
     lisa.envelope.release = 70
     lisa.filter.cutoff = 64
     # low pass filter

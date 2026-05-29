@@ -248,7 +248,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     case MIDI_WT_LEVEL_TABLE4:
       WavetableStreamingOscillator::setBufferLevel(
           pitch_or_cc - MIDI_WT_LEVEL_TABLE1,
-          (uint16_t)(cc_value * 32767 / 127));
+          (uint8_t)(cc_value * 255 / 127)); // convert to fp8
       break;
     case MIDI_WT_DOUBLE_BUFFER:
       WavetableStreamingOscillator::setDoubleBuffer(cc_value >= 64);
