@@ -1,8 +1,16 @@
 import sys
 import time
 
-from nallely import LFO, stop_all_connected_devices
+from nallely import LFO, VirtualDevice, VirtualParameter, on, stop_all_connected_devices
 from nallely.experimental.lisa_pico import Lisa
+
+
+class Logger(VirtualDevice):
+    input_cv = VirtualParameter(name="input", range=[0, 127], default=0)
+
+    @on(input_cv, "any")
+    def push_value(self, value, ctx):
+        print("[LOGGER] receiving", value)
 
 
 def setup(lisa, lfo1, lfo2):
@@ -35,7 +43,7 @@ def play_sequence(lisa, notes):
 def play_cluster(lisa, notes, duration=4):
     for note in notes:
         print("  note on", note)
-        lisa.note_on(note)
+        lisa.note_on(note, velocity=127)
     print(f"  Wait for {duration}s")
     time.sleep(duration)
     for note in notes[::-1]:
@@ -265,7 +273,22 @@ def test8(lisa, lfo1, lfo2):
     lfo.stop()
 
 
-tests = [test1, test2, test3, test4, test5, test6, test7, test8]
+# features test
+def test9(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    # force filter to a valid value and unison mode
+    lisa.general.voice_mode = "unison"
+    lisa.envelope.release = 70
+    lisa.filter.cutoff = 64
+
+    log = Logger(autoconnect=True)
+    log.input_cv = lisa.features.peak_envelope.scale()
+    print("Play cluster with harsh +detune")
+    lisa.general.detune = 127
+    play_cluster(lisa, [42, 49, 54])
+
+
+tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -276,14 +299,14 @@ if __name__ == "__main__":
     print("Start LISA quick test")
     lisa = Lisa()
     lisa.general.engine_select = 127
-    lisa.general.gain = 64
+    lisa.general.gain = 127
 
     lfo1 = LFO(
-        waveform="sine", speed=1, sampling_rate=259, auto_srate="OFF", autoconnect=True
+        waveform="square", speed=2, sampling_rate=259, auto_srate="OFF", autoconnect=True
     )
     lfo2 = LFO(
         waveform="sawtooth",
-        speed=1,
+        speed=4,
         sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,

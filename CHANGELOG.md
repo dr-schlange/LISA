@@ -6,7 +6,9 @@
 
 - Add level-mix for each wavetable
 - Add detune parameter and change the way detune is applied for unison mode
-
+-Add special command on CC 126 to pull LISA current configuration
+//- Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners) - DISABLED FOR NOW
+ 
 ## 0.1.0
 
 ### Features

@@ -133,6 +133,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **71**        | Filter Resonance                                       |
 | **74**        | Filter Cutoff                                          |
 | **75**        | Filter Type                                            |
+| **95**        | Sends the peak envelope of the sound (per block) (disabled)       |
 | **96**        | Wavetable 1 mix level                                  |
 | **97**        | Wavetable 2 mix level                                  |
 | **98**        | Wavetable 3 mix level                                  |
@@ -169,6 +170,7 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 
 - 127 -> resets the USB stack and sets the device in "receiving" mode to flash another firmware
 - 126 -> resets LISA (app reset)
+- 1   -> pulls LISA current configuration (sends values of all known CC parameters)
 
 \*\* Note: those CCs are only used by the live wavetable engine (`LIVE`). 
 

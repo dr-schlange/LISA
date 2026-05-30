@@ -56,6 +56,19 @@ static inline void send_midi_cc(uint8_t cc, uint8_t value, uint8_t channel) {
 #endif
 }
 
+static inline void send_all_cc_values(RuntimeState *gstate) {
+  Parameter *p = (Parameter *)&(gstate->timbre);
+  for (uint8_t i = 0; i < ALL_PARAMETERS_NUM; i++) {
+    send_midi_cc(p->midi_cc, (uint8_t)(p->value * 127.f), gstate->midi_ch);
+    if (p->extended) {
+      p = (Parameter *)((ExtParameter *)p + 1);
+    } else {
+      p++;
+    }
+  }
+  send_midi_cc(MIDI_ENGINE_SEL, gstate->engine_idx, gstate->midi_ch);
+}
+
 static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
   static uint8_t running_status = 0;
   static uint8_t data_bytes[2] = {0};
@@ -240,10 +253,17 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       gstate->unison_detune.value = cc_value / 127.f;
       break;
     case MIDI_DEV:
-      if (cc_value == 127)
+      switch (cc_value) {
+      case 127:
         reset_usb_boot(0, 0);
-      if (cc_value == 126)
+        break;
+      case 126:
         watchdog_reboot(0, 0, 0);
+        break;
+      case 1:
+        send_all_cc_values(gstate);
+        break;
+      }
       break;
     case MIDI_WT_LEVEL_TABLE1:
     case MIDI_WT_LEVEL_TABLE2:

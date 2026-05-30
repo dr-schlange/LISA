@@ -78,7 +78,8 @@ enum VoiceMode {
   float smoothed;                                                              \
   uint8_t gpio;                                                                \
   bool screen_locked;                                                          \
-  ResolutionMode resolution_mode
+  ResolutionMode resolution_mode;                                              \
+  uint8_t midi_cc
 
 struct Parameter {
   BASE_PARAMETER;
@@ -91,12 +92,12 @@ struct Parameter {
    .smoothed = val_,                                                           \
    .gpio = gpio_,                                                              \
    .screen_locked = false,                                                     \
-   .resolution_mode = RES_CATCHUP}
+   .resolution_mode = RES_CATCHUP,                                             \
+   .midi_cc = midi_cc_}
 
 struct ExtParameter {
   BASE_PARAMETER;
   PotMode mode;
-  uint8_t midi_cc;
   bool locked;
   union {
     struct {
@@ -121,7 +122,7 @@ struct ExtParameter {
   {                                                                            \
     .extended = true, .value = val_, .last_value = (uint8_t)val_,              \
     .smoothed = val_, .gpio = gpio_, .screen_locked = false,                   \
-    .resolution_mode = RES_CATCHUP, .mode = POT_NORMAL, .midi_cc = midi_cc_,   \
+    .resolution_mode = RES_CATCHUP, .midi_cc = midi_cc_, .mode = POT_NORMAL,   \
     .locked = false, .kinetic = {                                              \
       .mass =                                                                  \
           {                                                                    \
