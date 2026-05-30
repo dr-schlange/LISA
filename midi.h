@@ -66,7 +66,9 @@ static inline void send_all_cc_values(RuntimeState *gstate) {
       p++;
     }
   }
-  send_midi_cc(MIDI_ENGINE_SEL, gstate->engine_idx, gstate->midi_ch);
+  send_midi_cc(MIDI_ENGINE_SEL,
+               map(gstate->engine_idx, 0, NUM_ENGINES - 1, 0, 127),
+               gstate->midi_ch);
 }
 
 static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
