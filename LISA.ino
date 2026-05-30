@@ -1,6 +1,6 @@
 
 /*
-  LISA (v0.0.1)
+  LISA (v0.2.0)
 
   Original work on VIJA:
   Copyright (c) 2025 Vadims Maksimovs
