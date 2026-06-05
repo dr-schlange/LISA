@@ -288,7 +288,47 @@ def test9(lisa, lfo1, lfo2):
     play_cluster(lisa, [42, 49, 54])
 
 
-tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9]
+# scroll mode
+def test10(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "unison"
+    lisa.envelope.release = 70
+    lisa.filter.cutoff = 55
+
+    print("Activate scroll mode on all wavetables")
+    lisa.wavetable.mode_wt1 = "scroll"
+    lisa.wavetable.mode_wt2 = "scroll"
+    lisa.wavetable.mode_wt3 = "scroll"
+    lisa.wavetable.mode_wt4 = "scroll"
+
+    print("Play cluster with scroll activated")
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Play cluster with scroll disabled")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Activate scroll mode on all wavetables and play sequence")
+    lisa.wavetable.mode_wt1 = "scroll"
+    lisa.wavetable.mode_wt2 = "scroll"
+    lisa.wavetable.mode_wt3 = "scroll"
+    lisa.wavetable.mode_wt4 = "scroll"
+    play_sequence(lisa, [54, 47, 42, 58])
+
+    print("Disable scroll and play sequence")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
+    play_sequence(lisa, [54, 47, 42, 58])
+
+
+
+
+tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -302,11 +342,15 @@ if __name__ == "__main__":
     lisa.general.gain = 127
 
     lfo1 = LFO(
-        waveform="square", speed=2, sampling_rate=259, auto_srate="OFF", autoconnect=True
+        waveform="square",
+        speed=2,
+        sampling_rate=259,
+        auto_srate="OFF",
+        autoconnect=True,
     )
     lfo2 = LFO(
         waveform="sawtooth",
-        speed=4,
+        speed=3,
         sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,

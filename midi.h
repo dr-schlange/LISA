@@ -275,6 +275,13 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
           pitch_or_cc - MIDI_WT_LEVEL_TABLE1,
           (uint8_t)(cc_value * 255 / 127)); // convert to fp8
       break;
+    case MIDI_WT_SCROLL_TABLE1:
+    case MIDI_WT_SCROLL_TABLE2:
+    case MIDI_WT_SCROLL_TABLE3:
+    case MIDI_WT_SCROLL_TABLE4:
+      WavetableStreamingOscillator::setScrollMode(
+          pitch_or_cc - MIDI_WT_SCROLL_TABLE1, cc_value >= 64);
+      break;
     case MIDI_WT_DOUBLE_BUFFER:
       WavetableStreamingOscillator::setDoubleBuffer(cc_value >= 64);
       break;

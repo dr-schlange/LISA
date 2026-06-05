@@ -134,15 +134,19 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **74**        | Filter Cutoff                                          |
 | **75**        | Filter Type                                            |
 | **95**        | Sends the peak envelope of the sound (per block) (disabled)       |
-| **96**        | Wavetable 1 mix level                                  |
-| **97**        | Wavetable 2 mix level                                  |
-| **98**        | Wavetable 3 mix level                                  |
-| **99**        | Wavetable 4 mix level                                  |
+| **96**        | Wavetable 1 mix level (\*\*)                           |
+| **97**        | Wavetable 2 mix level (\*\*)                           |
+| **98**        | Wavetable 3 mix level (\*\*)                           |
+| **99**        | Wavetable 4 mix level (\*\*)                           |
 | **100**       | b1 (send CC only)                                      |
 | **101**       | b2 (send CC only)                                      |
 | **102**       | b3 (send CC only)                                      |
 | **103**       | b4 (send CC only)                                      |
 | **104**       | b5 (send CC only)                                      |
+| **112**       | Wavetable 1 mode (circ./scroll), default is circular (\*\*) |
+| **113**       | Wavetable 2 mode (circ./scroll), default is circular (\*\*) |
+| **114**       | Wavetable 3 mode (circ./scroll), default is circular (\*\*) |
+| **115**       | Wavetable 4 mode (circ./scroll), default is circular (\*\*) |
 | **116**       | Activates the double buffering default false (\*\*)    |
 | **117**       | Reset all wavetables to 0 (\*\*)                       |
 | **118**       | Reset write index on all wavetables (\*\*)             |

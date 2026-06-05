@@ -16,6 +16,10 @@ using namespace stmlib;
 
 #define FIELD_FREEZE 1
 #define FIELD_DBUFF 2
+#define FIELD_SCROLL 4
+#define DBUFF_ACTIVE(flags) (flags & 2)
+#define FREEZE_ACTIVE(flags) (flags & 1)
+#define SCROLL_ACTIVE(flags) (flags & 4)
 
 class LiveWavetable {
 public:
@@ -44,11 +48,25 @@ public:
       flags_ &= ~FIELD_DBUFF;
   }
 
+  inline void setScroll(bool on) {
+    if (on)
+      flags_ |= FIELD_SCROLL;
+    else
+      flags_ &= ~FIELD_SCROLL;
+  }
+
   inline void pushSample(int16_t value) {
-    if (flags_ & 1)
+    if (FREEZE_ACTIVE(flags_))
       return;
+    if (SCROLL_ACTIVE(flags_)) {
+      memmove((int16_t *)&buffers_[read_idx_][0],
+              (const int16_t *)&buffers_[read_idx_][1], 255 * sizeof(int16_t));
+      buffers_[read_idx_][255] = value;
+      buffers_[read_idx_][256] = buffers_[read_idx_][0];
+      return;
+    }
     uint16_t pos = write_pos_;
-    if (flags_ & 2) {
+    if (DBUFF_ACTIVE(flags_)) {
       buffers_[write_idx_][pos] = value;
       if (pos == 0)
         buffers_[write_idx_][256] = value;
@@ -58,6 +76,7 @@ public:
         write_idx_ = 1 - write_idx_;
       }
     } else {
+
       buffers_[read_idx_][pos] = value;
       if (pos == 0)
         buffers_[read_idx_][256] = value;
@@ -252,6 +271,9 @@ public:
   }
   inline static uint8_t getBufferLevel(uint8_t idx) {
     return tables_[idx].getLevel();
+  }
+  inline static void setScrollMode(uint8_t idx, bool on) {
+    tables_[idx].setScroll(on);
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setLiveMode(bool on) { live_ = on; }

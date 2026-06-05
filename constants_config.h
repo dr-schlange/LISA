@@ -6,7 +6,7 @@
 */
 #pragma once
 
-#define LISA_VERSION "v0.0.1"
+#define LISA_VERSION "v0.2.0"
 #define SETTINGS_FILE "/lisa_settings.json"
 
 const char *const engine_names[] = {
@@ -72,6 +72,10 @@ const char *const modes[] = {
 #define MIDI_B3 102
 #define MIDI_B4 103
 #define MIDI_B5 104
+#define MIDI_WT_SCROLL_TABLE1 112
+#define MIDI_WT_SCROLL_TABLE2 113
+#define MIDI_WT_SCROLL_TABLE3 114
+#define MIDI_WT_SCROLL_TABLE4 115
 #define MIDI_WT_DOUBLE_BUFFER 116
 #define MIDI_WT_RESET_ALL_BUFFERS 117
 #define MIDI_WT_RESET_WRITE_IDX 118
