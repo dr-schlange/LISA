@@ -16,10 +16,17 @@ using namespace stmlib;
 
 #define FIELD_FREEZE 1
 #define FIELD_DBUFF 2
-#define FIELD_SCROLL 4
+#define FIELD_MODE 0b1100
+#define MODE_CIRCULAR 0b00
+#define MODE_SCROLL 0b01
+#define MODE_MANUAL 0b10
+#define MODE_EXTRA 0b11
 #define DBUFF_ACTIVE(flags) (flags & 2)
 #define FREEZE_ACTIVE(flags) (flags & 1)
-#define SCROLL_ACTIVE(flags) (flags & 4)
+#define CIRCULAR_ACTIVE(flags) (((flags & 0b1100) >> 2) == 0)
+#define SCROLL_ACTIVE(flags) (((flags & 0b1100) >> 2) == 1)
+#define MANUAL_IDX_ACTIVE(flags) (((flags & 0b1100) >> 2) == 2)
+#define EXTRA_ACTIVE(flags) (((flags & 0b1100) >> 2) == 3)
 
 class LiveWavetable {
 public:
@@ -48,16 +55,30 @@ public:
       flags_ &= ~FIELD_DBUFF;
   }
 
-  inline void setScroll(bool on) {
-    if (on)
-      flags_ |= FIELD_SCROLL;
-    else
-      flags_ &= ~FIELD_SCROLL;
+  // inline void setScroll(bool on) {
+  //   if (on)
+  //     flags_ |= FIELD_SCROLL;
+  //   else
+  //     flags_ &= ~FIELD_SCROLL;
+  // }
+
+  inline void setMode(uint8_t mode) {
+    flags_ = (flags_ & ~FIELD_MODE) | (mode << 2);
   }
 
+  inline void setWritePos(uint16_t pos) { write_pos_ = pos; }
+
   inline void pushSample(int16_t value) {
-    if (FREEZE_ACTIVE(flags_))
+    if (FREEZE_ACTIVE(flags_)) {
       return;
+    }
+    if (MANUAL_IDX_ACTIVE(flags_)) {
+      buffers_[read_idx_][write_pos_] = value;
+      if (write_pos_ == 0) {
+        buffers_[read_idx_][256] = value;
+      }
+      return;
+    }
     if (SCROLL_ACTIVE(flags_)) {
       memmove((int16_t *)&buffers_[read_idx_][0],
               (const int16_t *)&buffers_[read_idx_][1], 255 * sizeof(int16_t));
@@ -68,8 +89,9 @@ public:
     uint16_t pos = write_pos_;
     if (DBUFF_ACTIVE(flags_)) {
       buffers_[write_idx_][pos] = value;
-      if (pos == 0)
+      if (pos == 0) {
         buffers_[write_idx_][256] = value;
+      }
       if (++pos >= 256) {
         pos = 0;
         read_idx_ = write_idx_;
@@ -78,8 +100,9 @@ public:
     } else {
 
       buffers_[read_idx_][pos] = value;
-      if (pos == 0)
+      if (pos == 0) {
         buffers_[read_idx_][256] = value;
+      }
       if (++pos >= 256)
         pos = 0;
     }
@@ -272,8 +295,14 @@ public:
   inline static uint8_t getBufferLevel(uint8_t idx) {
     return tables_[idx].getLevel();
   }
-  inline static void setScrollMode(uint8_t idx, bool on) {
-    tables_[idx].setScroll(on);
+  // inline static void setScrollMode(uint8_t idx, bool on) {
+  //   tables_[idx].setScroll(on);
+  // }
+  inline static void setMode(uint8_t idx, uint8_t mode) {
+    tables_[idx].setMode(mode);
+  }
+  inline static void setWriteIndex(uint8_t idx, uint16_t pos) {
+    tables_[idx].setWritePos(pos);
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setLiveMode(bool on) { live_ = on; }

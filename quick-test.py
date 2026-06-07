@@ -326,9 +326,52 @@ def test10(lisa, lfo1, lfo2):
     play_sequence(lisa, [54, 47, 42, 58])
 
 
+# manual mode
+def test11(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "unison"
+    lisa.envelope.release = 70
+    lisa.filter.cutoff = 55
+    print("* Reset wavetables...")
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+
+    lfos = [LFO(speed=i, waveform="sawtooth") for i in range(1, 5)]
+    for lfo in lfos:
+        lfo.start()
+    lisa.wavetable.index_wt1 = lfos[0].scale(0, 64)
+
+    lisa.wavetable.index_wt2 = lfos[1].scale(0, 64)
+    lisa.wavetable.index_wt1 = lfos[1].scale(64, 127)
+
+    lisa.wavetable.index_wt3 = lfos[2]
+    lisa.wavetable.index_wt2 = lfos[2]
+
+    lisa.wavetable.index_wt4 = lfos[3]
+    lisa.wavetable.index_wt1 = lfos[3]
+
+    print("Activate manual mode on all wavetables")
+    lisa.wavetable.mode_wt1 = "manual"
+    lisa.wavetable.mode_wt2 = "manual"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "scroll"
+
+    print("Play cluster with manual activated")
+    play_cluster(lisa, [42, 45, 47])
+
+    print("Play  sequence")
+    play_sequence(lisa, [54, 47, 42, 58])
+
+    print("Restore circular mode on all wavetables")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
+    for lfo in lfos:
+        lfo.stop()
 
 
-tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10]
+tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -342,15 +385,15 @@ if __name__ == "__main__":
     lisa.general.gain = 127
 
     lfo1 = LFO(
-        waveform="square",
-        speed=2,
+        waveform="sine",
+        speed=5,
         sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,
     )
     lfo2 = LFO(
-        waveform="sawtooth",
-        speed=3,
+        waveform="square",
+        speed=1,
         sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,
