@@ -286,6 +286,7 @@ def test9(lisa, lfo1, lfo2):
     print("Play cluster with harsh +detune")
     lisa.general.detune = 127
     play_cluster(lisa, [42, 49, 54])
+    log.input_cv.disconnect_all_links()
 
 
 # scroll mode
@@ -350,6 +351,9 @@ def test11(lisa, lfo1, lfo2):
     lisa.wavetable.index_wt4 = lfos[3]
     lisa.wavetable.index_wt1 = lfos[3]
 
+    lisa.modulation.timbre = lisa.features.peak_envelope.scale(127, 0)
+    lisa.modulation.color = lisa.features.peak_envelope.scale(127, 0)
+
     print("Activate manual mode on all wavetables")
     lisa.wavetable.mode_wt1 = "manual"
     lisa.wavetable.mode_wt2 = "manual"
@@ -369,6 +373,11 @@ def test11(lisa, lfo1, lfo2):
     lisa.wavetable.mode_wt4 = "circular"
     for lfo in lfos:
         lfo.stop()
+
+    lisa.modulation.timbre.disconnect_incoming_links()
+    lisa.modulation.color.disconnect_incoming_links()
+    lisa.modulation.timbre = 64
+    lisa.modulation.color = 64
 
 
 tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11]
