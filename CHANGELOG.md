@@ -6,8 +6,9 @@
 
 - Add level-mix for each wavetable
 - Add detune parameter and change the way detune is applied for unison mode
--Add special command on CC 126 to pull LISA current configuration
-//- Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners) - DISABLED FOR NOW
+- Add special command on CC 126 to pull LISA current configuration
+- Add new mode for writing in the wavetables: scroll, and manual. Scroll pushes the new values at the end of the wavetable all the time, manual lets you target a specific index where to write in the wavetable.
+- Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners)
  
 ## 0.1.0
 

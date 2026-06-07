@@ -60,7 +60,7 @@
 #include "encoder.h"
 #include "global_state.h"
 #include "midi.h"
-// #include "features.h"
+#include "features.h"
 #include "ui.h"
 #include "controls.h"
 #include "settings.h"
@@ -208,7 +208,7 @@ void __not_in_flash_func(update_audio)() {
 #if USE_SCREEN
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
 #endif
-  // features_compute_peak(mix, AUDIO_BLOCK);
+  features_compute_peak(mix, AUDIO_BLOCK);
 
   static int32_t cut_slew = 0, res_slew = 0, mix_slew = 0;
 
@@ -580,7 +580,7 @@ void loop() {
   handle_control(&runtime_state);
   handle_menu(&runtime_state);
   handle_MIDI(&runtime_state, voices);
-  // features_send(runtime_state.midi_ch);
+  features_send(runtime_state.midi_ch);
 #if USE_SCREEN
   draw_ui(&runtime_state, &ui_state);
 #endif
