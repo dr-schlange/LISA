@@ -74,6 +74,7 @@ public:
     }
     if (MANUAL_IDX_ACTIVE(flags_)) {
       buffers_[read_idx_][write_pos_] = value;
+      buffers_[read_idx_][write_pos_ + 1] = value;
       if (write_pos_ == 0) {
         buffers_[read_idx_][256] = value;
       }
