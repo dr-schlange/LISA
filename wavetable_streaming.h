@@ -68,6 +68,19 @@ public:
 
   inline void setWritePos(uint16_t pos) { write_pos_ = pos; }
 
+  inline uint8_t getMode() const { return (flags_ & FIELD_MODE) >> 2; }
+
+  inline uint8_t computeZCR() const {
+    uint8_t crossings = 0;
+    for (uint16_t i = 1; i < 256; ++i) {
+      if ((buffers_[read_idx_][i] ^ buffers_[read_idx_][i - 1]) < 0)
+        crossings++;
+    }
+    // cap at 64: noise (~128 crossings) → 127, tonal (2 crossings) → 4
+    uint8_t capped = crossings > 64 ? 64 : crossings;
+    return (uint8_t)(((uint16_t)capped * 127) / 64);
+  }
+
   inline void pushSample(int16_t value) {
     if (FREEZE_ACTIVE(flags_)) {
       return;
@@ -301,6 +314,15 @@ public:
   // }
   inline static void setMode(uint8_t idx, uint8_t mode) {
     tables_[idx].setMode(mode);
+  }
+  inline static uint8_t getTableMode(uint8_t idx) {
+    return tables_[idx].getMode();
+  }
+  inline static uint8_t computeTablesZCR() {
+    uint16_t total = 0;
+    for (uint8_t i = 0; i < 4; ++i)
+      total += tables_[i].computeZCR();
+    return (uint8_t)(total / 4);
   }
   inline static void setWriteIndex(uint8_t idx, uint16_t pos) {
     tables_[idx].setWritePos(pos);

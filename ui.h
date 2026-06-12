@@ -29,7 +29,7 @@
 #endif
 
 // Splash screen
-const uint8_t lisa_logo_bitmap[] PROGMEM = {
+static const uint8_t lisa_logo_bitmap[] PROGMEM = {
     0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000111, 0b10000000,
     0b00000011, 0b11000000, 0b00000100, 0b01110000, 0b00011100, 0b01000000,
     0b00000100, 0b00001000, 0b00100000, 0b01000000, 0b00000100, 0b00000000,
@@ -41,6 +41,9 @@ const uint8_t lisa_logo_bitmap[] PROGMEM = {
     0b00000000, 0b00100000, 0b00001000, 0b00000000, 0b00000000, 0b00001010,
     0b10100000, 0b00000000, 0b00000000, 0b00010111, 0b11010000, 0b00000000,
     0b00000000, 0b00001000, 0b00100000, 0b00000000};
+
+// Wavetables modes
+static const char mode_chars[] = {'C', 'S', 'M', 'E'};
 
 struct UIState {
   int last_engine_draw;
@@ -151,8 +154,16 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
 
     // Level bar: from 0-255 to 0-31 (>>3 == /8), loose 1px, it's ok
     int bar_w = WavetableStreamingOscillator::getBufferLevel(b) >> 3;
-    if (bar_w > 0)
+    if (bar_w > 0) {
       display.fillRect(xoff, 30, bar_w, 2, SCREEN_WHITE);
+    }
+
+    uint8_t wt_mode = WavetableStreamingOscillator::getTableMode(b);
+    display.fillRect(xoff + 2, 1, 6, 8, SCREEN_BLACK);
+    display.setTextSize(1);
+    display.setTextColor(SCREEN_WHITE);
+    display.setCursor(xoff + 2, 1);
+    display.print(mode_chars[wt_mode]);
   }
 
   const uint8_t dash_height = 3;
