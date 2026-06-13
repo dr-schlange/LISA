@@ -36,31 +36,28 @@ public:
     level_ = 255;
     read_idx_ = 0;
     write_idx_ = 1;
+    last_write_idx_ = 0;
+    last_write_value_ = 0;
     reset();
   }
 
   inline void freeze(boolean f) {
-    if (f)
+    if (f) {
       flags_ |= FIELD_FREEZE;
-    else
+    } else {
       flags_ &= ~FIELD_FREEZE;
+    }
   }
 
   inline void resetWriteIndex() { write_pos_ = 0; }
 
   inline void setDoubleBuffer(bool on) {
-    if (on)
+    if (on) {
       flags_ |= FIELD_DBUFF;
-    else
+    } else {
       flags_ &= ~FIELD_DBUFF;
+    }
   }
-
-  // inline void setScroll(bool on) {
-  //   if (on)
-  //     flags_ |= FIELD_SCROLL;
-  //   else
-  //     flags_ &= ~FIELD_SCROLL;
-  // }
 
   inline void setMode(uint8_t mode) {
     flags_ = (flags_ & ~FIELD_MODE) | (mode << 2);
@@ -69,17 +66,6 @@ public:
   inline void setWritePos(uint16_t pos) { write_pos_ = pos; }
 
   inline uint8_t getMode() const { return (flags_ & FIELD_MODE) >> 2; }
-
-  inline uint8_t computeZCR() const {
-    uint8_t crossings = 0;
-    for (uint16_t i = 1; i < 256; ++i) {
-      if ((buffers_[read_idx_][i] ^ buffers_[read_idx_][i - 1]) < 0)
-        crossings++;
-    }
-    // cap at 64: noise (~128 crossings) → 127, tonal (2 crossings) → 4
-    uint8_t capped = crossings > 64 ? 64 : crossings;
-    return (uint8_t)(((uint16_t)capped * 127) / 64);
-  }
 
   inline void pushSample(int16_t value) {
     if (FREEZE_ACTIVE(flags_)) {
@@ -91,6 +77,34 @@ public:
       if (write_pos_ == 0) {
         buffers_[read_idx_][256] = value;
       }
+      return;
+    }
+    if (EXTRA_ACTIVE(flags_)) {
+      const int16_t span = abs((int16_t)write_pos_ - (int16_t)last_write_idx_);
+      if (span == 0) {
+        buffers_[read_idx_][write_pos_] = value;
+        return;
+      }
+      const int32_t diff = (value - last_write_value_);
+      uint8_t t = last_write_idx_;
+      const int8_t direction = write_pos_ > last_write_idx_ ? 1 : -1;
+      while (t != write_pos_) {
+        buffers_[read_idx_][t] =
+            last_write_value_ +
+            diff * abs((int16_t)t - (int16_t)last_write_idx_) / span;
+        if (t == 0) {
+          buffers_[read_idx_][256] = buffers_[read_idx_][t];
+        }
+
+        t += direction;
+      }
+      buffers_[read_idx_][write_pos_] = value;
+      if (write_pos_ == 0) {
+        buffers_[read_idx_][256] = value;
+      }
+
+      last_write_idx_ = write_pos_;
+      last_write_value_ = value;
       return;
     }
     if (SCROLL_ACTIVE(flags_)) {
@@ -112,13 +126,13 @@ public:
         write_idx_ = 1 - write_idx_;
       }
     } else {
-
       buffers_[read_idx_][pos] = value;
       if (pos == 0) {
         buffers_[read_idx_][256] = value;
       }
-      if (++pos >= 256)
+      if (++pos >= 256) {
         pos = 0;
+      }
     }
     write_pos_ = pos;
   }
@@ -146,21 +160,12 @@ private:
   volatile int16_t buffers_[2][257];
   volatile uint8_t read_idx_;
   volatile uint8_t write_idx_;
+  uint8_t last_write_idx_;
+  int16_t last_write_value_;
 };
 
 class WavetableStreamingOscillator : public braids::MacroOscillator {
 public:
-  // enum CaptureMode : uint8_t {
-  //   CAPTURE_INDEPENDENT_BUFFER = 0, // independent buffers (4 streaming
-  //   entries) CAPTURE_FORWARD,                // fill 0 to 127
-  //   CAPTURE_REVERSE,                // fill 127 to 0
-  //   CAPTURE_ROLLING,          // always most recent 128 samples on buffer 0
-  //   CAPTURE_REV_FORWARD,      // fill 127 to 0, going forward on buffers
-  //   CAPTURE_FOR_BACKWARD,     // fill 0 to 127, going backward on buffers
-  //   CAPTURE_ROLLING_BACKWARD, // always most recent 128 samples on buffer 0
-  //                             // write in reverse
-  //   CAPTURE_NUMBER,
-  // };
   inline void Init(float sr) {
     braids::MacroOscillator::Init(sr);
     srFactor_ = 96000.f / sr;
@@ -222,11 +227,7 @@ public:
       return;
     }
 
-    // TODO: rewrite all the other modes
-    // if (capture_mode_ == CAPTURE_INDEPENDENT_BUFFER) {
     RenderMixing(sync, buffer, size);
-    //   return;
-    // }
   }
 
   inline int16_t ReadMixedSample(int16_t waves[4][257], uint32_t phase,
@@ -242,8 +243,9 @@ public:
   inline void RenderMixing(const uint8_t *sync, int16_t *output, size_t size) {
     int16_t waves[4][257];
 
-    for (uint8_t i = 0; i < 4; ++i)
+    for (uint8_t i = 0; i < 4; ++i) {
       tables_[i].copyTable(waves[i]);
+    }
 
     // level is fp8
     int32_t lw1 = (w1_ * (int32_t)tables_[0].getLevel()) >> 8;
@@ -254,8 +256,9 @@ public:
     uint32_t phase_increment = ComputePhaseIncrement(pitch_);
     while (size--) {
       phase_ += phase_increment;
-      if (*sync++)
+      if (*sync++) {
         phase_ = 0;
+      }
       *output++ =
           ReadMixedSample(waves, phase_ + phase_offset_, lw1, lw2, lw3, lw4);
     }
@@ -272,8 +275,9 @@ public:
     tables_[idx].pushSample(value);
   }
   inline static void setDoubleBuffer(bool on) {
-    for (uint8_t i = 0; i < 4; ++i)
+    for (uint8_t i = 0; i < 4; ++i) {
       tables_[i].setDoubleBuffer(on);
+    }
   }
 
   // ===
@@ -309,20 +313,11 @@ public:
   inline static uint8_t getBufferLevel(uint8_t idx) {
     return tables_[idx].getLevel();
   }
-  // inline static void setScrollMode(uint8_t idx, bool on) {
-  //   tables_[idx].setScroll(on);
-  // }
   inline static void setMode(uint8_t idx, uint8_t mode) {
     tables_[idx].setMode(mode);
   }
   inline static uint8_t getTableMode(uint8_t idx) {
     return tables_[idx].getMode();
-  }
-  inline static uint8_t computeTablesZCR() {
-    uint16_t total = 0;
-    for (uint8_t i = 0; i < 4; ++i)
-      total += tables_[i].computeZCR();
-    return (uint8_t)(total / 4);
   }
   inline static void setWriteIndex(uint8_t idx, uint16_t pos) {
     tables_[idx].setWritePos(pos);
@@ -330,7 +325,6 @@ public:
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setLiveMode(bool on) { live_ = on; }
   inline static boolean isLiveMode() { return live_; }
-  // inline static CaptureMode getCaptureMode() { return capture_mode_; }
 
 private:
   static const uint16_t kPitchTableStart = 128 * 128;
@@ -374,7 +368,4 @@ volatile uint8_t WavetableStreamingOscillator::write_buf_ = 0;
 volatile bool WavetableStreamingOscillator::retrigger_ = false;
 volatile int32_t WavetableStreamingOscillator::phase_offset_ = 0;
 volatile bool WavetableStreamingOscillator::live_ = false;
-// volatile WavetableStreamingOscillator::CaptureMode
-// WavetableStreamingOscillator::capture_mode_ =
-//     WavetableStreamingOscillator::CAPTURE_INDEPENDENT_BUFFER;
 LiveWavetable WavetableStreamingOscillator::tables_[4] = {};

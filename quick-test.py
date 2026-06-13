@@ -17,6 +17,10 @@ def setup(lisa, lfo1, lfo2):
     print("* Reset wavetables and wait 0.5s...")
     lisa.wavetable.reset_all_wt = "ON"
     lisa.wavetable.reset_all_wt = "OFF"
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
     print(f"* Stream lfos 2 x {lfo1.waveform} and 2 x {lfo2.waveform}")
     lisa.wavetable.stream_table1 = lfo1.scale(-8192, 8192)
     lisa.wavetable.stream_table2 = lfo1.scale(-8192, 8192)
@@ -380,7 +384,70 @@ def test11(lisa, lfo1, lfo2):
     lisa.modulation.color = 64
 
 
-tests = [test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11]
+def test12(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "poly"
+    lisa.filter.cutoff = 55
+
+    print("* Pause LFOs")
+    lfo1.pause()
+    lfo2.pause()
+
+    print("* Reset wavetables...")
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+
+    print("Activate manual interpolation mode on all wavetables")
+    lisa.wavetable.mode_wt1 = "manual_interpolated"
+    lisa.wavetable.mode_wt2 = "manual_interpolated"
+    lisa.wavetable.mode_wt3 = "manual_interpolated"
+    lisa.wavetable.mode_wt4 = "manual_interpolated"
+
+    lfo = LFO(
+        speed=1,
+        waveform="sine",
+        autoconnect=True,
+        # sampling_rate=254,
+        auto_srate="ON",
+    )
+    lisa.wavetable.index_wt1 = lfo.scale()
+
+    wave = LFO(
+        speed=3,
+        waveform="sine",
+        autoconnect=True,
+        # sampling_rate=259,
+        auto_srate="ON",
+    )
+    lisa.wavetable.stream_table1 = wave.scale()
+
+    print("* Wait 4s to fill the wavetable")
+    time.sleep(4)
+
+    print("Play cluster with manual activated")
+    play_cluster(lisa, [42, 45, 47], duration=15)
+
+    print("Play  sequence")
+    play_sequence(lisa, [54, 47, 42, 58])
+
+    lfo.stop()
+    wave.stop()
+
+
+tests = [
+    test1,
+    test2,
+    test3,
+    test4,
+    test5,
+    test6,
+    test7,
+    test8,
+    test9,
+    test10,
+    test11,
+    test12,
+]
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -391,7 +458,7 @@ if __name__ == "__main__":
     print("Start LISA quick test")
     lisa = Lisa()
     lisa.general.engine_select = 127
-    lisa.general.gain = 127
+    lisa.general.gain = 32
 
     lfo1 = LFO(
         waveform="sine",

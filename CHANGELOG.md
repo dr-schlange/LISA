@@ -7,9 +7,9 @@
 - Add level-mix for each wavetable
 - Add detune parameter and change the way detune is applied for unison mode
 - Add special command on CC 126 to pull LISA current configuration
-- Add new mode for writing in the wavetables: scroll, and manual. Scroll pushes the new values at the end of the wavetable all the time, manual lets you target a specific index where to write in the wavetable.
+- Add new mode for writing in the wavetables: scroll, manual, and manual interpolated. Scroll pushes the new values at the end of the wavetable all the time, manual lets you target a specific index where to write in the wavetable, and manual interpolated let's you target a specific index, but interpolate values between the old and new position.
 - Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners)
- 
+
 ## 0.1.0
 
 ### Features
