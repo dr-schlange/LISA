@@ -254,6 +254,47 @@ Connect the outer pins to 3.3V and GND, and the center wiper to:
 
 Connect your MIDI Jack via a 6N138 optocoupler circuit to **GP13**.
 
+## LIVE engine (Live Dynamic Wavetable) simulator
+
+This repo includes a Python/numpy implementation of LISA's LIVE engine. This allows you to be able to play with the LIVE engine from any computer without having to build LISA. 
+
+The simulator is built to be loaded directly in Nallely as a MIDI device. It has been tested successfuly on a Linux laptop, as well as Android using termux.
+
+### Installation
+
+One extra Python package is necessary to make it work: `sounddevice`, install it using pip in the venv that runs Nallely.
+
+Just copy the `lisa_sim.py` file somewhere in your machine where Nallely is installed/deployed.
+
+#### Installation in Termux
+
+With Termux on your Android device, you can run Nallely and the LIVE engine anywhere. That's handy to make some tests on the fly wherever you are.
+
+To install it, first install `portaudio` and the `sounddevice` python package:
+
+```bash
+# in your termux installation
+pkg install portaudio
+pip install sounddevice
+```
+
+Once those packages installed copy the `lisa_sim.py` file copied somewhere in your termux env.
+
+### Run it
+
+To include the LIVE engine simulator in Nallely, just pass it on the command line:
+
+```bash
+nallely run --with-trevor --serve-ui -l PATH/TOWARD/lisa_sim.py --experimental
+```
+
+This will run the server with the Trevor protocol, serve the UI on `http://localhost:3000` and activates the experimental devices (if you don't want them, just omit the `--experimental` flag).
+
+### Differences with the actual LIVE engine
+
+Currently not all the CCs/parameters for LISA are implemented in this simulator. There is currently no filter (will come later), and the FM/FM-slew CC is not implemented. The double-buffering capability for the wavetables are not set, an obviously, the only available engine is the LIVE engine.
+
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 (GPLv3).

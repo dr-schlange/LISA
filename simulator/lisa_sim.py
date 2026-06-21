@@ -248,7 +248,7 @@ class LisaSim(BaseLisa):
             dtype="int16",
             blocksize=256,
             callback=self.audio_out,
-            device=8,
+            # device=8,
         )
         self.phase = 0
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
