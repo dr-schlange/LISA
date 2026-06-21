@@ -33,7 +33,7 @@ class Wavetable:
                 if self.write_pos >= 256:
                     self.write_pos = 0
             case "scroll":
-                self.buffer[:-1] = self.buffer[1:]
+                self.buffer[:256] = self.buffer[1:256]
                 self.buffer[255] = value
                 self.buffer[256] = self.buffer[0]
             case "manual":
