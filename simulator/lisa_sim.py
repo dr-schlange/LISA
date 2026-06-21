@@ -18,18 +18,50 @@ class Wavetable:
         self.buffer = np.zeros(257, dtype=np.int16)
         self.mode = "circular"
         self.freeze = False
+        self.last_write_pos = 0
+        self.last_write_value = 0
 
     def push_sample(self, value):
         if self.freeze:
             return
-
-        if self.mode == "circular":
-            self.buffer[self.write_pos] = value
-            if self.write_pos == 0:
+        match self.mode:
+            case "circular":
+                self.buffer[self.write_pos] = value
+                if self.write_pos == 0:
+                    self.buffer[256] = self.buffer[0]
+                self.write_pos += 1
+                if self.write_pos >= 256:
+                    self.write_pos = 0
+            case "scroll":
+                self.buffer[:-1] = self.buffer[1:]
+                self.buffer[255] = value
                 self.buffer[256] = self.buffer[0]
-            self.write_pos += 1
-            if self.write_pos >= 256:
-                self.write_pos = 0
+            case "manual":
+                self.buffer[self.write_pos] = value
+                self.buffer[self.write_pos + 1] = value
+                if self.write_pos == 0:
+                    self.buffer[256] = value
+            case "manual_interpolated":
+                span = abs(self.write_pos - self.last_write_pos)
+                if span == 0:
+                    self.buffer[self.write_pos] = value
+                    return
+                diff = value - self.last_write_value
+                direction = 1 if self.write_pos > self.last_write_pos else -1
+                t = self.last_write_pos
+                while t != self.write_pos:
+                    self.buffer[t] = (
+                        self.last_write_value
+                        + diff * abs(t - self.last_write_pos) / span
+                    )
+                    if t == 0:
+                        self.buffer[256] = self.buffer[t]
+                    t += direction
+                self.buffer[self.write_pos] = value
+                if self.write_pos == 0:
+                    self.buffer[256] = value
+                self.last_write_pos = self.write_pos
+                self.last_write_value = value
 
 
 class Envelope:
@@ -335,6 +367,21 @@ class LisaSim(BaseLisa):
             self.voices_pool.disable_all()
         elif control == self.general.detune.parameter.cc_note:
             self.detune = value / 127.0
+        elif (
+            self.wavetable.mode_wt1.parameter.cc_note
+            <= control
+            <= self.wavetable.mode_wt4.parameter.cc_note
+        ):
+            i = self.wavetable.mode_wt1.parameter.cc_note
+            mode = self.wavetable.mode_wt1.parameter.map2accepted_values(value)
+            self.wavetables[control - i].mode = mode
+        elif (
+            self.wavetable.index_wt1.parameter.cc_note
+            <= control
+            <= self.wavetable.index_wt4.parameter.cc_note
+        ):
+            i = self.wavetable.index_wt1.parameter.cc_note
+            self.wavetables[control - i].write_pos = value * 2
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
