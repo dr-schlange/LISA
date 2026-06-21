@@ -7,14 +7,22 @@ print(sd.query_devices())
 print("Default output:", sd.default.device)
 
 
+def interpolate(table, idx, phase):
+    return table[idx] * (1 - phase) + table[(idx + 1) % 256] * phase
+
+
 class Wavetable:
     def __init__(self):
         self.write_pos = 0
         self.read_pos = 0
         self.buffer = np.zeros(257, dtype=np.int16)
         self.mode = "circular"
+        self.freeze = False
 
     def push_sample(self, value):
+        if self.freeze:
+            return
+
         if self.mode == "circular":
             self.buffer[self.write_pos] = value
             if self.write_pos == 0:
@@ -24,44 +32,133 @@ class Wavetable:
                 self.write_pos = 0
 
 
+class Envelope:
+    def __init__(self, voice):
+        self.level = 0.0
+        self.state = "idle"
+        self.voice = voice
+
+    def render(self, frames, attack_rate, release_rate):
+        env = np.empty(frames, dtype=np.float32)
+        voice = self.voice
+        for i in range(frames):
+            if self.state == "attack":
+                self.level = min(1.0, self.level + attack_rate)
+                if self.level >= 1.0:
+                    # just to skip the attack computation
+                    self.state = "sustain"
+            elif self.state == "release":
+                self.level = max(0.0, self.level - release_rate)
+                if self.level <= 0.0:
+                    self.state = "idle"
+                    voice.active = False
+            voice.env = self.level
+            env[i] = self.level
+        return env
+
+
 class Voice:
-    def __init__(self):
+    def __init__(
+        self,
+    ):
         self.pitch = 0.0
         self.active = False
         self.age = 0
         self.env = 0.0
         self.velocity = 0.0
+        self.secondary = False
+        self.envelope = Envelope(self)
+        self.phase = 0.0
+        self.interpolate = interpolate
+
+    def render_envelope(self, frames, attack_rate, release_rate):
+        return self.envelope.render(frames, attack_rate, release_rate)
+
+    def render(self, weighted_waves, frames, sr, attack, release):
+        # compute phase increment from freq
+        phase_inc = self.pitch / sr * 256.0
+        phases = (self.phase + np.arange(frames) * phase_inc) % 256
+        idx = phases.astype(np.int32)
+        frac = phases - idx
+        self.phase = (self.phase + frames * phase_inc) % 256
+
+        # Interpolation
+        # weights are updated when the related CC is received
+        waves, weights = weighted_waves
+        interpolate = self.interpolate
+        samples = (
+            interpolate(waves[0], idx, frac) * weights[0]
+            + interpolate(waves[1], idx, frac) * weights[1]
+            + interpolate(waves[2], idx, frac) * weights[2]
+            + interpolate(waves[3], idx, frac) * weights[3]
+        )
+        # envelope
+        env = self.render_envelope(frames, attack, release)
+
+        return samples * env * self.velocity
 
 
 class VoicesPool:
     def __init__(self):
         self.voices = [Voice(), Voice(), Voice(), Voice(), Voice(), Voice()]
+        self.ages = 0
 
     def allocate_voice(self, midi_note, velocity, mode):
-        return getattr(self, f"allocate_{mode}_voice")(midi_note, velocity)
+        pitch = 440.0 * 2 ** ((midi_note - 69) / 12.0)
+        return getattr(self, f"allocate_{mode}_voice")(pitch, velocity)
 
-    def allocate_poly_voice(self, midi_note, velocity): ...
+    def find_free_voice(self, pitch):
+        oldest = (self.voices[0], 0)
+        for i, voice in enumerate(self.voices):
+            if not voice.active and voice.pitch == pitch:
+                return (voice, i)
+            if not voice.active and voice.env == 0:
+                return (voice, i)
+            if voice.age < oldest[0].age:
+                oldest = (voice, i)
+        return oldest
 
-    def allocate_unison_voice(self, midi_note, velocity): ...
+    def allocate_poly_voice(self, pitch, velocity):
+        # allocates the oldest voice
+        voice, _ = self.find_free_voice(pitch)
+        voice.envelope.state = "attack"
+        voice.pitch = pitch
+        voice.active = True
+        voice.env = 0.0
+        voice.secondary = False
+        voice.velocity = velocity / 127.0
+        self.ages += 1
+        voice.age = self.ages
+        return voice
 
-    def allocate_mono_voice(self, midi_note, velocity):
+    def allocate_unison_voice(self, pitch, velocity): ...
+
+    def allocate_mono_voice(self, pitch, velocity):
         voice = self.voices[0]
-        # midi to freq conversion
-        voice.pitch = 440.0 * 2 ** ((midi_note - 69) / 12.0)
+        voice.envelope.state = "attack"
+        voice.pitch = pitch
         voice.active = True
         voice.velocity = velocity / 127.0
         return voice
 
     def deallocate_voice(self, midi_note, velocity, mode):
-        return getattr(self, f"deallocate_{mode}_voice")(midi_note)
+        pitch = 440.0 * 2 ** ((midi_note - 69) / 12.0)
+        return getattr(self, f"deallocate_{mode}_voice")(pitch, velocity)
 
-    def deallocate_poly_voice(self, midi_note, velocity): ...
+    def deallocate_poly_voice(self, pitch, velocity):
+        voice = next((v for v in self.voices if v.pitch == pitch), None)
+        if not voice:
+            return None
+        voice.active = False
+        voice.envelope.state = "release"
+        return voice
 
-    def deallocate_unison_voice(self, midi_note, velocity): ...
+    def deallocate_unison_voice(self, pitch, velocity): ...
 
     def deallocate_mono_voice(self, _, velocity):
         voice = self.voices[0]
         voice.active = False
+        voice.envelope.state = "release"
         return voice
 
     def __iter__(self):
@@ -72,14 +169,6 @@ class VoicesPool:
 
     def __getitem__(self, i):
         return self.voices[i]
-
-
-class Envelope:
-    def __init__(self, sr):
-        self.level = 0.0
-        self.state = "idle"
-        self.attack_rate = 1.0 / (0.01 * sr)
-        self.release_rate = 1.0 / (0.3 * sr)
 
 
 class LisaSim(BaseLisa):
@@ -94,13 +183,14 @@ class LisaSim(BaseLisa):
             device=8,
         )
         self.phase = 0
-        self.env = Envelope(self.sr)
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
         self.voices_pool = VoicesPool()
         self.w1, self.w2, self.w3, self.w4 = self.bilinear_mapping_weight_computation(
             0.5, 0.5
         )
         self.gain, self.mastervol = 1.0, 1.0
+        self.attack_rate = 1.0 / (0.01 * self.sr)
+        self.release_rate = 1.0 / (0.3 * self.sr)
 
         kwargs["autoconnect"] = False
         kwargs["device_name"] = "Lisa"
@@ -112,54 +202,22 @@ class LisaSim(BaseLisa):
         mix = np.zeros(frames, dtype=np.float32)
         active = 0
         gain = self.gain * self.mastervol
-
+        attack = self.attack_rate
+        release = self.release_rate
+        wavetables = (
+            self.wavetables[0].buffer.astype(np.float32),
+            self.wavetables[1].buffer.astype(np.float32),
+            self.wavetables[2].buffer.astype(np.float32),
+            self.wavetables[3].buffer.astype(np.float32),
+        )
+        weights = (self.w1, self.w2, self.w3, self.w4)
+        sr = self.sr
         for voice in self.voices_pool:
-            freq = voice.pitch
-            envl = self.env
-
             if not voice.active and voice.env < 0.0001:
                 continue
             active += 1
 
-            # compute phase increment from freq
-            phase_inc = freq / self.sr * 256.0
-            phases = (self.phase + np.arange(frames) * phase_inc) % 256
-            idx = phases.astype(np.int32)
-            frac = phases - idx
-
-            # Interpolation
-            # weights are updated when the related CC is received
-            wave1 = self.wavetables[0].buffer.astype(np.float32)
-            wave2 = self.wavetables[1].buffer.astype(np.float32)
-            wave3 = self.wavetables[2].buffer.astype(np.float32)
-            wave4 = self.wavetables[3].buffer.astype(np.float32)
-
-            samples = (
-                self.interpolate(wave1, idx, frac) * self.w1
-                + self.interpolate(wave2, idx, frac) * self.w2
-                + self.interpolate(wave3, idx, frac) * self.w3
-                + self.interpolate(wave4, idx, frac) * self.w4
-            )
-            # envelope
-            env = np.empty(frames, dtype=np.float32)
-            for i in range(frames):
-                if envl.state == "attack":
-                    envl.level = min(1.0, envl.level + envl.attack_rate)
-                    if envl.level >= 1.0:
-                        # just to skip the attack computation
-                        envl.state = "sustain"
-                elif envl.state == "release":
-                    envl.level = max(0.0, envl.level - envl.release_rate)
-                    if envl.level <= 0.0:
-                        envl.state = "idle"
-                        voice.active = False
-                voice.env = envl.level
-                env[i] = envl.level
-
-            self.phase = (self.phase + frames * phase_inc) % 256
-
-            # write result
-            mix += samples * env * voice.velocity
+            mix += voice.render((wavetables, weights), frames, sr, attack, release)
 
         # final mix of all the voices
         if active > 0:
@@ -190,8 +248,8 @@ class LisaSim(BaseLisa):
         elif note < 0:
             note = 0
 
-        self.env.state = "attack"
-        self.voices_pool.allocate_voice(note, velocity, "mono")
+        mode = str(self.general.voice_mode)
+        self.voices_pool.allocate_voice(note, velocity, mode)
 
     def note_off(self, note, velocity=127 // 2, channel=None):
         channel = channel if channel is not None else self.channel
@@ -201,10 +259,8 @@ class LisaSim(BaseLisa):
         elif note < 0:
             note = 0
 
-        self.env.state = "release"
-        self.voices_pool.deallocate_voice(note, velocity, "mono")
-
-    def allocate_voice(self, pitch): ...
+        mode = str(self.general.voice_mode)
+        self.voices_pool.deallocate_voice(note, velocity, mode)
 
     def control_change(self, control, value=0, channel=None):
         channel = channel if channel is not None else self.channel
@@ -216,9 +272,9 @@ class LisaSim(BaseLisa):
         self._update_state(control, value)
 
         if control == self.envelope.attack.parameter.cc_note:
-            self.env.attack_rate = 1.0 / (max(0.001, value / 127.0 * 2.0) * 48000)
+            self.attack_rate = 1.0 / (max(0.001, value / 127.0 * 2.0) * 48000)
         elif control == self.envelope.release.parameter.cc_note:
-            self.env.release_rate = 1.0 / (max(0.001, value / 127.0 * 2.0) * 48000)
+            self.release_rate = 1.0 / (max(0.001, value / 127.0 * 2.0) * 48000)
         elif control == self.modulation.timbre.parameter.cc_note:
             self.bilinear_mapping_weight_computation(
                 value / 127.0, self.modulation.color / 127.0
@@ -231,6 +287,16 @@ class LisaSim(BaseLisa):
             self.mastervol = value / 127.0
         elif control == self.general.gain.parameter.cc_note:
             self.gain = value / 64.0
+        elif control == self.wavetable.freeze_all.parameter.cc_note:
+            for table in self.wavetables:
+                table.freeze = value > 64
+        elif (
+            self.wavetable.freeze_wt1.parameter.cc_note
+            <= control
+            <= self.wavetable.freeze_wt4.parameter.cc_note
+        ):
+            i = self.wavetable.freeze_wt1.parameter.cc_note
+            self.wavetables[control - i].freeze = value > 64
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
@@ -247,9 +313,6 @@ class LisaSim(BaseLisa):
         self.w3 = inv_x * y
         self.w4 = x * y
         return self.w1, self.w2, self.w3, self.w4
-
-    def interpolate(self, table, idx, phase):
-        return table[idx] * (1 - phase) + table[(idx + 1) % 256] * phase
 
 
 TermuxLisa = LisaSim
