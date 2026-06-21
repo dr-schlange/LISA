@@ -125,13 +125,13 @@ class Voice:
 
         # Interpolation
         # weights are updated when the related CC is received
-        waves, weights = weighted_waves
+        waves, weights, levels = weighted_waves
         interpolate = self.interpolate
         samples = (
-            interpolate(waves[0], idx, frac) * weights[0]
-            + interpolate(waves[1], idx, frac) * weights[1]
-            + interpolate(waves[2], idx, frac) * weights[2]
-            + interpolate(waves[3], idx, frac) * weights[3]
+            interpolate(waves[0], idx, frac) * weights[0] * levels[0]
+            + interpolate(waves[1], idx, frac) * weights[1] * levels[1]
+            + interpolate(waves[2], idx, frac) * weights[2] * levels[2]
+            + interpolate(waves[3], idx, frac) * weights[3] * levels[3]
         )
         # envelope
         env = self.render_envelope(frames, attack, release)
@@ -252,12 +252,12 @@ class LisaSim(BaseLisa):
             callback=self.audio_out,
             # device=8,
         )
-        self.phase = 0
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
         self.voices_pool = VoicesPool()
         self.w1, self.w2, self.w3, self.w4 = self.bilinear_mapping_weight_computation(
             0.5, 0.5
         )
+        self.levels = [1.0] * 4
         self.gain, self.mastervol = 1.0, 1.0
         self.attack_rate = 1.0 / (0.01 * self.sr)
         self.release_rate = 1.0 / (0.3 * self.sr)
@@ -282,6 +282,7 @@ class LisaSim(BaseLisa):
             self.wavetables[3].buffer.astype(np.float32),
         )
         weights = (self.w1, self.w2, self.w3, self.w4)
+        levels = self.levels
         sr = self.sr
         detune = self.detune
         for voice in self.voices_pool:
@@ -290,7 +291,7 @@ class LisaSim(BaseLisa):
             active += 1
 
             mix += voice.render(
-                (wavetables, weights), frames, sr, attack, release, detune
+                (wavetables, weights, levels), frames, sr, attack, release, detune
             )
 
         # final mix of all the voices
@@ -396,6 +397,13 @@ class LisaSim(BaseLisa):
         elif control == self.wavetable.reset_all_write_idx.parameter.cc_note:
             for table in self.wavetables:
                 table.reset_write_pos()
+        elif (
+            self.wavetable.level_table1.parameter.cc_note
+            <= control
+            <= self.wavetable.level_table4.parameter.cc_note
+        ):
+            i = self.wavetable.level_table1.parameter.cc_note
+            self.levels[control - i] = value / 127.0
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
