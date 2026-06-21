@@ -74,9 +74,12 @@ class Voice:
     def render_envelope(self, frames, attack_rate, release_rate):
         return self.envelope.render(frames, attack_rate, release_rate)
 
-    def render(self, weighted_waves, frames, sr, attack, release):
+    def render(self, weighted_waves, frames, sr, attack, release, detune):
         # compute phase increment from freq
-        phase_inc = self.pitch / sr * 256.0
+        pitch = self.pitch
+        if self.secondary:
+            pitch += (detune - 0.5) * 100 * 1.28
+        phase_inc = pitch / sr * 256.0
         phases = (self.phase + np.arange(frames) * phase_inc) % 256
         idx = phases.astype(np.int32)
         frac = phases - idx
@@ -118,9 +121,7 @@ class VoicesPool:
                 oldest = (voice, i)
         return oldest
 
-    def allocate_poly_voice(self, pitch, velocity):
-        # allocates the oldest voice
-        voice, _ = self.find_free_voice(pitch)
+    def setup_voice(self, voice, pitch, velocity):
         voice.envelope.state = "attack"
         voice.pitch = pitch
         voice.active = True
@@ -131,7 +132,18 @@ class VoicesPool:
         voice.age = self.ages
         return voice
 
-    def allocate_unison_voice(self, pitch, velocity): ...
+    def allocate_poly_voice(self, pitch, velocity):
+        # allocates the oldest voice
+        voice, _ = self.find_free_voice(pitch)
+        return self.setup_voice(voice, pitch, velocity)
+
+    def allocate_unison_voice(self, pitch, velocity):
+        # find the oldest voice and its neigboor
+        voice, i = self.find_free_voice(pitch)
+        voice = self.setup_voice(voice, pitch, velocity)
+        voice2 = self.setup_voice(self.voices[i + 1], pitch, velocity)
+        voice2.secondary = True
+        return voice
 
     def allocate_mono_voice(self, pitch, velocity):
         voice = self.voices[0]
@@ -153,13 +165,31 @@ class VoicesPool:
         voice.envelope.state = "release"
         return voice
 
-    def deallocate_unison_voice(self, pitch, velocity): ...
+    def deallocate_unison_voice(self, pitch, velocity):
+        voice, i = next(
+            ((v, i) for i, v in enumerate(self.voices) if v.pitch == pitch), (None, -1)
+        )
+        if not voice:
+            return None
+        voice.active = False
+        voice.envelope.state = "release"
+        voice2 = self.voices[i + 1]
+        voice2.active = False
+        voice2.envelope.state = "release"
 
     def deallocate_mono_voice(self, _, velocity):
         voice = self.voices[0]
         voice.active = False
         voice.envelope.state = "release"
         return voice
+
+    def disable_all(self):
+        for voice in self.voices:
+            voice.active = False
+            voice.secondary = False
+            voice.age = self.ages
+            voice.envelope.state = "release"
+            # voice.env = 0.0
 
     def __iter__(self):
         return iter(self.voices)
@@ -191,6 +221,7 @@ class LisaSim(BaseLisa):
         self.gain, self.mastervol = 1.0, 1.0
         self.attack_rate = 1.0 / (0.01 * self.sr)
         self.release_rate = 1.0 / (0.3 * self.sr)
+        self.detune = 0.8
 
         kwargs["autoconnect"] = False
         kwargs["device_name"] = "Lisa"
@@ -212,12 +243,15 @@ class LisaSim(BaseLisa):
         )
         weights = (self.w1, self.w2, self.w3, self.w4)
         sr = self.sr
+        detune = self.detune
         for voice in self.voices_pool:
             if not voice.active and voice.env < 0.0001:
                 continue
             active += 1
 
-            mix += voice.render((wavetables, weights), frames, sr, attack, release)
+            mix += voice.render(
+                (wavetables, weights), frames, sr, attack, release, detune
+            )
 
         # final mix of all the voices
         if active > 0:
@@ -297,6 +331,10 @@ class LisaSim(BaseLisa):
         ):
             i = self.wavetable.freeze_wt1.parameter.cc_note
             self.wavetables[control - i].freeze = value > 64
+        elif control == self.general.voice_mode.parameter.cc_note:
+            self.voices_pool.disable_all()
+        elif control == self.general.detune.parameter.cc_note:
+            self.detune = value / 127.0
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
@@ -313,6 +351,9 @@ class LisaSim(BaseLisa):
         self.w3 = inv_x * y
         self.w4 = x * y
         return self.w1, self.w2, self.w3, self.w4
+
+    def force_all_notes_off(self, times=1):
+        self.voices_pool.disable_all()
 
 
 TermuxLisa = LisaSim
