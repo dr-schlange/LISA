@@ -20,6 +20,12 @@ test:
 test%:
 	python quick-test.py $*
 
+test-simulator:
+	LISA_IMPL=SW python quick-test.py
+
+test%-simulator:
+	LISA_IMPL=SW python quick-test.py $*
+
 format: $(SOURCES)
 	clang-format -i --style=LLVM $(SOURCES)
 

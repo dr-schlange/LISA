@@ -250,7 +250,7 @@ class LisaSim(BaseLisa):
             dtype="int16",
             blocksize=256,
             callback=self.audio_out,
-            # device=8,
+            # device=25,
         )
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
         self.voices_pool = VoicesPool()
@@ -296,7 +296,8 @@ class LisaSim(BaseLisa):
 
         # final mix of all the voices
         if active > 0:
-            mix /= active
+            # mix /= active
+            mix /= len(self.voices_pool)
         result = np.clip(mix * gain, -32768, 32767).astype(np.int16)
         outdata[:, 0] = result
         outdata[:, 1] = result

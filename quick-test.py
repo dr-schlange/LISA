@@ -1,8 +1,18 @@
+import os
 import sys
 import time
 
 from nallely import LFO, VirtualDevice, VirtualParameter, on, stop_all_connected_devices
-from nallely.experimental.lisa_pico import Lisa
+
+backend = os.getenv("LISA_IMPL", "HW")
+if backend == "HW":
+    from nallely.experimental.lisa_pico import Lisa
+    print("!! Loaded HW implementation")
+elif backend == "SW":
+    from simulator import LisaSim as Lisa
+    print("!! Loaded SW implementation")
+else:
+    raise ImportError("Unknown backend", backend)
 
 
 class Logger(VirtualDevice):
