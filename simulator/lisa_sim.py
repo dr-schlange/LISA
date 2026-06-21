@@ -63,6 +63,12 @@ class Wavetable:
                 self.last_write_pos = self.write_pos
                 self.last_write_value = value
 
+    def clear(self):
+        self.buffer.fill(0)
+
+    def reset_write_pos(self):
+        self.write_pos = 0
+
 
 class Envelope:
     def __init__(self, voice):
@@ -382,6 +388,12 @@ class LisaSim(BaseLisa):
         ):
             i = self.wavetable.index_wt1.parameter.cc_note
             self.wavetables[control - i].write_pos = value * 2
+        elif control == self.wavetable.reset_all_wt.parameter.cc_note:
+            for table in self.wavetables:
+                table.clear()
+        elif control == self.wavetable.reset_all_write_idx.parameter.cc_note:
+            for table in self.wavetables:
+                table.reset_write_pos()
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
