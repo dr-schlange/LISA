@@ -178,6 +178,8 @@ class VoicesPool:
     def allocate_unison_voice(self, pitch, velocity):
         # find the oldest voice and its neigboor
         voice, i = self.find_free_voice(pitch)
+        # we ensure we get a correct pair in case of voice stealing
+        i = min(i, len(self.voices) - 2)
         voice = self.setup_voice(voice, pitch, velocity)
         voice2 = self.setup_voice(self.voices[i + 1], pitch, velocity)
         voice2.secondary = True
