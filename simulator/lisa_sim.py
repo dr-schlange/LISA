@@ -363,7 +363,7 @@ class LisaSim(BaseLisa):
         elif control == self.general.master_volume.parameter.cc_note:
             self.mastervol = value / 127.0
         elif control == self.general.gain.parameter.cc_note:
-            self.gain = value / 64.0
+            self.gain = value / 10.0
         elif control == self.wavetable.freeze_all.parameter.cc_note:
             for table in self.wavetables:
                 table.freeze = value > 64
@@ -406,32 +406,32 @@ class LisaSim(BaseLisa):
         ):
             i = self.wavetable.level_table1.parameter.cc_note
             self.levels[control - i] = value / 127.0
-        elif control == self.general.engine_select.parameter.cc_note:
-            self.out_stream.stop()
-            self.out_stream.close
-            try:
-                self.out_stream = sd.OutputStream(
-                    samplerate=self.sr,
-                    channels=2,
-                    dtype="int16",
-                    blocksize=256,
-                    callback=self.audio_out,
-                    device=value,
-                )
-            except Exception as e:
-                print(
-                    "[LISA-SIM] Error while changing device fallback on default device:",
-                    e,
-                )
-                self.out_stream = sd.OutputStream(
-                    samplerate=self.sr,
-                    channels=2,
-                    dtype="int16",
-                    blocksize=256,
-                    callback=self.audio_out,
-                )
-            finally:
-                self.out_stream.start()
+        # elif control == self.general.engine_select.parameter.cc_note:
+        #     self.out_stream.stop()
+        #     self.out_stream.close
+        #     try:
+        #         self.out_stream = sd.OutputStream(
+        #             samplerate=self.sr,
+        #             channels=2,
+        #             dtype="int16",
+        #             blocksize=256,
+        #             callback=self.audio_out,
+        #             device=value,
+        #         )
+        #     except Exception as e:
+        #         print(
+        #             "[LISA-SIM] Error  while changing device fallback on default device:",
+        #             e,
+        #         )
+        #         self.out_stream = sd.OutputStream(
+        #             samplerate=self.sr,
+        #             channels=2,
+        #             dtype="int16",
+        #             blocksize=256,
+        #             callback=self.audio_out,
+        #         )
+        #     finally:
+        #         self.out_stream.start()
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
