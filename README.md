@@ -292,7 +292,7 @@ This will run the server with the Trevor protocol, serve the UI on `http://local
 
 ### Differences with the actual LIVE engine
 
-Currently not all the CCs/parameters for LISA are implemented in this simulator. There is currently no filter (will come later), and the FM/FM-slew CC is not implemented. The double-buffering capability for the wavetables are not set, an obviously, the only available engine is the LIVE engine.
+Currently not all the CCs/parameters for LISA are implemented in this simulator. Currently, FM/FM-slew CC is not implemented, nor the double-buffering capability for the wavetables are not set, an obviously, the only available engine is the LIVE engine.
 
 
 ## License

@@ -241,6 +241,42 @@ class VoicesPool:
         return self.voices[i]
 
 
+class SVF:
+    def __init__(self):
+        self.lp = 0.0
+        self.bp = 0.0
+        self.cutoff = 0.95
+        self.cutoff_current = 0.95
+        self.resonance = 0.5
+        self.resonance_current = 0.5
+
+    def render(self, samples, mode="lowpass"):
+        if not np.isfinite(self.lp) or not np.isfinite(self.bp):
+            self.lp = 0.0
+            self.bp = 0.0
+        # appy smoothing to avoid plops
+        self.resonance_current += 0.05 * (self.resonance - self.resonance_current)
+        self.cutoff_current += 0.05 * (self.cutoff - self.cutoff_current)
+        f = 2.0 * np.sin(np.pi * np.clip(self.cutoff_current, 0.0, 0.95) / 2.0)
+        q = max(0.01, 1.0 - self.resonance_current)
+        out = np.empty(len(samples), dtype=np.float32)
+        lp, bp = self.lp, self.bp
+        for i in range(len(samples)):
+            lp = lp + f * bp
+            hp = samples[i] - lp - q * bp
+            bp = f * hp + bp
+            lp = lp if -1e6 < lp < 1e6 else max(-1e6, min(lp, 1e6))
+            bp = bp if -1e6 < bp < 1e6 else max(-1e6, min(bp, 1e6))
+            if mode == "lowpass":
+                out[i] = lp
+            elif mode == "highpass":
+                out[i] = hp
+            else:
+                out[i] = bp
+        self.lp, self.bp = lp, bp
+        return out
+
+
 class LisaSim(BaseLisa):
     def __init__(self, *args, **kwargs):
         self.sr = 48000
@@ -250,10 +286,12 @@ class LisaSim(BaseLisa):
             dtype="int16",
             blocksize=256,
             callback=self.audio_out,
-            # device=27,
+            # device="WH-1000XM3",
         )
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
         self.voices_pool = VoicesPool()
+        self.svf_filter = SVF()
+        self.filter_mode = "lowpass"
         self.w1, self.w2, self.w3, self.w4 = self.bilinear_mapping_weight_computation(
             0.5, 0.5
         )
@@ -296,8 +334,8 @@ class LisaSim(BaseLisa):
 
         # final mix of all the voices
         if active > 0:
-            # mix /= active
             mix /= len(self.voices_pool)
+        mix = self.svf_filter.render(mix, self.filter_mode)
         result = np.clip(mix * gain, -32768, 32767).astype(np.int16)
         outdata[:, 0] = result
         outdata[:, 1] = result
@@ -408,32 +446,13 @@ class LisaSim(BaseLisa):
         ):
             i = self.wavetable.level_table1.parameter.cc_note
             self.levels[control - i] = value / 127.0
-        # elif control == self.general.engine_select.parameter.cc_note:
-        #     self.out_stream.stop()
-        #     self.out_stream.close
-        #     try:
-        #         self.out_stream = sd.OutputStream(
-        #             samplerate=self.sr,
-        #             channels=2,
-        #             dtype="int16",
-        #             blocksize=256,
-        #             callback=self.audio_out,
-        #             device=value,
-        #         )
-        #     except Exception as e:
-        #         print(
-        #             "[LISA-SIM] Error  while changing device fallback on default device:",
-        #             e,
-        #         )
-        #         self.out_stream = sd.OutputStream(
-        #             samplerate=self.sr,
-        #             channels=2,
-        #             dtype="int16",
-        #             blocksize=256,
-        #             callback=self.audio_out,
-        #         )
-        #     finally:
-        #         self.out_stream.start()
+        elif control == self.filter.cutoff.parameter.cc_note:
+            fc = 20.0 * (12000.0 / 20.0) ** (value / 127.0)
+            self.svf_filter.cutoff = fc / (self.sr / 2.0)
+        elif control == self.filter.resonance.parameter.cc_note:
+            self.svf_filter.resonance = value / 127.0
+        elif control == self.filter.type.parameter.cc_note:
+            self.filter_mode = self.filter.type.parameter.map2accepted_values(value)
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
