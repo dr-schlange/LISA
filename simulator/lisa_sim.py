@@ -366,14 +366,14 @@ class LisaSim(BaseLisa):
             self.gain = value / 10.0
         elif control == self.wavetable.freeze_all.parameter.cc_note:
             for table in self.wavetables:
-                table.freeze = value > 64
+                table.freeze = value >= 64
         elif (
             self.wavetable.freeze_wt1.parameter.cc_note
             <= control
             <= self.wavetable.freeze_wt4.parameter.cc_note
         ):
             i = self.wavetable.freeze_wt1.parameter.cc_note
-            self.wavetables[control - i].freeze = value > 64
+            self.wavetables[control - i].freeze = value >= 64
         elif control == self.general.voice_mode.parameter.cc_note:
             self.voices_pool.disable_all()
         elif control == self.general.detune.parameter.cc_note:
@@ -394,11 +394,11 @@ class LisaSim(BaseLisa):
             i = self.wavetable.index_wt1.parameter.cc_note
             self.wavetables[control - i].write_pos = value * 2
         elif control == self.wavetable.reset_all_wt.parameter.cc_note:
-            if value > 64.0:
+            if value >= 64.0:
                 for table in self.wavetables:
                     table.clear()
         elif control == self.wavetable.reset_all_write_idx.parameter.cc_note:
-            if value > 64.0:
+            if value >= 64.0:
                 for table in self.wavetables:
                     table.reset_write_pos()
         elif (
