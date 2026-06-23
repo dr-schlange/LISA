@@ -250,7 +250,7 @@ class LisaSim(BaseLisa):
             dtype="int16",
             blocksize=256,
             callback=self.audio_out,
-            # device=25,
+            # device=27,
         )
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
         self.voices_pool = VoicesPool()
@@ -394,11 +394,13 @@ class LisaSim(BaseLisa):
             i = self.wavetable.index_wt1.parameter.cc_note
             self.wavetables[control - i].write_pos = value * 2
         elif control == self.wavetable.reset_all_wt.parameter.cc_note:
-            for table in self.wavetables:
-                table.clear()
+            if value > 64.0:
+                for table in self.wavetables:
+                    table.clear()
         elif control == self.wavetable.reset_all_write_idx.parameter.cc_note:
-            for table in self.wavetables:
-                table.reset_write_pos()
+            if value > 64.0:
+                for table in self.wavetables:
+                    table.reset_write_pos()
         elif (
             self.wavetable.level_table1.parameter.cc_note
             <= control
