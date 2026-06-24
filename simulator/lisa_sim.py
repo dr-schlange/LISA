@@ -1,3 +1,4 @@
+import nallely
 import numpy as np
 import sounddevice as sd
 from nallely.experimental.lisa_pico import Lisa as BaseLisa
@@ -277,7 +278,17 @@ class SVF:
         return out
 
 
+class ExpSection(nallely.Module):
+    panning = nallely.ModuleParameter(94, init_value=0, description="Panning")
+
+
 class LisaSim(BaseLisa):
+    exp: ExpSection  # type: ignore
+
+    @property
+    def exp(self) -> ExpSection:
+        return self.modules.exp
+
     def __init__(self, *args, **kwargs):
         self.sr = 48000
         self.out_stream = sd.OutputStream(
@@ -300,6 +311,7 @@ class LisaSim(BaseLisa):
         self.attack_rate = 1.0 / (0.01 * self.sr)
         self.release_rate = 1.0 / (0.3 * self.sr)
         self.detune = 0.8
+        self.panning = 0.5
 
         kwargs["autoconnect"] = False
         kwargs["device_name"] = "Lisa"
@@ -336,9 +348,12 @@ class LisaSim(BaseLisa):
         if active > 0:
             mix /= len(self.voices_pool)
         mix = self.svf_filter.render(mix, self.filter_mode)
-        result = np.clip(mix * gain, -32768, 32767).astype(np.int16)
-        outdata[:, 0] = result
-        outdata[:, 1] = result
+        left = np.cos(self.panning) * mix
+        right = np.sin(self.panning) * mix
+        left = np.clip(left * gain, -32768, 32767).astype(np.int16)
+        right = np.clip(right * gain, -32768, 32767).astype(np.int16)
+        outdata[:, 0] = left
+        outdata[:, 1] = right
 
     def stop(self):
         self.out_stream.stop()
@@ -453,6 +468,8 @@ class LisaSim(BaseLisa):
             self.svf_filter.resonance = value / 127.0
         elif control == self.filter.type.parameter.cc_note:
             self.filter_mode = self.filter.type.parameter.map2accepted_values(value)
+        elif control == self.exp.panning.parameter.cc_note:
+            self.panning = (value / 127.0) * (np.pi / 2)
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
