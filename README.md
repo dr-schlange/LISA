@@ -24,7 +24,7 @@ Features inherited from **VIJA**:
 Features added in **LISA**:
 
 - **Up to 6 Voices Polyphony** at 44100 sampling rate, to 8 voices at 32000 sampling rate (depending on the engine, some will handle only 5 or 7 properly). 
-- **New LIVE engine: Live Dynamic Wavetable** stream wavetables directly from Nallely or any environement that can stream pitchwheel data on different channels. This allows you to shape in real-time the wavetables that are played by the LIVE engine (played while streamed), with bilinear (vector synthesis-like) interpolation.
+- **New LIVE engine: Scanned Synthesis/Live Dynamic Wavetable** stream wavetables directly from Nallely or any environement that can stream pitchwheel data on different channels. This allows you to shape the wavetables that are played by the LIVE engine (played while streamed), with bilinear (vector synthesis-like) interpolation, in real-time from low rate signals (LFOs for example).
 - **Envelope Adaptation** Envelope attack/release can go from nothing to quite long (up to 5s)
 - **New internal parameters exposed** Gain, FM slew (slew between FM jumps if FM is modulated)
 - **MIDI Controller** Support to send MIDI controls via USB.
@@ -254,7 +254,7 @@ Connect the outer pins to 3.3V and GND, and the center wiper to:
 
 Connect your MIDI Jack via a 6N138 optocoupler circuit to **GP13**.
 
-## LIVE engine (Live Dynamic Wavetable) simulator
+## LIVE engine (Scanned Synthesis/Live Dynamic Wavetable) simulator
 
 This repo includes a Python/numpy implementation of LISA's LIVE engine. This allows you to be able to play with the LIVE engine from any computer without having to build LISA. 
 
