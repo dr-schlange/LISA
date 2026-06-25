@@ -24,7 +24,7 @@ Features inherited from **VIJA**:
 Features added in **LISA**:
 
 - **Up to 6 Voices Polyphony** at 44100 sampling rate, to 8 voices at 32000 sampling rate (depending on the engine, some will handle only 5 or 7 properly). 
-- **New LIVE engine: Live Dynamic Wavetable** stream wavetables directly from Nallely or any environement that can stream pitchwheel data on different channels. This allows you to shape in real-time the wavetables that are played by the LIVE engine (played while streamed), with bilinear (vector synthesis-like) interpolation.
+- **New LIVE engine: Live Dynamic Wavetable Scanner** Stream wavetables directly from Nallely or any environement that can stream pitchwheel data on different channels (4 wavetables). Each of the 4 wavetable slots has its own independent stream, so four completely different signal sources can shape four different wavetables simultaneously, mixed in real-time through the XY vector. Concretly, this allows you to shape the 4 wavetables that are played by the LIVE engine (played while streamed), with vector synthesis-style XY mixing of 4 wavetables, in real-time from 4 low rate signals (LFOs for example). This technique of filling the wavetable from a slow-rate signal is a technique introduced by [Scanned Synthesis](https://ccrma.stanford.edu/~verplank/S2S/ScannedSynthesis.PDF), but LISA doesn't bind any physical model to it. Come with your own model obtained either through a patch from Nallely, or from dedicated modules/neurons you can write in Nallely. Technically, you can replicate scanned synthesis (string excitation model + wavetable dynamic rewrite and scanning) using Nallely to write a string excitation module and streaming the result directly in the wavetables.
 - **Envelope Adaptation** Envelope attack/release can go from nothing to quite long (up to 5s)
 - **New internal parameters exposed** Gain, FM slew (slew between FM jumps if FM is modulated)
 - **MIDI Controller** Support to send MIDI controls via USB.
@@ -254,7 +254,7 @@ Connect the outer pins to 3.3V and GND, and the center wiper to:
 
 Connect your MIDI Jack via a 6N138 optocoupler circuit to **GP13**.
 
-## LIVE engine (Live Dynamic Wavetable) simulator
+## LIVE engine (Live Dynamic Wavetable Scanning) simulator
 
 This repo includes a Python/numpy implementation of LISA's LIVE engine. This allows you to be able to play with the LIVE engine from any computer without having to build LISA. 
 
