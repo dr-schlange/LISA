@@ -250,6 +250,7 @@ class SVF:
         self.cutoff_current = 0.95
         self.resonance = 0.5
         self.resonance_current = 0.5
+        self._mix_buf = np.zeros(256, dtype=np.float32)
 
     def render(self, samples, mode="lowpass"):
         if not np.isfinite(self.lp) or not np.isfinite(self.bp):
@@ -260,11 +261,14 @@ class SVF:
         self.cutoff_current += 0.05 * (self.cutoff - self.cutoff_current)
         f = 2.0 * np.sin(np.pi * np.clip(self.cutoff_current, 0.0, 0.95) / 2.0)
         q = max(0.01, 1.0 - self.resonance_current)
-        out = np.empty(len(samples), dtype=np.float32)
+
+        out = self._mix_buf
+        out.fill(0)
+
         lp, bp = self.lp, self.bp
-        for i in range(len(samples)):
+        for i, sample in enumerate(samples):
             lp = lp + f * bp
-            hp = samples[i] - lp - q * bp
+            hp = sample - lp - q * bp
             bp = f * hp + bp
             lp = lp if -1e6 < lp < 1e6 else max(-1e6, min(lp, 1e6))
             bp = bp if -1e6 < bp < 1e6 else max(-1e6, min(bp, 1e6))
@@ -298,6 +302,7 @@ class LisaSim(BaseLisa):
             blocksize=256,
             callback=self.audio_out,
             # device="WH-1000XM3",
+            # device="Focusrite Scarlett 6i6 Pro",
         )
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]
         self.voices_pool = VoicesPool()
@@ -312,25 +317,41 @@ class LisaSim(BaseLisa):
         self.release_rate = 1.0 / (0.3 * self.sr)
         self.detune = 0.8
         self.panning = 0.5
+        self.left_pan_coef = np.cos(self.panning)
+        self.right_pan_coef = np.sin(self.panning)
+        self.left_pan_current = self.left_pan_coef
+        self.right_pan_current = self.right_pan_coef
+        self.wtbuf0 = self.wavetables[0].buffer
+        self.wtbuf1 = self.wavetables[1].buffer
+        self.wtbuf2 = self.wavetables[2].buffer
+        self.wtbuf3 = self.wavetables[3].buffer
+        self.wt_floats = [np.zeros(257, dtype=np.float32) for _ in range(4)]
+        self._mix_buf = np.zeros(256, dtype=np.float32)
 
         kwargs["autoconnect"] = False
         kwargs["device_name"] = "Lisa"
         super().__init__(*args, **kwargs)
 
+        self.general.master_volume = 127
+        self.general.gain = 127
+        self.filter.cutoff = 50
+        self.filter.resonance = 25
+
         self.out_stream.start()
 
     def audio_out(self, outdata, frames, time, status):
-        mix = np.zeros(frames, dtype=np.float32)
+        mix = self._mix_buf
+        mix.fill(0)
         active = 0
         gain = self.gain * self.mastervol
         attack = self.attack_rate
         release = self.release_rate
-        wavetables = (
-            self.wavetables[0].buffer.astype(np.float32),
-            self.wavetables[1].buffer.astype(np.float32),
-            self.wavetables[2].buffer.astype(np.float32),
-            self.wavetables[3].buffer.astype(np.float32),
-        )
+        wt_floats = self.wt_floats
+        np.copyto(wt_floats[0], self.wtbuf0)
+        np.copyto(wt_floats[1], self.wtbuf1)
+        np.copyto(wt_floats[2], self.wtbuf2)
+        np.copyto(wt_floats[3], self.wtbuf3)
+        wavetables = (wt_floats[0], wt_floats[1], wt_floats[2], wt_floats[3])
         weights = (self.w1, self.w2, self.w3, self.w4)
         levels = self.levels
         sr = self.sr
@@ -347,9 +368,17 @@ class LisaSim(BaseLisa):
         # final mix of all the voices
         if active > 0:
             mix /= len(self.voices_pool)
+
+        # filter
         mix = self.svf_filter.render(mix, self.filter_mode)
-        left = np.cos(self.panning) * mix
-        right = np.sin(self.panning) * mix
+
+        # panning with smoothing to deal with CC jumps
+        self.left_pan_current += 0.1 * (self.left_pan_coef - self.left_pan_current)
+        self.right_pan_current += 0.1 * (self.right_pan_coef - self.right_pan_current)
+        left = self.left_pan_current * mix
+        right = self.right_pan_current * mix
+
+        # out
         left = np.clip(left * gain, -32768, 32767).astype(np.int16)
         right = np.clip(right * gain, -32768, 32767).astype(np.int16)
         outdata[:, 0] = left
@@ -470,6 +499,8 @@ class LisaSim(BaseLisa):
             self.filter_mode = self.filter.type.parameter.map2accepted_values(value)
         elif control == self.exp.panning.parameter.cc_note:
             self.panning = (value / 127.0) * (np.pi / 2)
+            self.left_pan_coef = np.cos(self.panning)
+            self.right_pan_coef = np.sin(self.panning)
 
     def bilinear_mapping_weight_computation(self, x, y):
         x = 0.5 + (x - 0.5) * 0.5
