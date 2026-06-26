@@ -226,6 +226,7 @@ struct RuntimeState {
   Parameter gain;
   Parameter fm_slew;
   ExtParameter unison_detune;
+  ExtParameter panning;
 
   // Extra params
   ExtParameter b1;
@@ -242,11 +243,26 @@ struct RuntimeState {
   volatile bool system_ready;
 };
 
-const char *const all_parameters[] = {
-    "tmbr amt",   "colr amt", "cutoff",   "resonance",    "tmbr mod",
-    "colr mod",   "fm mod",   "mast vol", "envl atk",     "envl rel",
-    "filt. type", "gain",     "fm_slew",  "b1",           "b2",
-    "b3",         "b4",       "b5",       "unison_detune"};
+const char *const all_parameters[] = {"tmbr amt",
+                                      "colr amt",
+                                      "cutoff",
+                                      "resonance",
+                                      "tmbr mod",
+                                      "colr mod",
+                                      "fm mod",
+                                      "mast vol",
+                                      "envl atk",
+                                      "envl rel",
+                                      "filt. type",
+                                      "gain",
+                                      "fm_slew",
+                                      "b1",
+                                      "b2",
+                                      "b3",
+                                      "b4",
+                                      "b5",
+                                      "unison_detune",
+                                      "panning"};
 constexpr uint8_t ALL_PARAMETERS_NUM =
     sizeof(all_parameters) / sizeof(all_parameters[0]);
 
@@ -294,6 +310,7 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->gain = ParameterNew(POT_B, MIDI_GAIN, 0.25f);
   gstate->fm_slew = ParameterNew(POT_C, MIDI_FM_SLEW, 0.05f);
   gstate->unison_detune = ExtParameterNew(POT_C, MIDI_UNISON_DETUNE, 0.55f);
+  gstate->panning = ExtParameterNew(POT_C, MIDI_PANNING, 0.5f);
 
   gstate->A = (Parameter *)&(gstate->timbre);
   gstate->B = (Parameter *)&(gstate->color);
@@ -373,6 +390,7 @@ static inline void set_all_resolution(RuntimeState *gstate,
   set_ext_param_resolution(&(gstate->b3), mode);
   set_ext_param_resolution(&(gstate->b4), mode);
   set_ext_param_resolution(&(gstate->b5), mode);
+  set_ext_param_resolution(&(gstate->panning), mode);
 }
 
 static inline void set_all_mode(RuntimeState *gstate, PotMode mode) {
@@ -392,6 +410,7 @@ static inline void set_all_mode(RuntimeState *gstate, PotMode mode) {
   gstate->b4.mode = mode;
   gstate->b5.mode = mode;
   gstate->unison_detune.mode = mode;
+  gstate->panning.mode = mode;
 }
 
 static inline void set_pot_mode(RuntimeState *gstate, PotMode mode) {

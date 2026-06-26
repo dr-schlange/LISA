@@ -55,6 +55,7 @@ const char *const modes[] = {
 #define MIDI_COLOR 10
 #define MIDI_ATTACK 11
 #define MIDI_RELEASE 12
+#define MIDI_PANNING 14
 #define MIDI_RESONANCE 71
 #define MIDI_CUTOFF 74
 #define MIDI_FILTER_TYPE 75

@@ -125,6 +125,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **10**        | Color                                                  |
 | **11**        | Envelope Attack                                        |
 | **12**        | Envelope Release                                       |
+| **14**        | Pan                                                    |
 | **15**        | FM Modulation                                          |
 | **16**        | Timbre Modulation Amount                               |
 | **17**        | Color Modulation Amount                                |

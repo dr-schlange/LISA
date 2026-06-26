@@ -283,7 +283,8 @@ class SVF:
 
 
 class ExpSection(nallely.Module):
-    panning = nallely.ModuleParameter(94, init_value=0, description="Panning")
+    # panning = nallely.ModuleParameter(14, init_value=0, description="Panning")
+    ...
 
 
 class LisaSim(BaseLisa):
@@ -497,7 +498,7 @@ class LisaSim(BaseLisa):
             self.svf_filter.resonance = value / 127.0
         elif control == self.filter.type.parameter.cc_note:
             self.filter_mode = self.filter.type.parameter.map2accepted_values(value)
-        elif control == self.exp.panning.parameter.cc_note:
+        elif control == self.general.panning.parameter.cc_note:
             self.panning = (value / 127.0) * (np.pi / 2)
             self.left_pan_coef = np.cos(self.panning)
             self.right_pan_coef = np.sin(self.panning)

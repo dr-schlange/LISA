@@ -7,9 +7,11 @@ from nallely import LFO, VirtualDevice, VirtualParameter, on, stop_all_connected
 backend = os.getenv("LISA_IMPL", "HW")
 if backend == "HW":
     from nallely.experimental.lisa_pico import Lisa
+
     print("!! Loaded HW implementation")
 elif backend == "SW":
     from simulator import LisaSim as Lisa
+
     print("!! Loaded SW implementation")
 else:
     raise ImportError("Unknown backend", backend)
@@ -444,6 +446,28 @@ def test12(lisa, lfo1, lfo2):
     wave.stop()
 
 
+def test14(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "poly"
+    lisa.filter.cutoff = 55
+
+    print("* Reset wavetables...")
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+
+    print("* Create a slow LFO for panning")
+    lfo = LFO(speed=0.5)
+    lfo.start()
+    lisa.general.panning = lfo
+
+    print("* Play cluster with manual activated")
+    play_cluster(lisa, [42, 45, 47], duration=6)
+
+    print("* Disconnect LFO from panning")
+    lisa.general.panning -= lfo
+    lfo.stop()
+
+
 tests = [
     test1,
     test2,
@@ -457,6 +481,8 @@ tests = [
     test10,
     test11,
     test12,
+    None,
+    test14,
 ]
 
 if __name__ == "__main__":

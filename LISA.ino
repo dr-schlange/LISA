@@ -237,13 +237,19 @@ void __not_in_flash_func(update_audio)() {
   const int32_t dry_scale = 32767 - mix_slew;
   const int32_t wet_scale = mix_slew;
 
+  static float pan_current = runtime_state.panning.value;
+  pan_current += (runtime_state.panning.value - pan_current) * (0.0625f);
+  const uint8_t idx = (uint8_t)(pan_current * 63.f);
+
   for (int i = 0; i < AUDIO_BLOCK; i++) {
     int32_t dry_int = mix[i];
     int16_t wet_filter = global_filter.Process(dry_int);
     int32_t mixed_signal =
         ((dry_int * dry_scale) >> 15) + ((wet_filter * wet_scale) >> 15);
     int16_t s = constrain(mixed_signal, -32767, 32767);
-    i2s_output.write16(s, s);
+    int16_t s_left = (int16_t)(((int32_t)s * braids::wav_sine[64 - idx]) >> 15);
+    int16_t s_right = (int16_t)(((int32_t)s * braids::wav_sine[idx]) >> 15);
+    i2s_output.write16(s_left, s_right);
   }
 }
 

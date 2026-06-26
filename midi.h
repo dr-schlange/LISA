@@ -255,6 +255,9 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
     case MIDI_UNISON_DETUNE:
       gstate->unison_detune.value = cc_value / 127.f;
       break;
+    case MIDI_PANNING:
+      gstate->panning.value = cc_value / 127.f;
+      break;
     case MIDI_DEV:
       switch (cc_value) {
       case 127:
