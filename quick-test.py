@@ -184,6 +184,7 @@ def test6(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
     lisa.envelope.release = 70
     lisa.filter.cutoff = 64
+    lisa.general.voice_mode = "poly"
     # low pass filter
     lisa.filter.type = "lowpass"
     print(lisa.filter.type, int(lisa.filter.type))
@@ -521,7 +522,8 @@ if __name__ == "__main__":
             tests[testtorun](lisa, lfo1, lfo2)
         else:
             input("Press enter to start tests or ctrl+c to cancel...")
-            for test in tests:
+            for i, test in enumerate(tests, start=1):
+                print(f"== TEST {i} ==")
                 test(lisa, lfo1, lfo2)
     except KeyboardInterrupt:
         print("* tests canceled")
