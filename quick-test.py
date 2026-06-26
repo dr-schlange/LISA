@@ -120,6 +120,9 @@ def test3(lisa, lfo1, lfo2):
     lisa.modulation.FM_slew = 1
     input("Press enter...")
     lisa.modulation.FM_mod -= lfo1
+    print("* Set back slew to almost instantaneous...")
+    lisa.modulation.FM_slew = 127
+    fm_lfo.stop()
 
 
 # unison test
@@ -481,7 +484,7 @@ tests = [
     test10,
     test11,
     test12,
-    None,
+    lambda *args, **kwargs: print("skipped, bad omen"),
     test14,
 ]
 
