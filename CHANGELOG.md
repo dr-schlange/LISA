@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.0
+
+### Features
+
+- Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners)
+
 ## 0.2.0
 
 ### Features

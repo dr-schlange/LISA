@@ -329,6 +329,7 @@ This project is an independent fork and is not affiliated with or endorsed by th
 
 ## Version history
 
+- 2026-05-02 - LISA v0.2.0 New features and additions on the LIVE engine
 - 2026-05-02 - LISA v0.0.1 first version with LIVE engine
 - 2026-03-24 - LISA v0.0.0 hard-fork from VIJA
 - 2026-02-26 - VIJA v1.0.2
