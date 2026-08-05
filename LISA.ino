@@ -36,7 +36,8 @@
           - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and
   needed voice count
           - Sample rate: 32000 (up to 8 voice depending on the engine) / 44100
-  (up to 6 voices depending on the engine) RP2350:
+  (up to 6 voices depending on the engine)
+  RP2350:
          - Optimize: Optimize Even More (-O3)
          - Sample rate: 48000
 
@@ -73,7 +74,7 @@ static UIState ui_state = UIStateNew();
 
 // static RuntimeState runtime_state = GlobalStateNew();
 static RuntimeState runtime_state;
-static Voice voices[MAX_VOICES];
+static VoiceAllocator voices;
 
 static I2S i2s_output(OUTPUT);
 static braids::Svf global_filter;
@@ -85,13 +86,10 @@ void __not_in_flash_func(update_audio)() {
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
     bool use_streaming =
         (runtime_state.engine_idx >= braids::MACRO_OSC_SHAPE_LAST);
-    for (int v = 0; v < MAX_VOICES; v++) {
-      voices[v].osc.setLiveMode(use_streaming);
-      if (!use_streaming) {
-        braids::MacroOscillatorShape shape =
-            (braids::MacroOscillatorShape)runtime_state.engine_idx;
-        voices[v].osc.set_shape(shape);
-      }
+    if (use_streaming) {
+      voices.setLiveMode(use_streaming);
+    } else {
+      voices.setEngine((braids::MacroOscillatorShape)runtime_state.engine_idx);
     }
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
@@ -158,52 +156,10 @@ void __not_in_flash_func(update_audio)() {
   const int32_t block_gain =
       (int32_t)(runtime_state.master_volume.value * runtime_state.gain.value /
                 MAX_VOICES * 32767.0f);
-
-  for (int v = 0; v < MAX_VOICES; v++) {
-    Voice &voice = voices[v];
-
-    if (!is_active(voice.flags) && !is_sustained(voice.flags) &&
-        voice.env < 0.0001f)
-      continue;
-
-    voice.vel_smoothed += (voice.velocity - voice.vel_smoothed) * 0.25f;
-
-    float pitch = voice.pitch * 128.0f + fm_slew * 1536.0f;
-    float detune_cents = (runtime_state.unison_detune.value - 0.5f) * 100.0f;
-    if (is_secondary(voice.flags))
-      pitch += detune_cents * 1.28f;
-    voice.osc.set_pitch(pitch);
-
-    float t = constrain(runtime_state.timbre.value + timb_slew, 0.0f, 1.0f);
-    float m = constrain(runtime_state.color.value + color_slew, 0.0f, 1.0f);
-    voice.osc.set_parameters(t * 32767.0f, m * 32767.0f);
-
-    if (is_active(voice.flags) && !is_last_trig(voice.flags))
-      voice.osc.Strike();
-
-    if (is_active(voice.flags)) {
-      set_active(voice.flags);
-    } else {
-      reset_active(voice.flags);
-    }
-    voice.osc.Render(voice.sync_buffer, voice.buffer, AUDIO_BLOCK);
-
-    float envTarget =
-        (is_active(voice.flags) || is_sustained(voice.flags)) ? 1.0f : 0.0f;
-    float coef = envTarget ? attackCoef : releaseCoef;
-
-    const int32_t env_q15 = (int32_t)(voice.env * 32767.0f);
-    const int32_t vel_q15 = (int32_t)(voice.vel_smoothed * 32767.0f);
-    const int32_t amp = ((env_q15 * vel_q15) >> 15) * block_gain >> 15;
-
-    for (int i = 0; i < AUDIO_BLOCK; i++) {
-      voice.env += (envTarget - voice.env) * coef;
-      if (envTarget == 0.0f && voice.env < 0.0001f)
-        voice.env = 0.0f;
-
-      mix[i] += (voice.buffer[i] * amp) >> 15;
-    }
-  }
+  voices.renderAllVoices(mix, runtime_state.timbre.value,
+                         runtime_state.color.value, timb_slew, color_slew,
+                         fm_slew, runtime_state.unison_detune.value, attackCoef,
+                         releaseCoef, block_gain);
 
 #if USE_SCREEN
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
@@ -585,7 +541,7 @@ void loop() {
   handle_save(&runtime_state);
   handle_control(&runtime_state);
   handle_menu(&runtime_state);
-  handle_MIDI(&runtime_state, voices);
+  handle_MIDI(&runtime_state, &voices);
   // features_send(runtime_state.midi_ch);
 #if USE_SCREEN
   draw_ui(&runtime_state, &ui_state);
@@ -605,13 +561,6 @@ static inline void setup_soundcard() {
   i2s_output.begin();
 }
 
-static inline void setup_voices() {
-  for (int v = 0; v < MAX_VOICES; v++) {
-    voices[v].osc.Init(SAMPLE_RATE);
-    reset_active(voices[v].flags);
-  }
-}
-
 static inline void setup_global_filter() {
   global_filter.Init();
   global_filter.set_mode(braids::SVF_MODE_LP);
@@ -623,7 +572,6 @@ static inline void setup_global_filter() {
 void setup1() {
   setup_soundcard();
   init_global_state(&runtime_state);
-  setup_voices();
   setup_global_filter();
 }
 

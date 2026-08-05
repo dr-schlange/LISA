@@ -64,13 +64,6 @@ enum GlobalSettings {
   SETTING_EDIT_MODE,
 };
 
-enum VoiceMode {
-  VOICE_POLY,
-  VOICE_UNISON,
-  VOICE_MONO,
-  NUM_VOICE_MODE,
-};
-
 #define BASE_PARAMETER                                                         \
   bool extended;                                                               \
   volatile float value;                                                        \
@@ -208,9 +201,6 @@ struct RuntimeState {
   // MIDI controller mode
   MidiControllerMode controller_mode;
 
-  // Voice mode
-  VoiceMode voice_mode;
-
   // Parameters
   ExtParameter timbre;
   ExtParameter color;
@@ -286,8 +276,6 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->encoder = EncoderNew(ENCODER_CLK, ENCODER_DT, ENCODER_SW);
   gstate->encoder_status = NO_ACTION;
   gstate->controller_mode = CONTROLLER_BOTH;
-
-  gstate->voice_mode = VOICE_POLY;
 
   gstate->timbre = ExtParameterNew(POT_A, MIDI_TIMBRE, 0.4f);
   gstate->color = ExtParameterNew(POT_B, MIDI_COLOR, 0.3f);

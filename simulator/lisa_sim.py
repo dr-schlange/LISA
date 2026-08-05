@@ -303,6 +303,8 @@ class LisaSim(BaseLisa):
             blocksize=256,
             callback=self.audio_out,
             # device="WH-1000XM3",
+            # device=17,
+            device="casque",
             # device="Focusrite Scarlett 6i6 Pro",
         )
         self.wavetables = [Wavetable(), Wavetable(), Wavetable(), Wavetable()]

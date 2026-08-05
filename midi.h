@@ -71,7 +71,7 @@ static inline void send_all_cc_values(RuntimeState *gstate) {
                gstate->midi_ch);
 }
 
-static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
+static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   static uint8_t running_status = 0;
   static uint8_t data_bytes[2] = {0};
   static uint8_t data_idx = 0;
@@ -155,58 +155,29 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
       gstate->sustain_enabled = true;
     } else {
       gstate->sustain_enabled = false;
-      for (int i = 0; i < MAX_VOICES; i++) {
-        if (is_sustained(voices[i].flags)) {
-          reset_active(voices[i].flags);
-          reset_sustained(voices[i].flags);
-        }
-      }
+      voices->resetAllSustain();
     }
     return;
   }
 
   if (IS_MIDI_NOTE_OFF(status, cc_value)) {
-    switch (gstate->voice_mode) {
-    case VOICE_POLY:
-      free_voice_by_pitch(voices, pitch_or_cc, gstate->sustain_enabled);
-      break;
-    case VOICE_UNISON:
-      free_voice_unison(voices, pitch_or_cc, gstate->sustain_enabled);
-      break;
-    case VOICE_MONO:
-      free_voice_mono(voices, pitch_or_cc, gstate->sustain_enabled);
-      break;
-    }
+    voices->freeVoice(pitch_or_cc, gstate->sustain_enabled);
     return;
   }
 
   if (IS_MIDI_NOTE_ON(status)) {
-    switch (gstate->voice_mode) {
-    case VOICE_POLY:
-      allocate_oldest_voice(voices, pitch_or_cc, cc_value / 127.f);
-      break;
-    case VOICE_UNISON:
-      allocate_voice_unison(voices, pitch_or_cc, cc_value / 127.f);
-      break;
-    case VOICE_MONO:
-      allocate_voice_mono(voices, pitch_or_cc, cc_value / 127.f);
-      break;
-    }
+    voices->allocateVoice(pitch_or_cc, cc_value / 127.f);
     return;
   }
 
-  static VoiceMode prev_voice_mode = gstate->voice_mode;
+  // static VoiceMode prev_voice_mode = gstate->voice_mode;
   VoiceMode mode;
   uint8_t wt_mode;
   if (IS_MIDI_CC(status)) {
     switch (pitch_or_cc) {
     case MIDI_VOICE_MODE:
       mode = (VoiceMode)midi_get_group(cc_value, NUM_VOICE_MODE);
-      if (mode != prev_voice_mode) {
-        reset_all_voices(voices);
-        gstate->voice_mode = mode;
-        prev_voice_mode = mode;
-      }
+      voices->setMode(mode);
       break;
     case MIDI_GAIN:
       gstate->gain.value = cc_value / 127.f;
@@ -310,9 +281,7 @@ static inline void handle_MIDI(RuntimeState *gstate, Voice *voices) {
                                                    << 25);
       break;
     case MIDI_WT_PHASE_RESET:
-      for (uint8_t i = 0; i < MAX_VOICES; i++) {
-        voices[i].osc.reset_phase();
-      }
+      voices->resetPhases();
       break;
     case MIDI_WT_FREEZE_TABLE1:
     case MIDI_WT_FREEZE_TABLE2:
