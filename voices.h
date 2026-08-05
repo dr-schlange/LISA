@@ -48,7 +48,7 @@ class Voice {
 public:
   WavetableStreamingOscillator osc;
   uint8_t flags;
-  float pitch;
+  int16_t pitch;
   float velocity;
   float env;
   uint32_t age;
@@ -58,7 +58,7 @@ public:
     osc.Init(SAMPLE_RATE);
   }
 
-  inline void setup(float pitch_, float velocity_) {
+  inline void setup(int16_t pitch_, float velocity_) {
     pitch = pitch_;
     velocity = velocity_;
     env = 0.f;
@@ -76,9 +76,9 @@ public:
 
     vel_smoothed_ += (velocity - vel_smoothed_) * 0.25f;
 
-    float oscpitch = pitch * 128.0f + fm_slew * 1536.0f;
+    int16_t oscpitch = pitch + (int16_t)(fm_slew * 1536.0f);
     if (is_secondary(flags)) {
-      oscpitch += (unison_detune - 0.5f) * 100.0f * 1.28f;
+      oscpitch += (int16_t)((unison_detune - 0.5f) * 128.0f);
     }
     osc.set_pitch(oscpitch);
 
@@ -169,7 +169,7 @@ public:
     }
   }
 
-  inline void freeVoice(float pitch, bool sustain_enabled) {
+  inline void freeVoice(int16_t pitch, bool sustain_enabled) {
     switch (mode_) {
     case VOICE_POLY:
       freeVoiceByPitch(pitch, sustain_enabled);
@@ -178,12 +178,12 @@ public:
       freeVoiceUnison(pitch, sustain_enabled);
       break;
     case VOICE_MONO:
-      freeVoiceMono(pitch, sustain_enabled);
+      freeVoiceMono(sustain_enabled);
       break;
     }
   }
 
-  inline void allocateVoice(float pitch, float velocity) {
+  inline void allocateVoice(int16_t pitch, float velocity) {
     switch (mode_) {
     case VOICE_POLY:
       allocateOldestVoice(pitch, velocity);
@@ -207,12 +207,12 @@ private:
   Voice voices_[MAX_VOICES];
   VoiceMode mode_;
 
-  inline int findFreeVoice(float for_pitch) {
+  inline int findFreeVoice(int16_t pitch) {
     int oldest = 0;
     uint32_t old_age = voices_[0].age;
     for (int i = 0; i < MAX_VOICES; i++) {
       const Voice *voice = voices_ + i;
-      if (!is_active(voice->flags) && voice->pitch == for_pitch) {
+      if (!is_active(voice->flags) && voice->pitch == pitch) {
         return i;
       }
       if (!is_active(voice->flags) && voice->env == 0.f) {
@@ -226,14 +226,14 @@ private:
     return oldest;
   }
 
-  inline Voice *allocateOldestVoice(float pitch, float velocity) {
+  inline Voice *allocateOldestVoice(int16_t pitch, float velocity) {
     int i = findFreeVoice(pitch);
     Voice *voice = voices_ + i;
     voice->setup(pitch, velocity);
     return voice;
   }
 
-  inline void freeVoiceByPitch(float pitch, int sustain_enabled) {
+  inline void freeVoiceByPitch(int16_t pitch, int sustain_enabled) {
     int i = findVoiceByPitch(pitch);
     if (i >= 0) {
       if (sustain_enabled) {
@@ -246,16 +246,15 @@ private:
     }
   }
 
-  inline Voice *allocateVoiceUnison(float pitch, float velocity) {
+  inline Voice *allocateVoiceUnison(int16_t pitch, float velocity) {
     Voice *primary = allocateOldestVoice(pitch, velocity);
     Voice *secondary = primary + 1;
-    // setup_voice(secondary, pitch * 1.00289, velocity);
     secondary->setup(pitch, velocity);
     set_secondary(secondary->flags);
     return primary;
   }
 
-  inline void freeVoiceUnison(float pitch, int sustain_enabled) {
+  inline void freeVoiceUnison(int16_t pitch, int sustain_enabled) {
     int i = findVoiceByPitch(pitch);
     if (i >= 0) {
       Voice *primary = voices_ + i;
@@ -275,7 +274,7 @@ private:
     }
   }
 
-  inline void allocateVoiceMono(float pitch, float velocity) {
+  inline void allocateVoiceMono(int16_t pitch, float velocity) {
     static Voice *last = voices_ + (MAX_VOICES - 1);
     static Voice *head = last;
     reset_sustained(head->flags);
@@ -290,9 +289,7 @@ private:
     head->setup(pitch, velocity);
   }
 
-  inline void freeVoiceMono(float _pitch, bool sustained) {
-    // we keep pitch to be kind of polymorphic, perhaps loading later the
-    // functions in a table
+  inline void freeVoiceMono(bool sustained) {
     for (uint8_t i = 0; i < MAX_VOICES; i++) {
       if (is_active(voices_[i].flags)) {
         if (sustained) {
@@ -318,7 +315,7 @@ private:
     }
   }
 
-  inline int findVoiceByPitch(float pitch) {
+  inline int findVoiceByPitch(int16_t pitch) {
     for (int i = 0; i < MAX_VOICES; i++)
       if (is_active(voices_[i].flags) && voices_[i].pitch == pitch)
         return i;

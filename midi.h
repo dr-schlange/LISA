@@ -161,12 +161,12 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   }
 
   if (IS_MIDI_NOTE_OFF(status, cc_value)) {
-    voices->freeVoice(pitch_or_cc, gstate->sustain_enabled);
+    voices->freeVoice((int16_t)pitch_or_cc * 128, gstate->sustain_enabled);
     return;
   }
 
   if (IS_MIDI_NOTE_ON(status)) {
-    voices->allocateVoice(pitch_or_cc, cc_value / 127.f);
+    voices->allocateVoice((int16_t)pitch_or_cc * 128, cc_value / 127.f);
     return;
   }
 
