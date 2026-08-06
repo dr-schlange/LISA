@@ -114,52 +114,21 @@ void __not_in_flash_func(update_audio)() {
 
   int32_t mix[AUDIO_BLOCK] = {0};
 
-  static float fm_slew = 0.0f;
-  static float timb_slew = 0.0f;
-  static float color_slew = 0.0f;
-  static float fm_target = 0.f;
-
-  if (runtime_state.midi_enabled) {
+  float fm_target;
+  if (runtime_state.midi_enabled || !runtime_state.cv_mod1_enabled) {
     fm_target = runtime_state.fm_mod.value;
-  } else if (runtime_state.cv_mod1_enabled) {
-    fm_target = 0.0f;
-  } else if (runtime_state.filter_enabled) {
-    fm_target = 0.0f;
   } else {
-    fm_target = runtime_state.fm_mod.value;
+    fm_target = 0.0f;
   }
-
-  float timb_target = runtime_state.timbre_mod.value;
-  float color_target = runtime_state.color_mod.value;
-
-  auto apply_stable_slew = [](float &current, float target, float coefficient) {
-    float diff = target - current;
-    float abs_diff = fabsf(diff);
-
-    if (abs_diff < 0.005f) {
-      if (target == 0.0f && abs_diff < 0.01f)
-        current = 0.0f;
-      return;
-    }
-
-    if (abs_diff < 0.001f) {
-      current = target;
-    } else {
-      current += diff * coefficient;
-    }
-  };
-
-  apply_stable_slew(fm_slew, fm_target, runtime_state.fm_slew.value * 0.06f);
-  apply_stable_slew(timb_slew, timb_target, 0.01f);
-  apply_stable_slew(color_slew, color_target, 0.01f);
 
   const int32_t block_gain =
       (int32_t)(runtime_state.master_volume.value * runtime_state.gain.value /
                 MAX_VOICES * 32767.0f);
-  voices.renderAllVoices(mix, runtime_state.timbre.value,
-                         runtime_state.color.value, timb_slew, color_slew,
-                         fm_slew, runtime_state.unison_detune.value, attackCoef,
-                         releaseCoef, block_gain);
+  voices.renderAllVoices(
+      mix, runtime_state.timbre.value, runtime_state.color.value,
+      runtime_state.timbre_mod.value, runtime_state.color_mod.value, fm_target,
+      runtime_state.fm_slew.value, runtime_state.unison_detune.value,
+      attackCoef, releaseCoef, block_gain);
 
 #if USE_SCREEN
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);

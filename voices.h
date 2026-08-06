@@ -138,12 +138,15 @@ public:
   }
 
   inline void renderAllVoices(int32_t mix[AUDIO_BLOCK], float timbre,
-                              float color, float timb_slew, float color_slew,
-                              float fm_slew, float unison_detune,
-                              float attackCoef, float releaseCoef,
-                              int32_t block_gain) {
+                              float color, float timbre_mod, float color_mod,
+                              float fm_mod, float fm_slew_rate,
+                              float unison_detune, float attackCoef,
+                              float releaseCoef, int32_t block_gain) {
+    applyStableSlew(fm_slew_, fm_mod, fm_slew_rate * 0.06f);
+    applyStableSlew(timb_slew_, timbre_mod, 0.01f);
+    applyStableSlew(color_slew_, color_mod, 0.01f);
     for (int v = 0; v < MAX_VOICES; v++) {
-      voices_[v].render(mix, timbre, color, timb_slew, color_slew, fm_slew,
+      voices_[v].render(mix, timbre, color, timb_slew_, color_slew_, fm_slew_,
                         unison_detune, attackCoef, releaseCoef, block_gain);
     }
   }
@@ -206,6 +209,24 @@ public:
 private:
   Voice voices_[MAX_VOICES];
   VoiceMode mode_;
+  float fm_slew_ = 0.f;
+  float timb_slew_ = 0.f;
+  float color_slew_ = 0.f;
+
+  static inline void applyStableSlew(float &current, float target,
+                                     float coefficient) {
+    float diff = target - current;
+    float abs_diff = fabsf(diff);
+    if (abs_diff < 0.005f) {
+      if (target == 0.0f && abs_diff < 0.01f)
+        current = 0.0f;
+      return;
+    }
+    if (abs_diff < 0.001f)
+      current = target;
+    else
+      current += diff * coefficient;
+  }
 
   inline int findFreeVoice(int16_t pitch) {
     int oldest = 0;
