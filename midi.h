@@ -1,5 +1,5 @@
 /*
-   LISA (v0.2.0)
+   LISA (v0.3.0)
 
    Copyright (c) 2026 Dr Schlange
    Licensed under GNU GPLv3

@@ -1,12 +1,12 @@
 /*
-  LISA (v0.2.0)
+  LISA (v0.3.0)
 
   Copyright (c) 2026 Dr Schlange
   Licensed under GNU GPLv3
 */
 #pragma once
 
-#define LISA_VERSION "v0.2.0"
+#define LISA_VERSION "v0.3.0"
 #define SETTINGS_FILE "/lisa_settings.json"
 
 const char *const engine_names[] = {
