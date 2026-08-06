@@ -36,6 +36,8 @@
 #define is_secondary(flags) (flags & VOICE_SECONDARY)
 #define reset_secondary(flags) (flags &= ~VOICE_SECONDARY)
 
+#define ENV_EPSILON_Q15 4 // ~0.0001 * 32767
+
 enum VoiceMode {
   VOICE_POLY,
   VOICE_UNISON,
@@ -50,8 +52,8 @@ public:
   WavetableStreamingOscillator osc;
   uint8_t flags;
   int16_t pitch;
-  float velocity;
-  float env;
+  int16_t velocity;
+  int16_t env;
   uint32_t age;
 
   Voice() {
@@ -59,10 +61,10 @@ public:
     osc.Init(SAMPLE_RATE);
   }
 
-  inline void setup(int16_t pitch_, float velocity_) {
+  inline void setup(int16_t pitch_, int16_t velocity_) {
     pitch = pitch_;
     velocity = velocity_;
-    env = 0.f;
+    env = 0;
     set_active(flags);
     reset_secondary(flags);
     age = global_age++;
@@ -70,14 +72,16 @@ public:
 
   inline void render(int32_t mix[AUDIO_BLOCK], float timbre, float color,
                      float timb_slew, float color_slew, float fm_slew,
-                     float unison_detune, float attackCoef, float releaseCoef,
-                     int32_t block_gain) {
-    if (!is_active(flags) && !is_sustained(flags) && env < 0.0001f)
+                     float unison_detune, int16_t attackCoef,
+                     int16_t releaseCoef, int32_t block_gain) {
+    if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
 
-    vel_smoothed_ += (velocity - vel_smoothed_) * 0.25f;
+    // >> 2 == * 0.25
+    vel_smoothed_ += (int16_t)((int32_t)velocity - (int32_t)vel_smoothed_) >> 2;
 
-    int16_t oscpitch = pitch + (int16_t)(fm_slew * 1536.0f);
+    // 12 semitones * 128 (braids note scale unit)
+    int16_t oscpitch = pitch + (int16_t)(fm_slew * (12.f * 128.f));
     if (is_secondary(flags)) {
       oscpitch += (int16_t)((unison_detune - 0.5f) * 128.0f);
     }
@@ -97,17 +101,16 @@ public:
     }
     osc.Render(sync_buffer_, buffer_, AUDIO_BLOCK);
 
-    float envTarget = (is_active(flags) || is_sustained(flags)) ? 1.0f : 0.0f;
-    float coef = envTarget ? attackCoef : releaseCoef;
+    int16_t envTarget = (is_active(flags) || is_sustained(flags)) ? 32767 : 0;
+    int16_t coef = envTarget ? attackCoef : releaseCoef;
 
-    const int32_t env_q15 = (int32_t)(env * 32767.0f);
-    const int32_t vel_q15 = (int32_t)(vel_smoothed_ * 32767.0f);
-    const int32_t amp = ((env_q15 * vel_q15) >> 15) * block_gain >> 15;
+    const int32_t amp =
+        (((int32_t)env * (int32_t)vel_smoothed_) >> 15) * block_gain >> 15;
 
     for (int i = 0; i < AUDIO_BLOCK; i++) {
-      env += (envTarget - env) * coef;
-      if (envTarget == 0.0f && env < 0.0001f)
-        env = 0.0f;
+      env += ((int16_t)((int32_t)envTarget - (int32_t)env)) * coef >> 15;
+      if (envTarget == 0 && env < ENV_EPSILON_Q15)
+        env = 0;
 
       mix[i] += (buffer_[i] * amp) >> 15;
     }
@@ -116,14 +119,14 @@ public:
   inline void resetPhase() { osc.reset_phase(); }
 
 private:
-  float vel_smoothed_;
+  int16_t vel_smoothed_;
   int16_t buffer_[AUDIO_BLOCK];
   uint8_t sync_buffer_[AUDIO_BLOCK];
 };
 
 class VoiceAllocator {
 public:
-  VoiceAllocator() {
+  VoiceAllocator(const RuntimeState *gstate) : gstate_(gstate) {
     mode_ = VOICE_POLY;
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].osc.Init(SAMPLE_RATE);
@@ -138,8 +141,8 @@ public:
     }
   }
 
-  inline void renderAllVoices(int32_t mix[AUDIO_BLOCK],
-                              const RuntimeState *gstate) {
+  inline void renderAllVoices(int32_t mix[AUDIO_BLOCK]) {
+    const RuntimeState *gstate = gstate_;
     const int32_t block_gain =
         (int32_t)(gstate->master_volume.value * gstate->gain.value /
                   MAX_VOICES * 32767.0f);
@@ -147,12 +150,14 @@ public:
     float rel_knob = gstate->env_release.value;
     if (atk_knob != last_atk_) {
       float atk = 0.001f * powf(2000.f, atk_knob);
-      attackCoef_ = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
+      attackCoef_ =
+          (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * atk))) * 32767.f);
       last_atk_ = atk_knob;
     }
     if (rel_knob != last_rel_) {
       float rel = 0.005f * powf(1000.f, rel_knob);
-      releaseCoef_ = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
+      releaseCoef_ =
+          (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * rel))) * 32767.f);
       last_rel_ = rel_knob;
     }
     float fm_mod = (gstate->midi_enabled || !gstate->cv_mod1_enabled)
@@ -204,7 +209,7 @@ public:
     }
   }
 
-  inline void allocateVoice(int16_t pitch, float velocity) {
+  inline void allocateVoice(int16_t pitch, int16_t velocity) {
     switch (mode_) {
     case VOICE_POLY:
       allocateOldestVoice(pitch, velocity);
@@ -225,13 +230,14 @@ public:
   }
 
 private:
+  const RuntimeState *gstate_;
   Voice voices_[MAX_VOICES];
   VoiceMode mode_;
   float fm_slew_ = 0.f;
   float timb_slew_ = 0.f;
   float color_slew_ = 0.f;
-  float attackCoef_ = 0.f;
-  float releaseCoef_ = 0.f;
+  int16_t attackCoef_ = 0;
+  int16_t releaseCoef_ = 0;
   float last_atk_ = -1.f;
   float last_rel_ = -1.f;
 
@@ -258,7 +264,7 @@ private:
       if (!is_active(voice->flags) && voice->pitch == pitch) {
         return i;
       }
-      if (!is_active(voice->flags) && voice->env == 0.f) {
+      if (!is_active(voice->flags) && voice->env == 0) {
         return i;
       }
       if (voice->age < old_age) {
@@ -269,7 +275,7 @@ private:
     return oldest;
   }
 
-  inline Voice *allocateOldestVoice(int16_t pitch, float velocity) {
+  inline Voice *allocateOldestVoice(int16_t pitch, int16_t velocity) {
     int i = findFreeVoice(pitch);
     Voice *voice = voices_ + i;
     voice->setup(pitch, velocity);
@@ -289,7 +295,7 @@ private:
     }
   }
 
-  inline Voice *allocateVoiceUnison(int16_t pitch, float velocity) {
+  inline Voice *allocateVoiceUnison(int16_t pitch, int16_t velocity) {
     Voice *primary = allocateOldestVoice(pitch, velocity);
     Voice *secondary = primary + 1;
     secondary->setup(pitch, velocity);
@@ -317,7 +323,7 @@ private:
     }
   }
 
-  inline void allocateVoiceMono(int16_t pitch, float velocity) {
+  inline void allocateVoiceMono(int16_t pitch, int16_t velocity) {
     static Voice *last = voices_ + (MAX_VOICES - 1);
     static Voice *head = last;
     reset_sustained(head->flags);
@@ -354,7 +360,7 @@ private:
       reset_sustained(voice.flags);
       reset_last_trig(voice.flags);
       reset_secondary(voice.flags);
-      voice.env = 0.f;
+      voice.env = 0;
     }
   }
 

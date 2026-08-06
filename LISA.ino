@@ -74,7 +74,7 @@ static UIState ui_state = UIStateNew();
 
 // static RuntimeState runtime_state = GlobalStateNew();
 static RuntimeState runtime_state;
-static VoiceAllocator voices;
+static VoiceAllocator voices(&runtime_state);
 
 static I2S i2s_output(OUTPUT);
 static braids::Svf global_filter;
@@ -96,7 +96,7 @@ void __not_in_flash_func(update_audio)() {
 
   int32_t mix[AUDIO_BLOCK] = {0};
 
-  voices.renderAllVoices(mix, &runtime_state);
+  voices.renderAllVoices(mix);
 
 #if USE_SCREEN
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
