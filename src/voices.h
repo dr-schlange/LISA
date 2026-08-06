@@ -135,13 +135,13 @@ public:
     int16_t envTarget = (is_active(flags) || is_sustained(flags)) ? 32767 : 0;
     int16_t coef = envTarget ? attackCoef : releaseCoef;
 
-    const int32_t amp =
-        (((int32_t)env * (int32_t)vel_smoothed_) >> 15) * block_gain >> 15;
-
     for (int i = 0; i < AUDIO_BLOCK; i++) {
       env += ((int16_t)((int32_t)envTarget - (int32_t)env)) * coef >> 15;
       if (envTarget == 0 && env < ENV_EPSILON_Q15)
         env = 0;
+
+      const int32_t amp =
+          (((int32_t)env * (int32_t)vel_smoothed_) >> 15) * block_gain >> 15;
 
       const int32_t dry_sample = buffer_[i];
       const int32_t wet_sample = filter_.Process(dry_sample);

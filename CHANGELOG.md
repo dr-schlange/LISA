@@ -8,6 +8,8 @@
 - Convert most of the operation in the audio loop to q15 while introducing a VoiceAllocator and Voice class
 - Change project main structure (.h files in a dedicated src/ folder)
 - Possibility to pass up to 8 voices at sample rate 48000 (up to 4 voices at 96000)
+- The amp is now computed per sample
+- Each voice gets its own filter
 
 ### Fixes
 
