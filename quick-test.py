@@ -458,6 +458,8 @@ def test14(lisa, lfo1, lfo2):
     print("* Reset wavetables...")
     lisa.wavetable.reset_all_wt = "ON"
     lisa.wavetable.reset_all_wt = "OFF"
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.stream_table1 = lfo1.scale()
 
     print("* Create a slow LFO for panning")
     lfo = LFO(speed=0.5)

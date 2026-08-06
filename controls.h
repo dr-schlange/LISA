@@ -40,15 +40,14 @@ static inline void set_parameter_(Parameter *param, volatile float val,
   }
 }
 
-static inline uint8_t peek_pot_quantized(Parameter *param,
+static inline uint8_t peek_pot_quantized(Parameter *param, float raw_value,
                                          float smoothing_factor) {
   if (param == NULL) {
     return 0;
   }
-  float new_value = analogRead(param->gpio) / 1023.f;
 
   // smoothing the noise
-  param->smoothed += (new_value - param->smoothed) * smoothing_factor;
+  param->smoothed += (raw_value - param->smoothed) * smoothing_factor;
   if (param->smoothed > 0.999f)
     param->smoothed = 1.0f;
   if (param->smoothed < 0.001f)
@@ -61,13 +60,14 @@ static inline uint8_t peek_pot_quantized(Parameter *param,
 #define CLOSENESS 0.01f
 
 static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate,
+                                        float raw_value,
                                         float smoothing_factor) {
   if (param == NULL) {
     return;
   }
 
   // quantizing for comparison
-  uint8_t quantized = peek_pot_quantized(param, smoothing_factor);
+  uint8_t quantized = peek_pot_quantized(param, raw_value, smoothing_factor);
   if (quantized != param->last_value) {
     if (param->screen_locked && param->resolution_mode == RES_RAW) {
       return;
@@ -265,17 +265,17 @@ void handle_control(RuntimeState *gstate) {
     SCHEDULE_REFRESH(gstate);
 
   } else if (gstate->midi_enabled) {
-    handle_pot_parameter(gstate->A, gstate, p1_smooth_pot);
-    handle_pot_parameter(gstate->B, gstate, p2_smooth_pot);
+    handle_pot_parameter(gstate->A, gstate, rT, p1_smooth_pot);
+    handle_pot_parameter(gstate->B, gstate, rC, p2_smooth_pot);
   }
 
   if (gstate->C) {
-    handle_pot_parameter(gstate->C, gstate, p3_smooth_pot);
+    handle_pot_parameter(gstate->C, gstate, srcT, p3_smooth_pot);
   }
 
   if (gstate->filter_enabled) {
 #if HAS_4_POTS
-    handle_pot_parameter(&(gstate->resonance), gstate, 0.15f);
+    handle_pot_parameter(&(gstate->resonance), gstate, rC, 0.15f);
 #endif
   }
 
