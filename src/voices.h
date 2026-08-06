@@ -9,6 +9,7 @@
 #pragma once
 // clang-format off
 #include <pico/stdlib.h>
+#include <pico/util/queue.h>
 #include <BRAIDS.h>
 #include "constants_config.h"
 #include "wavetable_streaming.h"
@@ -49,6 +50,24 @@ enum VoiceMode {
   NUM_VOICE_MODE,
 };
 
+enum VoiceCommandType : uint8_t {
+  CMD_NOTE_ON,
+  CMD_NOTE_OFF,
+  CMD_SET_MODE,
+  CMD_RESET_ALL_SUSTAIN,
+  CMD_RESET_PHASES,
+};
+
+struct VoiceCommand {
+  VoiceCommandType type;
+  int16_t pitch;        // NOTE_ON / NOTE_OFF
+  int16_t velocity;     // NOTE_ON
+  bool sustain_enabled; // NOTE_OFF
+  VoiceMode mode;       // SET_MODE
+};
+
+#define VOICE_CMD_QUEUE_DEPTH 32
+
 static uint32_t global_age = 0;
 
 class Voice {
@@ -62,6 +81,8 @@ public:
 
   Voice() {
     flags = 0b00000000;
+    env = 0;
+    vel_smoothed_ = 0;
     osc.Init(SAMPLE_RATE);
     filter_.Init();
   }
@@ -69,7 +90,6 @@ public:
   inline void setup(int16_t pitch_, int16_t velocity_) {
     pitch = pitch_;
     velocity = velocity_;
-    env = 0;
     set_active(flags);
     reset_secondary(flags);
     age = global_age++;
@@ -78,10 +98,9 @@ public:
   inline void render(int32_t mix[AUDIO_BLOCK], int16_t timbre, int16_t color,
                      int16_t timb_slew, int16_t color_slew, int16_t fm_slew,
                      float unison_detune, int16_t attackCoef,
-                     int16_t releaseCoef, int32_t block_gain,
-                     int32_t cut_slew, int32_t res_slew,
-                     braids::SvfMode filter_type, int32_t dry_scale,
-                     int32_t wet_scale) {
+                     int16_t releaseCoef, int32_t block_gain, int32_t cut_slew,
+                     int32_t res_slew, braids::SvfMode filter_type,
+                     int32_t dry_scale, int32_t wet_scale) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
 
@@ -126,8 +145,8 @@ public:
 
       const int32_t dry_sample = buffer_[i];
       const int32_t wet_sample = filter_.Process(dry_sample);
-      const int32_t filtered = ((dry_sample * dry_scale) >> 15) +
-                               ((wet_sample * wet_scale) >> 15);
+      const int32_t filtered =
+          ((dry_sample * dry_scale) >> 15) + ((wet_sample * wet_scale) >> 15);
 
       mix[i] += (filtered * amp) >> 15;
     }
@@ -150,16 +169,40 @@ public:
       voices_[v].osc.Init(SAMPLE_RATE);
       reset_active(voices_[v].flags);
     }
+    queue_init(&cmd_queue_, sizeof(VoiceCommand), VOICE_CMD_QUEUE_DEPTH);
   }
 
-  inline void setMode(VoiceMode mode) {
-    if (mode_ != mode) {
-      mode_ = mode;
-      resetAllVoices();
-    }
+  inline void enqueueNoteOn(int16_t pitch, int16_t velocity) {
+    VoiceCommand cmd{CMD_NOTE_ON, pitch, velocity, false, VOICE_POLY};
+    queue_try_add(&cmd_queue_, &cmd);
+  }
+
+  inline void enqueueNoteOff(int16_t pitch, bool sustain_enabled) {
+    VoiceCommand cmd{CMD_NOTE_OFF, pitch, 0, sustain_enabled, VOICE_POLY};
+    queue_try_add(&cmd_queue_, &cmd);
+  }
+
+  inline void enqueueSetMode(VoiceMode mode) {
+    VoiceCommand cmd{CMD_SET_MODE, 0, 0, false, mode};
+    queue_try_add(&cmd_queue_, &cmd);
+  }
+
+  inline void enqueueResetAllSustain() {
+    VoiceCommand cmd{CMD_RESET_ALL_SUSTAIN, 0, 0, false, VOICE_POLY};
+    queue_try_add(&cmd_queue_, &cmd);
+  }
+
+  inline void enqueueResetPhases() {
+    VoiceCommand cmd{CMD_RESET_PHASES, 0, 0, false, VOICE_POLY};
+    queue_try_add(&cmd_queue_, &cmd);
   }
 
   inline void renderAllVoices(int32_t mix[AUDIO_BLOCK]) {
+    VoiceCommand cmd;
+    while (queue_try_remove(&cmd_queue_, &cmd)) {
+      applyCommand(cmd);
+    }
+
     const RuntimeState *gstate = gstate_;
     const int32_t block_gain =
         (int32_t)(gstate->master_volume.value * gstate->gain.value /
@@ -199,8 +242,8 @@ public:
     mix_slew_ += ((mix_t - mix_slew_) * 327) >> 15; // 327 = 0.01f * 32767
 
     if (gstate->filter_type.value != last_filter_type_knob_) {
-      filter_type_ = (braids::SvfMode)midi_get_group(
-          gstate->filter_type.value * 127.f, 3);
+      filter_type_ =
+          (braids::SvfMode)midi_get_group(gstate->filter_type.value * 127.f, 3);
       last_filter_type_knob_ = gstate->filter_type.value;
     }
 
@@ -224,6 +267,51 @@ public:
   inline void setEngine(braids::MacroOscillatorShape shape) {
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].osc.set_shape(shape);
+    }
+  }
+
+private:
+  const RuntimeState *gstate_;
+  Voice voices_[MAX_VOICES];
+  VoiceMode mode_;
+  queue_t cmd_queue_;
+  int16_t fm_slew_ = 0;
+  int16_t timb_slew_ = 0;
+  int16_t color_slew_ = 0;
+  int16_t attackCoef_ = 0;
+  int16_t releaseCoef_ = 0;
+  float last_atk_ = -1.f;
+  float last_rel_ = -1.f;
+  int32_t cut_slew_ = 0;
+  int32_t res_slew_ = 0;
+  int32_t mix_slew_ = 0;
+  braids::SvfMode filter_type_ = braids::SVF_MODE_LP;
+  float last_filter_type_knob_ = -1.f;
+
+  inline void applyCommand(const VoiceCommand &cmd) {
+    switch (cmd.type) {
+    case CMD_NOTE_ON:
+      allocateVoice(cmd.pitch, cmd.velocity);
+      break;
+    case CMD_NOTE_OFF:
+      freeVoice(cmd.pitch, cmd.sustain_enabled);
+      break;
+    case CMD_SET_MODE:
+      setMode(cmd.mode);
+      break;
+    case CMD_RESET_ALL_SUSTAIN:
+      resetAllSustain();
+      break;
+    case CMD_RESET_PHASES:
+      resetPhases();
+      break;
+    }
+  }
+
+  inline void setMode(VoiceMode mode) {
+    if (mode_ != mode) {
+      mode_ = mode;
+      resetAllVoices();
     }
   }
 
@@ -269,23 +357,6 @@ public:
       voices_[i].resetPhase();
     }
   }
-
-private:
-  const RuntimeState *gstate_;
-  Voice voices_[MAX_VOICES];
-  VoiceMode mode_;
-  int16_t fm_slew_ = 0;
-  int16_t timb_slew_ = 0;
-  int16_t color_slew_ = 0;
-  int16_t attackCoef_ = 0;
-  int16_t releaseCoef_ = 0;
-  float last_atk_ = -1.f;
-  float last_rel_ = -1.f;
-  int32_t cut_slew_ = 0;
-  int32_t res_slew_ = 0;
-  int32_t mix_slew_ = 0;
-  braids::SvfMode filter_type_ = braids::SVF_MODE_LP;
-  float last_filter_type_knob_ = -1.f;
 
   static inline void applyStableSlew(int16_t &current, int16_t target,
                                      int16_t coefficient) {

@@ -148,18 +148,18 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
       gstate->sustain_enabled = true;
     } else {
       gstate->sustain_enabled = false;
-      voices->resetAllSustain();
+      voices->enqueueResetAllSustain();
     }
     return;
   }
 
   if (IS_MIDI_NOTE_OFF(status, cc_value)) {
-    voices->freeVoice((int16_t)pitch_or_cc * 128, gstate->sustain_enabled);
+    voices->enqueueNoteOff((int16_t)pitch_or_cc * 128, gstate->sustain_enabled);
     return;
   }
 
   if (IS_MIDI_NOTE_ON(status)) {
-    voices->allocateVoice((int16_t)pitch_or_cc * 128,
+    voices->enqueueNoteOn((int16_t)pitch_or_cc * 128,
                           (int16_t)((uint32_t)cc_value * 32767 / 127));
     return;
   }
@@ -171,7 +171,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
     switch (pitch_or_cc) {
     case MIDI_VOICE_MODE:
       mode = (VoiceMode)midi_get_group(cc_value, NUM_VOICE_MODE);
-      voices->setMode(mode);
+      voices->enqueueSetMode(mode);
       break;
     case MIDI_GAIN:
       gstate->gain.value = cc_value / 127.f;
@@ -275,7 +275,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
                                                    << 25);
       break;
     case MIDI_WT_PHASE_RESET:
-      voices->resetPhases();
+      voices->enqueueResetPhases();
       break;
     case MIDI_WT_FREEZE_TABLE1:
     case MIDI_WT_FREEZE_TABLE2:
