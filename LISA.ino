@@ -35,8 +35,8 @@
   RP2040: - Optimize: Optimize Even More (-O3)
           - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and
   needed voice count
-          - Sample rate: 32000 (up to 8 voice depending on the engine) / 44100
-  (up to 6 voices depending on the engine)
+          - Sample rate: 32000 (up to 8 voice depending on the engine)
+                         44100 (up to 8 voices depending on the engine)
   RP2350:
          - Optimize: Optimize Even More (-O3)
          - Sample rate: 48000
@@ -77,8 +77,6 @@ static RuntimeState runtime_state;
 static VoiceAllocator voices(&runtime_state);
 
 static I2S i2s_output(OUTPUT);
-static braids::Svf global_filter;
-static braids::SvfMode previous_filter_mode;
 
 // Audio engine
 void __not_in_flash_func(update_audio)() {
@@ -103,37 +101,6 @@ void __not_in_flash_func(update_audio)() {
 #endif
   // features_compute_peak(mix, AUDIO_BLOCK);
 
-  static int32_t cut_slew = 0, res_slew = 0, mix_slew = 0;
-
-  const int32_t cut_t = (int32_t)(runtime_state.cutoff.value * 32767.f);
-  const int32_t res_t = (int32_t)(runtime_state.resonance.value * 32767.f);
-  const int32_t mix_t = runtime_state.filter_enabled
-                            ? 32767
-                            : 0; // 32767 stands for 1: ((1 << 15) - 1)
-
-  cut_slew +=
-      ((cut_t - cut_slew) * 1638) >> 15; // 1638 =  (int32_t)(0.05f * 32767.f)
-  res_slew += ((res_t - res_slew) * 1638) >> 15;
-  mix_slew +=
-      ((mix_t - mix_slew) * 327) >> 15; // 327 =  (int32_t)(0.01f * 32767.f)
-
-  global_filter.set_frequency((uint16_t)cut_slew);
-  global_filter.set_resonance((uint16_t)res_slew);
-
-  static float last_filter_type_knob = -1.f;
-  if (runtime_state.filter_type.value != last_filter_type_knob) {
-    braids::SvfMode filter_type = (braids::SvfMode)midi_get_group(
-        runtime_state.filter_type.value * 127.f, 3);
-    if (filter_type != previous_filter_mode) {
-      global_filter.set_mode(filter_type);
-      previous_filter_mode = filter_type;
-    }
-    last_filter_type_knob = runtime_state.filter_type.value;
-  }
-
-  const int32_t dry_scale = 32767 - mix_slew;
-  const int32_t wet_scale = mix_slew;
-
   static int32_t pan_slew = (int32_t)(runtime_state.panning.value * 32767.f);
   const int32_t pan_t = (int32_t)(runtime_state.panning.value * 32767.f);
   pan_slew +=
@@ -141,11 +108,7 @@ void __not_in_flash_func(update_audio)() {
   const uint8_t idx = (uint8_t)((pan_slew * 63) >> 15);
 
   for (int i = 0; i < AUDIO_BLOCK; i++) {
-    int32_t dry_int = mix[i];
-    int16_t wet_filter = global_filter.Process(dry_int);
-    int32_t mixed_signal =
-        ((dry_int * dry_scale) >> 15) + ((wet_filter * wet_scale) >> 15);
-    int16_t s = constrain(mixed_signal, -32767, 32767);
+    int16_t s = constrain(mix[i], -32767, 32767);
     int16_t s_left = (int16_t)(((int32_t)s * braids::wav_sine[64 - idx]) >> 15);
     int16_t s_right = (int16_t)(((int32_t)s * braids::wav_sine[idx]) >> 15);
     i2s_output.write16(s_left, s_right);
@@ -504,18 +467,9 @@ static inline void setup_soundcard() {
   i2s_output.begin();
 }
 
-static inline void setup_global_filter() {
-  global_filter.Init();
-  global_filter.set_mode(braids::SVF_MODE_LP);
-  global_filter.set_frequency(INIT_CUTOFF);
-  global_filter.set_resonance(INIT_RESONANCE);
-  previous_filter_mode = braids::SVF_MODE_LP;
-}
-
 void setup1() {
   setup_soundcard();
   init_global_state(&runtime_state);
-  setup_global_filter();
 }
 
 void loop1() {

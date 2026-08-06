@@ -32,13 +32,6 @@ static inline void setup_USB() {
   usb_midi.begin();
 }
 
-static inline uint8_t midi_get_group(uint8_t value, uint8_t ngroup) {
-  uint8_t group_size = 128 / ngroup;
-  uint8_t g = value / group_size;
-
-  return (g >= ngroup) ? (ngroup - 1) : g;
-}
-
 static inline uint8_t norm_get_group(float value, uint8_t ngroup) {
   int g = (int)(value * ngroup);
   return (g >= ngroup) ? (ngroup - 1) : g;

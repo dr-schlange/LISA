@@ -18,6 +18,13 @@ const char *const engine_names[] = {
     "PRTC", "QPSK",  "????",  "LIVE"};
 constexpr int NUM_ENGINES = sizeof(engine_names) / sizeof(engine_names[0]);
 
+static inline uint8_t midi_get_group(uint8_t value, uint8_t ngroup) {
+  uint8_t group_size = 128 / ngroup;
+  uint8_t g = value / group_size;
+
+  return (g >= ngroup) ? (ngroup - 1) : g;
+}
+
 const char *const modes[] = {
     "normal",
     "kinetic",
@@ -104,10 +111,6 @@ const char *const modes[] = {
 // I2S Config
 #define I2S_DATA_PIN 9
 #define I2S_BCLK_PIN 10
-
-// Init values for some parameters
-#define INIT_CUTOFF (32767 / 4)
-#define INIT_RESONANCE (32767 / 2)
 
 // -----------
 // GPIO config

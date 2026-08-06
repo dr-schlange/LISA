@@ -63,6 +63,7 @@ public:
   Voice() {
     flags = 0b00000000;
     osc.Init(SAMPLE_RATE);
+    filter_.Init();
   }
 
   inline void setup(int16_t pitch_, int16_t velocity_) {
@@ -77,9 +78,16 @@ public:
   inline void render(int32_t mix[AUDIO_BLOCK], int16_t timbre, int16_t color,
                      int16_t timb_slew, int16_t color_slew, int16_t fm_slew,
                      float unison_detune, int16_t attackCoef,
-                     int16_t releaseCoef, int32_t block_gain) {
+                     int16_t releaseCoef, int32_t block_gain,
+                     int32_t cut_slew, int32_t res_slew,
+                     braids::SvfMode filter_type, int32_t dry_scale,
+                     int32_t wet_scale) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
+
+    filter_.set_frequency((int16_t)cut_slew);
+    filter_.set_resonance((int16_t)res_slew);
+    filter_.set_mode(filter_type);
 
     // >> 2 == * 0.25
     vel_smoothed_ += (int16_t)((int32_t)velocity - (int32_t)vel_smoothed_) >> 2;
@@ -116,13 +124,19 @@ public:
       if (envTarget == 0 && env < ENV_EPSILON_Q15)
         env = 0;
 
-      mix[i] += (buffer_[i] * amp) >> 15;
+      const int32_t dry_sample = buffer_[i];
+      const int32_t wet_sample = filter_.Process(dry_sample);
+      const int32_t filtered = ((dry_sample * dry_scale) >> 15) +
+                               ((wet_sample * wet_scale) >> 15);
+
+      mix[i] += (filtered * amp) >> 15;
     }
   }
 
   inline void resetPhase() { osc.reset_phase(); }
 
 private:
+  braids::Svf filter_;
   int16_t vel_smoothed_;
   int16_t buffer_[AUDIO_BLOCK];
   uint8_t sync_buffer_[AUDIO_BLOCK];
@@ -175,10 +189,29 @@ public:
                     TIMB_COLOR_SLEW_COEF_Q15);
     int16_t timb_q15 = (int16_t)(gstate->timbre.value * 32767.f);
     int16_t col_q15 = (int16_t)(gstate->color.value * 32767.f);
+
+    const int32_t cut_t = (int32_t)(gstate->cutoff.value * 32767.f);
+    const int32_t res_t = (int32_t)(gstate->resonance.value * 32767.f);
+    const int32_t mix_t = gstate->filter_enabled ? 32767 : 0;
+
+    cut_slew_ += ((cut_t - cut_slew_) * 1638) >> 15; // 1638 = 0.05f * 32767
+    res_slew_ += ((res_t - res_slew_) * 1638) >> 15;
+    mix_slew_ += ((mix_t - mix_slew_) * 327) >> 15; // 327 = 0.01f * 32767
+
+    if (gstate->filter_type.value != last_filter_type_knob_) {
+      filter_type_ = (braids::SvfMode)midi_get_group(
+          gstate->filter_type.value * 127.f, 3);
+      last_filter_type_knob_ = gstate->filter_type.value;
+    }
+
+    const int32_t dry_scale = 32767 - mix_slew_;
+    const int32_t wet_scale = mix_slew_;
+
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].render(mix, timb_q15, col_q15, timb_slew_, color_slew_,
                         fm_slew_, gstate->unison_detune.value, attackCoef_,
-                        releaseCoef_, block_gain);
+                        releaseCoef_, block_gain, cut_slew_, res_slew_,
+                        filter_type_, dry_scale, wet_scale);
     }
   }
 
@@ -248,6 +281,11 @@ private:
   int16_t releaseCoef_ = 0;
   float last_atk_ = -1.f;
   float last_rel_ = -1.f;
+  int32_t cut_slew_ = 0;
+  int32_t res_slew_ = 0;
+  int32_t mix_slew_ = 0;
+  braids::SvfMode filter_type_ = braids::SVF_MODE_LP;
+  float last_filter_type_knob_ = -1.f;
 
   static inline void applyStableSlew(int16_t &current, int16_t target,
                                      int16_t coefficient) {
