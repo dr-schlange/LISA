@@ -120,11 +120,15 @@ void __not_in_flash_func(update_audio)() {
   global_filter.set_frequency((uint16_t)cut_slew);
   global_filter.set_resonance((uint16_t)res_slew);
 
-  braids::SvfMode filter_type = (braids::SvfMode)midi_get_group(
-      runtime_state.filter_type.value * 127.f, 3);
-  if (filter_type != previous_filter_mode) {
-    global_filter.set_mode(filter_type);
-    previous_filter_mode = filter_type;
+  static float last_filter_type_knob = -1.f;
+  if (runtime_state.filter_type.value != last_filter_type_knob) {
+    braids::SvfMode filter_type = (braids::SvfMode)midi_get_group(
+        runtime_state.filter_type.value * 127.f, 3);
+    if (filter_type != previous_filter_mode) {
+      global_filter.set_mode(filter_type);
+      previous_filter_mode = filter_type;
+    }
+    last_filter_type_knob = runtime_state.filter_type.value;
   }
 
   const int32_t dry_scale = 32767 - mix_slew;
