@@ -36,7 +36,11 @@
 #define is_secondary(flags) (flags & VOICE_SECONDARY)
 #define reset_secondary(flags) (flags &= ~VOICE_SECONDARY)
 
-#define ENV_EPSILON_Q15 4 // ~0.0001 * 32767
+#define ENV_EPSILON_Q15 4            // ~0.0001 * 32767
+#define ABS_SLEW_EPSILON_Q15 164     // ~0.005 * 32767
+#define ABS_DIFF_EPSILON_Q15 328     // ~0.01 * 32767
+#define ABS_DIFF2_EPSILON_Q15 33     // ~0.001 * 32767
+#define TIMB_COLOR_SLEW_COEF_Q15 328 // ~0.01 * 32767
 
 enum VoiceMode {
   VOICE_POLY,
@@ -70,8 +74,8 @@ public:
     age = global_age++;
   }
 
-  inline void render(int32_t mix[AUDIO_BLOCK], float timbre, float color,
-                     float timb_slew, float color_slew, float fm_slew,
+  inline void render(int32_t mix[AUDIO_BLOCK], int16_t timbre, int16_t color,
+                     int16_t timb_slew, int16_t color_slew, int16_t fm_slew,
                      float unison_detune, int16_t attackCoef,
                      int16_t releaseCoef, int32_t block_gain) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
@@ -81,15 +85,15 @@ public:
     vel_smoothed_ += (int16_t)((int32_t)velocity - (int32_t)vel_smoothed_) >> 2;
 
     // 12 semitones * 128 (braids note scale unit)
-    int16_t oscpitch = pitch + (int16_t)(fm_slew * (12.f * 128.f));
+    int16_t oscpitch = pitch + (int16_t)(((int32_t)fm_slew * 12 * 128) >> 15);
     if (is_secondary(flags)) {
       oscpitch += (int16_t)((unison_detune - 0.5f) * 128.0f);
     }
     osc.set_pitch(oscpitch);
 
-    float t = constrain(timbre + timb_slew, 0.0f, 1.0f);
-    float m = constrain(color + color_slew, 0.0f, 1.0f);
-    osc.set_parameters(t * 32767.0f, m * 32767.0f);
+    int32_t t = constrain((int32_t)timbre + (int32_t)timb_slew, 0, 32767);
+    int32_t m = constrain((int32_t)color + (int32_t)color_slew, 0, 32767);
+    osc.set_parameters((int16_t)t, (int16_t)m);
 
     if (is_active(flags) && !is_last_trig(flags))
       osc.Strike();
@@ -160,17 +164,21 @@ public:
           (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * rel))) * 32767.f);
       last_rel_ = rel_knob;
     }
-    float fm_mod = (gstate->midi_enabled || !gstate->cv_mod1_enabled)
-                       ? gstate->fm_mod.value
-                       : 0.0f;
-    applyStableSlew(fm_slew_, fm_mod, gstate->fm_slew.value * 0.06f);
-    applyStableSlew(timb_slew_, gstate->timbre_mod.value, 0.01f);
-    applyStableSlew(color_slew_, gstate->color_mod.value, 0.01f);
+    int16_t fm_mod = (gstate->midi_enabled || !gstate->cv_mod1_enabled)
+                         ? (int16_t)(gstate->fm_mod.value * 32767.f)
+                         : 0;
+    applyStableSlew(fm_slew_, fm_mod,
+                    (int16_t)(gstate->fm_slew.value * 0.06f * 32767.f));
+    applyStableSlew(timb_slew_, (int16_t)(gstate->timbre_mod.value * 32767.f),
+                    TIMB_COLOR_SLEW_COEF_Q15);
+    applyStableSlew(color_slew_, (int16_t)(gstate->color_mod.value * 32767.f),
+                    TIMB_COLOR_SLEW_COEF_Q15);
+    int16_t timb_q15 = (int16_t)(gstate->timbre.value * 32767.f);
+    int16_t col_q15 = (int16_t)(gstate->color.value * 32767.f);
     for (int v = 0; v < MAX_VOICES; v++) {
-      voices_[v].render(mix, gstate->timbre.value, gstate->color.value,
-                        timb_slew_, color_slew_, fm_slew_,
-                        gstate->unison_detune.value, attackCoef_, releaseCoef_,
-                        block_gain);
+      voices_[v].render(mix, timb_q15, col_q15, timb_slew_, color_slew_,
+                        fm_slew_, gstate->unison_detune.value, attackCoef_,
+                        releaseCoef_, block_gain);
     }
   }
 
@@ -233,27 +241,27 @@ private:
   const RuntimeState *gstate_;
   Voice voices_[MAX_VOICES];
   VoiceMode mode_;
-  float fm_slew_ = 0.f;
-  float timb_slew_ = 0.f;
-  float color_slew_ = 0.f;
+  int16_t fm_slew_ = 0;
+  int16_t timb_slew_ = 0;
+  int16_t color_slew_ = 0;
   int16_t attackCoef_ = 0;
   int16_t releaseCoef_ = 0;
   float last_atk_ = -1.f;
   float last_rel_ = -1.f;
 
-  static inline void applyStableSlew(float &current, float target,
-                                     float coefficient) {
-    float diff = target - current;
-    float abs_diff = fabsf(diff);
-    if (abs_diff < 0.005f) {
-      if (target == 0.0f && abs_diff < 0.01f)
-        current = 0.0f;
+  static inline void applyStableSlew(int16_t &current, int16_t target,
+                                     int16_t coefficient) {
+    int16_t diff = (int16_t)((int32_t)target - (int32_t)current);
+    int16_t abs_diff = abs(diff);
+    if (abs_diff < ABS_SLEW_EPSILON_Q15) {
+      if (target == 0 && abs_diff < ABS_DIFF_EPSILON_Q15)
+        current = 0;
       return;
     }
-    if (abs_diff < 0.001f)
+    if (abs_diff < ABS_DIFF2_EPSILON_Q15)
       current = target;
     else
-      current += diff * coefficient;
+      current += (int16_t)(((int32_t)diff * (int32_t)coefficient) >> 15);
   }
 
   inline int findFreeVoice(int16_t pitch) {
