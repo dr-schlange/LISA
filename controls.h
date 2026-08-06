@@ -99,9 +99,9 @@ static inline void handle_pot_parameter(Parameter *param, RuntimeState *gstate,
       midi_cc_forward_(((ExtParameter *)param)->midi_cc, quantized,
                        gstate->midi_ch, mode);
     }
-  }
 
-  SCHEDULE_REFRESH(gstate);
+    SCHEDULE_REFRESH(gstate);
+  }
 }
 
 static inline void update_kinetic_physics(RuntimeState *gstate,
@@ -195,11 +195,14 @@ void handle_control(RuntimeState *gstate) {
 #endif
 
   if (!gstate->midi_enabled) {
-    gstate->timbre.locked = false;
-    gstate->color.locked = false;
-    gstate->cutoff.locked = false;
-    gstate->resonance.locked = false;
-    SCHEDULE_REFRESH(gstate);
+    if (gstate->timbre.locked || gstate->color.locked ||
+        gstate->cutoff.locked || gstate->resonance.locked) {
+      gstate->timbre.locked = false;
+      gstate->color.locked = false;
+      gstate->cutoff.locked = false;
+      gstate->resonance.locked = false;
+      SCHEDULE_REFRESH(gstate);
+    }
   }
 
   if (gstate->display_state == GLOBAL_SETTINGS &&
@@ -264,19 +267,16 @@ void handle_control(RuntimeState *gstate) {
   } else if (gstate->midi_enabled) {
     handle_pot_parameter(gstate->A, gstate, p1_smooth_pot);
     handle_pot_parameter(gstate->B, gstate, p2_smooth_pot);
-    SCHEDULE_REFRESH(gstate);
   }
 
   if (gstate->C) {
     handle_pot_parameter(gstate->C, gstate, p3_smooth_pot);
-    SCHEDULE_REFRESH(gstate);
   }
 
   if (gstate->filter_enabled) {
 #if HAS_4_POTS
     handle_pot_parameter(&(gstate->resonance), gstate, 0.15f);
 #endif
-    SCHEDULE_REFRESH(gstate);
   }
 
   else if (gstate->cv_mod2_enabled) {

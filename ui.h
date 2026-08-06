@@ -20,12 +20,14 @@
 #include <Adafruit_SSD1306.h>
 #define SCREEN_WHITE SSD1306_WHITE
 #define SCREEN_BLACK SSD1306_BLACK
+#define SCREEN_INVERSE SSD1306_INVERSE
 #endif
 
 #if SH110X
 #include <Adafruit_SH110X.h>
 #define SCREEN_WHITE SH110X_WHITE
 #define SCREEN_BLACK SH110X_BLACK
+#define SCREEN_INVERSE SH110X_INVERSE
 #endif
 
 // Splash screen
@@ -244,7 +246,6 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
     break;
   case MIDI_CH:
     sprintf(menuBuf, "MIDICH:%d", gstate->midi_ch);
-    SCHEDULE_REFRESH(gstate);
     break;
   case SCOPE_TOGGLE:
     sprintf(menuBuf, "SCOPE:%s", gstate->oscilloscope_enabled ? "ON" : "OFF");
@@ -281,8 +282,7 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
 static inline void invert_rect(int x, int y, int w, int h) {
   for (int j = y; j < y + h; j++) {
     for (int i = x; i < x + w; i++) {
-      uint16_t color = display.getPixel(i, j);
-      display.drawPixel(i, j, color > 0 ? 0 : 1);
+      display.drawPixel(i, j, SCREEN_INVERSE);
     }
   }
 }
