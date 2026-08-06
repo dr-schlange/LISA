@@ -47,16 +47,16 @@ def teardown(lisa):
     stop_all_connected_devices()
 
 
-def play_sequence(lisa, notes):
+def play_sequence(lisa, notes, timing=0.5):
     for note in notes:
         print("  note on", note)
         lisa.note_on(note)
-        time.sleep(0.5)
+        time.sleep(timing)
         print("  note off", note)
         lisa.note_off(note)
 
 
-def play_cluster(lisa, notes, duration=4):
+def play_cluster(lisa, notes, duration=4, off_at_once=False):
     for note in notes:
         print("  note on", note)
         lisa.note_on(note, velocity=127)
@@ -65,7 +65,8 @@ def play_cluster(lisa, notes, duration=4):
     for note in notes[::-1]:
         print("  note off", note)
         lisa.note_off(note)
-        time.sleep(1)
+        if not off_at_once:
+            time.sleep(1)
 
 
 def test1(lisa, lfo1, lfo2):
@@ -450,15 +451,21 @@ def test12(lisa, lfo1, lfo2):
     wave.stop()
 
 
+
 def test14(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
+
     lisa.general.voice_mode = "poly"
     lisa.filter.cutoff = 55
 
     print("* Reset wavetables...")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
     lisa.wavetable.reset_all_wt = "ON"
     lisa.wavetable.reset_all_wt = "OFF"
-    lisa.wavetable.mode_wt1 = "circular"
+    lfo1.start()
     lisa.wavetable.stream_table1 = lfo1.scale()
 
     print("* Create a slow LFO for panning")
@@ -471,6 +478,37 @@ def test14(lisa, lfo1, lfo2):
 
     print("* Disconnect LFO from panning")
     lisa.general.panning -= lfo
+    lfo.stop()
+
+
+def test15(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "poly"
+    # lisa.filter.cutoff = 55
+    # lisa.filter.type = "highpass"
+
+    print("* Reset wavetables...")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+    lisa.wavetable.stream_table1 = lfo1.scale()
+    lisa.envelope.attack = 2
+    lisa.envelope.release = 40
+    # lisa.wavetable.freeze_all = "ON"
+
+    print("* Play 8 notes cluster with manual activated")
+    lfo = LFO(speed=0.05)
+    lfo.start()
+    lisa.filter.cutoff = lfo.scale(30, 60)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 33, 40], duration=30)
+    play_cluster(lisa, [60, 45, 47, 53, 40, 58, 20, 61], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 40, 47, 53, 41, 57, 21, 62], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 35, 47, 53, 42, 56, 22, 63], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 38, 47, 50, 43, 55, 23, 64], duration=1, off_at_once=True)
+    play_sequence(lisa, [60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, ], timing=0.01)
     lfo.stop()
 
 
@@ -489,6 +527,7 @@ tests = [
     test12,
     lambda *args, **kwargs: print("skipped, bad omen"),
     test14,
+    test15,
 ]
 
 if __name__ == "__main__":
@@ -501,6 +540,11 @@ if __name__ == "__main__":
     lisa = Lisa()
     lisa.general.engine_select = 127
     lisa.general.gain = 32
+    lisa.wavetable.level_table1 = 127
+    lisa.wavetable.level_table2 = 127
+    lisa.wavetable.level_table3 = 127
+    lisa.wavetable.level_table4 = 127
+    lisa.general.panning = 64
 
     lfo1 = LFO(
         waveform="sine",
