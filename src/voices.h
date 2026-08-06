@@ -11,6 +11,8 @@
 #include <pico/stdlib.h>
 #include <pico/util/queue.h>
 #include <BRAIDS.h>
+#include <stmlib/stmlib.h>
+#include <stmlib/utils/dsp.h>
 #include "constants_config.h"
 #include "wavetable_streaming.h"
 #include "global_state.h"
@@ -70,6 +72,97 @@ struct VoiceCommand {
 
 static uint32_t global_age = 0;
 
+// Same state-variable filter recurrence as braids::Svf, but with its own
+// cutoff/damp tables generated for the actual SAMPLE_RATE instead of the
+// 96000Hz reference baked into BRAIDS' shared lut_svf_cutoff/lut_svf_damp.
+// This keeps the vendored library untouched; the tradeoff is that the
+// internal digital-filter engine shapes (ZLPF/ZPKF/ZBPF/ZHPF) still use the
+// original, uncorrected tables since they're internal to DigitalOscillator.
+class LisaFilter {
+public:
+  static const int kTableSize = 258; // 257 + 1 guard entry for interpolation
+
+  LisaFilter() {}
+
+  static void InitTables() {
+    if (tables_ready_)
+      return;
+    for (int i = 0; i < kTableSize - 1; i++) {
+      float cutoff_hz = 440.0f * powf(2.0f, (i - 69) / 12.0f);
+      float f = cutoff_hz / (float)SAMPLE_RATE;
+      if (f > 1.0f / 8.0f)
+        f = 1.0f / 8.0f;
+      f = 2.0f * sinf(PI * f);
+      float resonance_norm = i / 260.0f;
+      float damp = fminf(2.0f * (1.0f - powf(resonance_norm, 0.25f)),
+                         fminf(2.0f, 2.0f / f - f * 0.5f));
+      cutoff_table_[i] = (uint16_t)(f * 32767.0f);
+      damp_table_[i] = (uint16_t)(damp * 32767.0f);
+    }
+    cutoff_table_[kTableSize - 1] = cutoff_table_[kTableSize - 2];
+    damp_table_[kTableSize - 1] = damp_table_[kTableSize - 2];
+    tables_ready_ = true;
+  }
+
+  inline void Init() {
+    lp_ = 0;
+    bp_ = 0;
+    frequency_ = 33 << 7;
+    resonance_ = 16384;
+    dirty_ = true;
+    mode_ = braids::SVF_MODE_LP;
+  }
+
+  inline void set_frequency(int16_t frequency) {
+    dirty_ = dirty_ || (frequency_ != frequency);
+    frequency_ = frequency;
+  }
+
+  inline void set_resonance(int16_t resonance) {
+    resonance_ = resonance;
+    dirty_ = true;
+  }
+
+  inline void set_mode(braids::SvfMode mode) { mode_ = mode; }
+
+  inline int32_t Process(int32_t in) {
+    if (dirty_) {
+      f_ = stmlib::Interpolate824(cutoff_table_, (uint32_t)frequency_ << 17);
+      damp_ = stmlib::Interpolate824(damp_table_, (uint32_t)resonance_ << 17);
+      dirty_ = false;
+    }
+    int32_t f = f_;
+    int32_t damp = damp_;
+    int32_t notch = in - (bp_ * damp >> 15);
+    lp_ += f * bp_ >> 15;
+    CLIP(lp_)
+    int32_t hp = notch - lp_;
+    bp_ += f * hp >> 15;
+    CLIP(bp_)
+    return mode_ == braids::SVF_MODE_BP
+               ? bp_
+               : (mode_ == braids::SVF_MODE_HP ? hp : lp_);
+  }
+
+private:
+  static uint16_t cutoff_table_[kTableSize];
+  static uint16_t damp_table_[kTableSize];
+  static bool tables_ready_;
+
+  bool dirty_;
+  int16_t frequency_;
+  int16_t resonance_;
+  int32_t f_;
+  int32_t damp_;
+  int32_t lp_;
+  int32_t bp_;
+  braids::SvfMode mode_;
+};
+
+uint16_t LisaFilter::cutoff_table_[LisaFilter::kTableSize];
+uint16_t LisaFilter::damp_table_[LisaFilter::kTableSize];
+bool LisaFilter::tables_ready_ = false;
+
 class Voice {
 public:
   WavetableStreamingOscillator osc;
@@ -84,6 +177,7 @@ public:
     env = 0;
     vel_smoothed_ = 0;
     osc.Init(SAMPLE_RATE);
+    LisaFilter::InitTables();
     filter_.Init();
   }
 
@@ -155,7 +249,7 @@ public:
   inline void resetPhase() { osc.reset_phase(); }
 
 private:
-  braids::Svf filter_;
+  LisaFilter filter_;
   int16_t vel_smoothed_;
   int16_t buffer_[AUDIO_BLOCK];
   uint8_t sync_buffer_[AUDIO_BLOCK];
