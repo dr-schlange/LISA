@@ -303,16 +303,44 @@ private:
     }
   }
 
+  inline int findFreeVoicePair(int16_t pitch) {
+    int oldest = 0;
+    uint32_t old_age = voices_[0].age;
+    for (int i = 0; i < MAX_VOICES; i += 2) {
+      const Voice *voice = voices_ + i;
+      if (!is_active(voice->flags) && voice->pitch == pitch) {
+        return i;
+      }
+      if (!is_active(voice->flags) && voice->env == 0) {
+        return i;
+      }
+      if (voice->age < old_age) {
+        old_age = voice->age;
+        oldest = i;
+      }
+    }
+    return oldest;
+  }
+
+  inline int findVoicePairByPitch(int16_t pitch) {
+    for (int i = 0; i < MAX_VOICES; i += 2)
+      if (is_active(voices_[i].flags) && voices_[i].pitch == pitch)
+        return i;
+    return -1;
+  }
+
   inline Voice *allocateVoiceUnison(int16_t pitch, int16_t velocity) {
-    Voice *primary = allocateOldestVoice(pitch, velocity);
+    int i = findFreeVoicePair(pitch);
+    Voice *primary = voices_ + i;
     Voice *secondary = primary + 1;
+    primary->setup(pitch, velocity);
     secondary->setup(pitch, velocity);
     set_secondary(secondary->flags);
     return primary;
   }
 
   inline void freeVoiceUnison(int16_t pitch, int sustain_enabled) {
-    int i = findVoiceByPitch(pitch);
+    int i = findVoicePairByPitch(pitch);
     if (i >= 0) {
       Voice *primary = voices_ + i;
       Voice *secondary = primary + 1;
