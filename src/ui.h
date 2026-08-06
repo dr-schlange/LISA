@@ -105,12 +105,17 @@ static inline void setup_display() {
   Wire.begin();
   Wire.setClock(400000);
 
+  bool display_ok = false;
 #if SSD1306
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display_ok = display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
 #endif
 #ifdef SH110X
-  display.begin(0x3C, true);
+  display_ok = display.begin(0x3C, true);
 #endif
+  if (!display_ok) {
+    DEBUG_PRINTLN("Display init failed (no framebuffer memory or I2C error)");
+    return;
+  }
   draw_splash();
   delay(4000);
   display.clearDisplay();
