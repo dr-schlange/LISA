@@ -140,14 +140,24 @@ public:
   inline void renderAllVoices(int32_t mix[AUDIO_BLOCK], float timbre,
                               float color, float timbre_mod, float color_mod,
                               float fm_mod, float fm_slew_rate,
-                              float unison_detune, float attackCoef,
-                              float releaseCoef, int32_t block_gain) {
+                              float unison_detune, float atk_knob,
+                              float rel_knob, int32_t block_gain) {
+    if (atk_knob != last_atk_) {
+      float atk = 0.001f * powf(2000.f, atk_knob);
+      attackCoef_ = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
+      last_atk_ = atk_knob;
+    }
+    if (rel_knob != last_rel_) {
+      float rel = 0.005f * powf(1000.f, rel_knob);
+      releaseCoef_ = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
+      last_rel_ = rel_knob;
+    }
     applyStableSlew(fm_slew_, fm_mod, fm_slew_rate * 0.06f);
     applyStableSlew(timb_slew_, timbre_mod, 0.01f);
     applyStableSlew(color_slew_, color_mod, 0.01f);
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].render(mix, timbre, color, timb_slew_, color_slew_, fm_slew_,
-                        unison_detune, attackCoef, releaseCoef, block_gain);
+                        unison_detune, attackCoef_, releaseCoef_, block_gain);
     }
   }
 
@@ -212,6 +222,10 @@ private:
   float fm_slew_ = 0.f;
   float timb_slew_ = 0.f;
   float color_slew_ = 0.f;
+  float attackCoef_ = 0.f;
+  float releaseCoef_ = 0.f;
+  float last_atk_ = -1.f;
+  float last_rel_ = -1.f;
 
   static inline void applyStableSlew(float &current, float target,
                                      float coefficient) {

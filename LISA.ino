@@ -94,24 +94,6 @@ void __not_in_flash_func(update_audio)() {
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
 
-  static float attackCoef = 0.f;
-  static float releaseCoef = 0.f;
-  static float last_atk = -1.f;
-  static float last_rel = -1.f;
-
-  float atk_knob = runtime_state.env_attack.value;
-  float rel_knob = runtime_state.env_release.value;
-  if (atk_knob != last_atk) {
-    float atk = 0.001f * powf(2000.f, atk_knob); // 1ms to 2s
-    attackCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
-    last_atk = atk_knob;
-  }
-  if (rel_knob != last_rel) {
-    float rel = 0.005f * powf(1000.f, rel_knob); // 5ms to 5s
-    releaseCoef = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
-    last_rel = rel_knob;
-  }
-
   int32_t mix[AUDIO_BLOCK] = {0};
 
   float fm_target;
@@ -128,7 +110,8 @@ void __not_in_flash_func(update_audio)() {
       mix, runtime_state.timbre.value, runtime_state.color.value,
       runtime_state.timbre_mod.value, runtime_state.color_mod.value, fm_target,
       runtime_state.fm_slew.value, runtime_state.unison_detune.value,
-      attackCoef, releaseCoef, block_gain);
+      runtime_state.env_attack.value, runtime_state.env_release.value,
+      block_gain);
 
 #if USE_SCREEN
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
