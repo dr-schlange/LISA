@@ -4,7 +4,15 @@
 
 ### Features
 
-- Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners)
+- *Add peak envelope computation as feature on the rendered sound (transmitted via MIDI to listeners)* Disabled
+- Convert most of the operation in the audio loop to q15 while introducing a VoiceAllocator and Voice class
+- Change project main structure (.h files in a dedicated src/ folder)
+
+### Fixes
+
+- UI refreshing too much in the menus
+- invert_rect now uses a better API (faster)
+- avoid multiple read of the ADC
 
 ## 0.2.0
 

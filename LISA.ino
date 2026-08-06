@@ -56,15 +56,15 @@
 #include <STMLIB.h>
 #include <BRAIDS.h>
 #include <pico/stdlib.h>
-#include "constants_config.h"
-#include "voices.h"
-#include "encoder.h"
-#include "global_state.h"
-#include "midi.h"
-#include "features.h"
-#include "ui.h"
-#include "controls.h"
-#include "settings.h"
+#include "src/constants_config.h"
+#include "src/voices.h"
+#include "src/encoder.h"
+#include "src/global_state.h"
+#include "src/midi.h"
+#include "src/features.h"
+#include "src/ui.h"
+#include "src/controls.h"
+#include "src/settings.h"
 // clang-format on
 
 // Synth states & global vars
