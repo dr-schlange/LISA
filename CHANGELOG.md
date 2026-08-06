@@ -10,6 +10,7 @@
 - Possibility to pass up to 8 voices at sample rate 48000 (up to 4 voices at 96000)
 - The amp is now computed per sample
 - Each voice gets its own filter
+- Switch single press/double press to access the engine selection screen and the all-parameter screen from the oscilloscope
 
 ### Fixes
 

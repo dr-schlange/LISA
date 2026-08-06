@@ -308,11 +308,9 @@ void handle_menu(RuntimeState *gstate) {
   if (status == DBL_PRESSED) {
     switch (gstate->display_state) {
     case OSCILLOSCOPE_MODE:
-      gstate->display_state = ALL_PARAMS_MODE;
-      gstate->pots_row_state = ROW_GENERAL;
-      lock_all_parameters(gstate, true);
-      map_abc_pots(gstate, (Parameter *)&(gstate->master_volume),
-                   (Parameter *)&(gstate->b1), (Parameter *)&(gstate->b2));
+      gstate->display_state = ENGINE_SETTINGS_CONFIG;
+      gstate->encoder.state =
+          (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
       SCHEDULE_REFRESH(gstate);
       break;
     case ENGINE_SETTINGS_CONFIG:
@@ -369,9 +367,11 @@ void handle_menu(RuntimeState *gstate) {
       break;
 
     case OSCILLOSCOPE_MODE:
-      gstate->display_state = ENGINE_SETTINGS_CONFIG;
-      gstate->encoder.state =
-          (EncoderState)((gstate->encoder.state + 1) % ENCODER_STATE_NUM);
+      gstate->display_state = ALL_PARAMS_MODE;
+      gstate->pots_row_state = ROW_GENERAL;
+      lock_all_parameters(gstate, true);
+      map_abc_pots(gstate, (Parameter *)&(gstate->master_volume),
+                   (Parameter *)&(gstate->b1), (Parameter *)&(gstate->b2));
       SCHEDULE_REFRESH(gstate);
       break;
 

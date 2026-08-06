@@ -54,9 +54,11 @@ The synthesizer operates in two primary display modes:
        - **EXIT MENU**
 2.  **OSCILLOSCOPE:** Automatically engages after 10 seconds to visualize the current waveform
 
-There is 2 additional displays which are accessible with a double press of the encoder:
+To go back to the **ENGINE SELECT + SETTINGS** screen from the **OSCILLOSCOPE** screen, you need to do a double press of the encoder.
 
-1. **ALL PARAMETERS** display (double press from the **OSCILLOSCOPE** display): that brings you to a page with all the parameter of the synth and a quick access to modify them. 
+There is 2 additional screens which are accessible with a single or double press of the encoder:
+
+1. **ALL PARAMETERS** display (single press from the **OSCILLOSCOPE** display): that brings you to a page with all the parameter of the synth and a quick access to modify them. 
     1. Rotate the encoder to select a parameter row. Each parameter row is automatically mapped on A, B, C, representing the 3 main pots of LISA.
     2. Click the encoder to activate the modification on the row \*. 
     3. Rotate A, B or C to set the desired parameter level.
