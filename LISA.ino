@@ -134,9 +134,11 @@ void __not_in_flash_func(update_audio)() {
   const int32_t dry_scale = 32767 - mix_slew;
   const int32_t wet_scale = mix_slew;
 
-  static float pan_current = runtime_state.panning.value;
-  pan_current += (runtime_state.panning.value - pan_current) * (0.0625f);
-  const uint8_t idx = (uint8_t)(pan_current * 63.f);
+  static int32_t pan_slew = (int32_t)(runtime_state.panning.value * 32767.f);
+  const int32_t pan_t = (int32_t)(runtime_state.panning.value * 32767.f);
+  pan_slew +=
+      ((pan_t - pan_slew) * 2048) >> 15; // 2048 = (int32_t)(0.0625f * 32767.f)
+  const uint8_t idx = (uint8_t)((pan_slew * 63) >> 15);
 
   for (int i = 0; i < AUDIO_BLOCK; i++) {
     int32_t dry_int = mix[i];
