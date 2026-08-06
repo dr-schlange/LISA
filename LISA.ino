@@ -37,6 +37,8 @@
   needed voice count
           - Sample rate: 32000 (up to 8 voice depending on the engine)
                          44100 (up to 8 voices depending on the engine)
+                         48000 (up to 8 voices depending on the engine)
+                         96000 (up to 4 voices depending on the engine)
   RP2350:
          - Optimize: Optimize Even More (-O3)
          - Sample rate: 48000

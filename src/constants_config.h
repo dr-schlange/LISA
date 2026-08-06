@@ -36,9 +36,12 @@ const char *const modes[] = {
 #define USE_UART_MIDI 0 // 0 = USB MIDI, 1 = UART MIDI
 
 // Voices config (audio block and sample rate are related)
-#define MAX_VOICES 6
+#define MAX_VOICES 8
 #define AUDIO_BLOCK 32
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE 48000
+
+// Unison mode needs pairs voices
+static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 
 // Screen
 #define SSD1306 1 // ssd1306 display
