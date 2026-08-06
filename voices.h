@@ -12,6 +12,7 @@
 #include <BRAIDS.h>
 #include "constants_config.h"
 #include "wavetable_streaming.h"
+#include "global_state.h"
 // clang-format on
 
 #define VOICE_ACTIVE 0b00000001
@@ -137,11 +138,13 @@ public:
     }
   }
 
-  inline void renderAllVoices(int32_t mix[AUDIO_BLOCK], float timbre,
-                              float color, float timbre_mod, float color_mod,
-                              float fm_mod, float fm_slew_rate,
-                              float unison_detune, float atk_knob,
-                              float rel_knob, int32_t block_gain) {
+  inline void renderAllVoices(int32_t mix[AUDIO_BLOCK],
+                              const RuntimeState *gstate) {
+    const int32_t block_gain =
+        (int32_t)(gstate->master_volume.value * gstate->gain.value /
+                  MAX_VOICES * 32767.0f);
+    float atk_knob = gstate->env_attack.value;
+    float rel_knob = gstate->env_release.value;
     if (atk_knob != last_atk_) {
       float atk = 0.001f * powf(2000.f, atk_knob);
       attackCoef_ = 1.0f - expf(-1.0f / (SAMPLE_RATE * atk));
@@ -152,12 +155,17 @@ public:
       releaseCoef_ = 1.0f - expf(-1.0f / (SAMPLE_RATE * rel));
       last_rel_ = rel_knob;
     }
-    applyStableSlew(fm_slew_, fm_mod, fm_slew_rate * 0.06f);
-    applyStableSlew(timb_slew_, timbre_mod, 0.01f);
-    applyStableSlew(color_slew_, color_mod, 0.01f);
+    float fm_mod = (gstate->midi_enabled || !gstate->cv_mod1_enabled)
+                       ? gstate->fm_mod.value
+                       : 0.0f;
+    applyStableSlew(fm_slew_, fm_mod, gstate->fm_slew.value * 0.06f);
+    applyStableSlew(timb_slew_, gstate->timbre_mod.value, 0.01f);
+    applyStableSlew(color_slew_, gstate->color_mod.value, 0.01f);
     for (int v = 0; v < MAX_VOICES; v++) {
-      voices_[v].render(mix, timbre, color, timb_slew_, color_slew_, fm_slew_,
-                        unison_detune, attackCoef_, releaseCoef_, block_gain);
+      voices_[v].render(mix, gstate->timbre.value, gstate->color.value,
+                        timb_slew_, color_slew_, fm_slew_,
+                        gstate->unison_detune.value, attackCoef_, releaseCoef_,
+                        block_gain);
     }
   }
 

@@ -96,22 +96,7 @@ void __not_in_flash_func(update_audio)() {
 
   int32_t mix[AUDIO_BLOCK] = {0};
 
-  float fm_target;
-  if (runtime_state.midi_enabled || !runtime_state.cv_mod1_enabled) {
-    fm_target = runtime_state.fm_mod.value;
-  } else {
-    fm_target = 0.0f;
-  }
-
-  const int32_t block_gain =
-      (int32_t)(runtime_state.master_volume.value * runtime_state.gain.value /
-                MAX_VOICES * 32767.0f);
-  voices.renderAllVoices(
-      mix, runtime_state.timbre.value, runtime_state.color.value,
-      runtime_state.timbre_mod.value, runtime_state.color_mod.value, fm_target,
-      runtime_state.fm_slew.value, runtime_state.unison_detune.value,
-      runtime_state.env_attack.value, runtime_state.env_release.value,
-      block_gain);
+  voices.renderAllVoices(mix, &runtime_state);
 
 #if USE_SCREEN
   scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
