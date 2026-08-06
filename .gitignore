@@ -1,2 +1,5 @@
 BRAIDS/
 build/
+__pycache__/
+.envrc
+.zed/
