@@ -213,19 +213,25 @@ public:
       float atk = 0.001f * powf(2000.f, atk_knob);
       attackCoef_ =
           (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * atk))) * 32767.f);
+      if (attackCoef_ < 1)
+        attackCoef_ = 1; // never let a slow attack truncate to a frozen 0
       last_atk_ = atk_knob;
     }
     if (rel_knob != last_rel_) {
       float rel = 0.005f * powf(1000.f, rel_knob);
       releaseCoef_ =
           (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * rel))) * 32767.f);
+      if (releaseCoef_ < 1)
+        releaseCoef_ = 1; // never let a slow release truncate to a frozen 0
       last_rel_ = rel_knob;
     }
     int16_t fm_mod = (gstate->midi_enabled || !gstate->cv_mod1_enabled)
                          ? (int16_t)(gstate->fm_mod.value * 32767.f)
                          : 0;
-    applyStableSlew(fm_slew_, fm_mod,
-                    (int16_t)(gstate->fm_slew.value * 0.06f * 32767.f));
+    int16_t fm_slew_coef = (int16_t)(gstate->fm_slew.value * 0.06f * 32767.f);
+    if (fm_slew_coef < 1)
+      fm_slew_coef = 1; // never let a low fm_slew setting freeze tracking
+    applyStableSlew(fm_slew_, fm_mod, fm_slew_coef);
     applyStableSlew(timb_slew_, (int16_t)(gstate->timbre_mod.value * 32767.f),
                     TIMB_COLOR_SLEW_COEF_Q15);
     applyStableSlew(color_slew_, (int16_t)(gstate->color_mod.value * 32767.f),
