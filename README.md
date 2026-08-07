@@ -205,11 +205,15 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 
 * **RP2040:** - Optimize: Fast (-O3)
   - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and needed voice count
-  - Sample rate: 32000 (up to 8 voices depending on the engine) / 44100 (up to 6 voices depending on the engine)
+  - Sample rate: 
+    - 32000 (up to 12 voices depending on the engine, 6 voices in unison mode)
+    - 44100 (up to 10 voices depending on the engine, 5 voices in unison mode)
+    - 48000 (up to 8 voices depending on the engine, 4 voices in unison mode)
+    - 96000 (up to 4 voices depending on the engine, 2 voices in unison mode)
 * **RP2350:** - Optimize: Fast (-Ofast)
   - Sample rate: 48000
 
-### Quick deployment and testing using Nallely
+### Quick deployment and testing using arduino-cli and Nallely
 
 If you have Nallely installed as a library somewhere on your system (i.e: accessible from Python when doing `import nallely`) and `arduino-cli` installed and configured properly (i.e: configuration pointing to the shared folder where all the third-party libraries are located), you can use the `Makefile` to have a quick update or dev workflow:
 
