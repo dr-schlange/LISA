@@ -131,6 +131,8 @@ static inline void update_kinetic_physics(RuntimeState *gstate,
     return;
   }
   float k = param->kinetic.stiffness.value * 100.f;
+  if (k < 1.0f)
+    k = 1.0f; // never let stiffness=0 leave the mass with zero spring force
   float c = param->kinetic.damping.value * 2.5f;
   float inv_m = 1.f / (0.01f + (param->kinetic.mass.value * 0.5f));
 
