@@ -54,6 +54,7 @@ def play_sequence(lisa, notes, timing=0.5):
         time.sleep(timing)
         print("  note off", note)
         lisa.note_off(note)
+        time.sleep(timing)
 
 
 def play_cluster(lisa, notes, duration=4, off_at_once=False):
@@ -451,7 +452,6 @@ def test12(lisa, lfo1, lfo2):
     wave.stop()
 
 
-
 def test14(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
 
@@ -499,17 +499,68 @@ def test15(lisa, lfo1, lfo2):
     lisa.envelope.release = 40
     # lisa.wavetable.freeze_all = "ON"
 
-    print("* Play 8 notes cluster with manual activated")
-    lfo = LFO(speed=0.05)
+    lfo = LFO(speed=0.1)
     lfo.start()
     lisa.filter.cutoff = lfo.scale(30, 60)
-    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 33, 40], duration=30)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 33, 40], duration=5)
     play_cluster(lisa, [60, 45, 47, 53, 40, 58, 20, 61], duration=1, off_at_once=True)
     play_cluster(lisa, [60, 40, 47, 53, 41, 57, 21, 62], duration=1, off_at_once=True)
     play_cluster(lisa, [60, 35, 47, 53, 42, 56, 22, 63], duration=1, off_at_once=True)
     play_cluster(lisa, [60, 38, 47, 50, 43, 55, 23, 64], duration=1, off_at_once=True)
-    play_sequence(lisa, [60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55, ], timing=0.01)
+    # fmt: off
+    play_sequence(
+        lisa,
+        [
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+        ],
+        timing=0.01,
+    )
+    # fmt: on
     lfo.stop()
+
+
+# repeating notes
+def test16(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "poly"
+
+    print("* Reset wavetables...")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+    lisa.wavetable.stream_table1 = lfo1.scale()
+    lisa.envelope.attack = 50
+    lisa.envelope.release = 127
+
+    play_sequence(
+        lisa,
+        [50],
+        timing=1,
+    )
+    time.sleep(10)
+
+    play_sequence(
+        lisa,
+        [50] * 10 + [54] * 10 + list(range(60, 70)),
+        timing=0.1,
+    )
 
 
 tests = [
@@ -528,6 +579,7 @@ tests = [
     lambda *args, **kwargs: print("skipped, bad omen"),
     test14,
     test15,
+    test16,
 ]
 
 if __name__ == "__main__":

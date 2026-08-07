@@ -11,6 +11,7 @@
 - The amp is now computed per sample
 - Each voice gets its own filter
 - Switch single press/double press to access the engine selection screen and the all-parameter screen from the oscilloscope
+- Envelope release jumps to a range from 1ms to +20s
 
 ### Fixes
 

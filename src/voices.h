@@ -37,7 +37,15 @@
 #define is_secondary(flags) (flags & VOICE_SECONDARY)
 #define reset_secondary(flags) (flags &= ~VOICE_SECONDARY)
 
-#define ENV_EPSILON_Q15 4            // ~0.0001 * 32767
+#define VOICE_RETRIGGERING 0b00010000
+#define set_retriggering(flags) (flags |= VOICE_RETRIGGERING)
+#define is_retriggering(flags) (flags & VOICE_RETRIGGERING)
+#define reset_retriggering(flags) (flags &= ~VOICE_RETRIGGERING)
+
+#define RETRIGGER_FADE_SECONDS 0.002f
+
+#define ENV_EPSILON_Q15 4 // ~0.0001 * 32767
+#define ENV_HIRES_BITS 8  // extra fractional bits so slow decays don't floor
 #define ABS_SLEW_EPSILON_Q15 164     // ~0.005 * 32767
 #define ABS_DIFF_EPSILON_Q15 328     // ~0.01 * 32767
 #define ABS_DIFF2_EPSILON_Q15 33     // ~0.001 * 32767
@@ -82,23 +90,28 @@ public:
   Voice() {
     flags = 0b00000000;
     env = 0;
+    env_hires_ = 0;
     vel_smoothed_ = 0;
     osc.Init(SAMPLE_RATE);
     filter_.Init();
   }
 
   inline void setup(int16_t pitch_, int16_t velocity_) {
+    if (pitch_ == pitch && env > ENV_EPSILON_Q15) {
+      set_retriggering(flags);
+    }
     pitch = pitch_;
     velocity = velocity_;
     set_active(flags);
     reset_secondary(flags);
+    reset_last_trig(flags);
     age = global_age++;
   }
 
   inline void render(int32_t mix[AUDIO_BLOCK], int16_t timbre, int16_t color,
                      int16_t timb_slew, int16_t color_slew, int16_t fm_slew,
-                     float unison_detune, int16_t attackCoef,
-                     int16_t releaseCoef, int32_t block_gain, int32_t cut_slew,
+                     float unison_detune, int32_t attackCoef,
+                     int32_t releaseCoef, int32_t block_gain, int32_t cut_slew,
                      int32_t res_slew, braids::SvfMode filter_type,
                      int32_t dry_scale, int32_t wet_scale) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
@@ -132,13 +145,33 @@ public:
     }
     osc.Render(sync_buffer_, buffer_, AUDIO_BLOCK);
 
-    int16_t envTarget = (is_active(flags) || is_sustained(flags)) ? 32767 : 0;
-    int16_t coef = envTarget ? attackCoef : releaseCoef;
+    static const int32_t kRetriggerCoef =
+        (int32_t)((1.0f -
+                   expf(-1.0f / (SAMPLE_RATE * RETRIGGER_FADE_SECONDS))) *
+                  1073741824.0f);
+
+    int16_t envTarget;
+    int32_t coef;
+    if (is_retriggering(flags)) {
+      envTarget = 0;
+      coef = kRetriggerCoef;
+    } else {
+      envTarget = (is_active(flags) || is_sustained(flags)) ? 32767 : 0;
+      coef = envTarget ? attackCoef : releaseCoef;
+    }
+    const int32_t envTarget_hires = (int32_t)envTarget << ENV_HIRES_BITS;
 
     for (int i = 0; i < AUDIO_BLOCK; i++) {
-      env += ((int16_t)((int32_t)envTarget - (int32_t)env)) * coef >> 15;
-      if (envTarget == 0 && env < ENV_EPSILON_Q15)
-        env = 0;
+      const int32_t diff = envTarget_hires - env_hires_;
+      // coef is Q30, so the multiply needs a 64b intermediate
+      env_hires_ += (int32_t)(((int64_t)diff * coef) >> 30);
+      if (envTarget == 0 && env_hires_ < (ENV_EPSILON_Q15 << ENV_HIRES_BITS))
+        env_hires_ = 0;
+      env = (int16_t)(env_hires_ >> ENV_HIRES_BITS);
+
+      if (is_retriggering(flags) && env <= ENV_EPSILON_Q15) {
+        reset_retriggering(flags);
+      }
 
       const int32_t amp =
           (((int32_t)env * (int32_t)vel_smoothed_) >> 15) * block_gain >> 15;
@@ -156,6 +189,7 @@ public:
 
 private:
   braids::Svf filter_;
+  int32_t env_hires_;
   int16_t vel_smoothed_;
   int16_t buffer_[AUDIO_BLOCK];
   uint8_t sync_buffer_[AUDIO_BLOCK];
@@ -211,16 +245,18 @@ public:
     float rel_knob = gstate->env_release.value;
     if (atk_knob != last_atk_) {
       float atk = 0.001f * powf(2000.f, atk_knob);
+      // We pass at q30 instead of q15 :'), for the range of 1ms to 5s, we need
+      // more than 15b resolution
       attackCoef_ =
-          (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * atk))) * 32767.f);
+          (int32_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * atk))) * 1073741824.0f);
       if (attackCoef_ < 1)
         attackCoef_ = 1; // never let a slow attack truncate to a frozen 0
       last_atk_ = atk_knob;
     }
     if (rel_knob != last_rel_) {
-      float rel = 0.005f * powf(1000.f, rel_knob);
+      float rel = 0.005f * powf(4000.f, rel_knob);
       releaseCoef_ =
-          (int16_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * rel))) * 32767.f);
+          (int32_t)((1.0f - expf(-1.0f / (SAMPLE_RATE * rel))) * 1073741824.0f);
       if (releaseCoef_ < 1)
         releaseCoef_ = 1; // never let a slow release truncate to a frozen 0
       last_rel_ = rel_knob;
@@ -284,8 +320,8 @@ private:
   int16_t fm_slew_ = 0;
   int16_t timb_slew_ = 0;
   int16_t color_slew_ = 0;
-  int16_t attackCoef_ = 0;
-  int16_t releaseCoef_ = 0;
+  int32_t attackCoef_ = 0;
+  int32_t releaseCoef_ = 0;
   float last_atk_ = -1.f;
   float last_rel_ = -1.f;
   int32_t cut_slew_ = 0;
