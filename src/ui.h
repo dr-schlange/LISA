@@ -199,6 +199,13 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
   int dot_y = 60 - (int)(gstate->color.value * 9.f);
   display.drawPixel(dot_x, dot_y, SCREEN_WHITE);
 
+  if (WavetableStreamingOscillator::snapshotModeActive(0)) {
+    char snapmode[5] = "";
+    sprintf(snapmode, "[%d]",
+            WavetableStreamingOscillator::getSnapshotDepth(0));
+    display.setCursor(0, 57);
+    display.print(snapmode);
+  }
   display.display();
   uistate->scope_ready = false;
 }

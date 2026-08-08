@@ -236,6 +236,23 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
         break;
       }
       break;
+    case MIDI_WT_SNAPSHOT_DEPTH:
+      WavetableStreamingOscillator::setAllSnapshotDepth(
+          map(cc_value, 0, 127, 2, MAX_SNAPSHOTS));
+      break;
+    case MIDI_WT_SNAPSHOT_ACTIVATE:
+      WavetableStreamingOscillator::setSnapshotMode(cc_value >= 64);
+      break;
+    case MIDI_WT_AUTO_BLEND_ACTIVATE:
+      WavetableStreamingOscillator::setAllSnapshotAutoBlend(cc_value >= 64);
+      break;
+    case MIDI_WT_AUTO_BLEND_K:
+      WavetableStreamingOscillator::setBlendK(map(cc_value, 0, 127, 50, 1000));
+      break;
+    case MIDI_WT_BLEND_LEVEL:
+      WavetableStreamingOscillator::setAllSnapshotBlendPosition(
+          (uint16_t)((uint32_t)cc_value * 65535 / 127));
+      break;
     case MIDI_WT_LEVEL_TABLE1:
     case MIDI_WT_LEVEL_TABLE2:
     case MIDI_WT_LEVEL_TABLE3:

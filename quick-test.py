@@ -43,7 +43,8 @@ def setup(lisa, lfo1, lfo2):
 def teardown(lisa):
     print("Stopping now...")
     lisa.force_all_notes_off()
-    # lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
     stop_all_connected_devices()
 
 
@@ -570,21 +571,40 @@ def test17(lisa, lfo1, lfo2):
     lisa.general.voice_mode = "poly"
 
     print("* Reset wavetables...")
+    # lisa.wavetable.stream_table2 -= lfo1
+    # lisa.wavetable.stream_table3 -= lfo2
+    # lisa.wavetable.stream_table4 -= lfo2
+
     lisa.wavetable.mode_wt1 = "circular"
     lisa.wavetable.mode_wt2 = "circular"
     lisa.wavetable.mode_wt3 = "circular"
     lisa.wavetable.mode_wt4 = "circular"
     lisa.wavetable.reset_all_wt = "ON"
     lisa.wavetable.reset_all_wt = "OFF"
+    lfo = LFO(
+        speed=0.1,
+        waveform="sawtooth",
+        sampling_rate=256,
+        auto_srate="OFF",
+        autoconnect=True,
+    )
+    # lisa.wavetable.blend_level = lfo
+
     lisa.envelope.attack = 5
     lisa.envelope.release = 10
     lisa.filter.cutoff = 55
 
-    lfo = LFO(speed=0.1)
-    lfo.start()
+    # lfo1.waveform_cv = lfo.scale()
+    lfo1.set_parameter("speed", 1)
+    # lfo1.set_parameter("waveform", "sawtooth")
+    #
+    print("Activate snapshot mode and change sampling rate")
+    lisa.wavetable.snapshots_mode = "ON"
+    lfo1.set_parameter("sampling_rate", 300)
+    lfo2.set_parameter("sampling_rate", 240)
 
-    lfo1.waveform_cv = lfo.scale(0, 5)
-    lfo2.waveform_cv = lfo.scale(5, 0)
+    print("Waiting 10s...")
+    time.sleep(10)
 
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
     play_cluster(lisa, [60, 45, 47, 53, 40, 58, 20, 61], duration=1, off_at_once=True)
@@ -592,9 +612,114 @@ def test17(lisa, lfo1, lfo2):
     play_cluster(lisa, [60, 35, 47, 53, 42, 56, 22, 63], duration=1, off_at_once=True)
     play_cluster(lisa, [60, 38, 47, 50, 43, 55, 23, 64], duration=1, off_at_once=True)
 
+    # fmt: off
+    play_sequence(
+        lisa,
+        [
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 51, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 52, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 53, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 56, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 57, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 58, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 59, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 58, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 57, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 56, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+        ],
+        timing=0.02,
+    )
+    # fmt: on
+
+    print("Change snapshots depth to min (wait 2s)...")
+    lisa.wavetable.snapshots_depth = 0
+    lisa.wavetable.auto_blend_k = 10
+    time.sleep(2)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=10)
+
+    print("Change snapshots depth to half...")
+    lisa.wavetable.snapshots_depth = 64
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=10)
+
+    print("Change snapshots depth to max...")
+    lisa.wavetable.snapshots_depth = 127
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=10)
+
+    # Other part
+
+    lfo1.set_parameter("sampling_rate", 300)
+    lfo2.set_parameter("sampling_rate", 252)
+
+    print("Change auto-blend speed to full")
+    lisa.wavetable.auto_blend_k = 127
+    print("Waiting 2s...")
+    time.sleep(2)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+
+    print("Change auto-blend speed to half")
+    lisa.wavetable.auto_blend_k = 10
+    print("Waiting 2s...")
+    time.sleep(2)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+
+    print("Modulate auto-blend with an LFO...")
+    llfo = LFO(
+        waveform="sawtooth",
+        speed=0.1,
+        sampling_rate=256,
+        auto_srate="OFF",
+        autoconnect=True,
+    )
+    lisa.wavetable.auto_blend_k = llfo.scale()
+    print("Waiting 2s...")
+    time.sleep(2)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+
+    play_cluster(lisa, [60, 45, 47, 53, 40, 58, 20, 61], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 40, 47, 53, 41, 57, 21, 62], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 35, 47, 53, 42, 56, 22, 63], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 38, 47, 50, 43, 55, 23, 64], duration=1, off_at_once=True)
+
+    # fmt: off
+    play_sequence(
+        lisa,
+        [
+            60, 38, 47, 50, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 51, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 52, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 53, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 56, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 57, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 58, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 59, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 58, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 57, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 56, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+            60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
+        ],
+        timing=0.02,
+    )
+    # fmt: on
+
+    print("Switch auto-blend off and control it using an LFO...")
+    lisa.wavetable.auto_blend = "OFF"
+    llfo.set_parameter("speed", 0.1)
+    lisa.wavetable.blend_level = llfo
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+
     lfo.stop()
-    lfo1.waveform_cv -= lfo
-    lfo2.waveform_cv -= lfo
+    llfo.stop()
+
+    print("Get back to non snapshot mode")
+    lisa.wavetable.snapshots_mode = "OFF"
 
 
 tests = [
@@ -632,18 +757,19 @@ if __name__ == "__main__":
     lisa.wavetable.level_table3 = 127
     lisa.wavetable.level_table4 = 127
     lisa.general.panning = 64
+    lisa.filter.cutoff = 55
 
     lfo1 = LFO(
         waveform="sine",
-        speed=5,
-        sampling_rate=256,
+        speed=2,
+        sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,
     )
     lfo2 = LFO(
         waveform="square",
         speed=1,
-        sampling_rate=256,
+        sampling_rate=259,
         auto_srate="OFF",
         autoconnect=True,
     )

@@ -73,6 +73,8 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define MIDI_TIMBRE_MOD 16
 #define MIDI_COLOR_MOD 17
 #define MIDI_FM_SLEW 18
+#define MIDI_WT_SNAPSHOT_DEPTH 93
+#define MIDI_WT_SNAPSHOT_ACTIVATE 94
 #define MIDI_FEAT_PEAK 95
 #define MIDI_WT_LEVEL_TABLE1 96
 #define MIDI_WT_LEVEL_TABLE2 97
@@ -83,6 +85,9 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define MIDI_B3 102
 #define MIDI_B4 103
 #define MIDI_B5 104
+#define MIDI_WT_AUTO_BLEND_ACTIVATE 105
+#define MIDI_WT_AUTO_BLEND_K 106
+#define MIDI_WT_BLEND_LEVEL 107
 #define MIDI_WT_INDEX_TABLE1 108
 #define MIDI_WT_INDEX_TABLE2 109
 #define MIDI_WT_INDEX_TABLE3 110
@@ -148,6 +153,8 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 
 #if DEBUG
 #define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+#define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
 #else
 #define DEBUG_PRINTLN(...)
+#define DEBUG_PRINT(...)
 #endif
