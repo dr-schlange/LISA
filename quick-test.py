@@ -564,6 +564,39 @@ def test16(lisa, lfo1, lfo2):
     )
 
 
+# Changing waveform
+def test17(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.voice_mode = "poly"
+
+    print("* Reset wavetables...")
+    lisa.wavetable.mode_wt1 = "circular"
+    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt3 = "circular"
+    lisa.wavetable.mode_wt4 = "circular"
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+    lisa.envelope.attack = 5
+    lisa.envelope.release = 10
+    lisa.filter.cutoff = 55
+
+    lfo = LFO(speed=0.1)
+    lfo.start()
+
+    lfo1.waveform_cv = lfo.scale(0, 5)
+    lfo2.waveform_cv = lfo.scale(5, 0)
+
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+    play_cluster(lisa, [60, 45, 47, 53, 40, 58, 20, 61], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 40, 47, 53, 41, 57, 21, 62], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 35, 47, 53, 42, 56, 22, 63], duration=1, off_at_once=True)
+    play_cluster(lisa, [60, 38, 47, 50, 43, 55, 23, 64], duration=1, off_at_once=True)
+
+    lfo.stop()
+    lfo1.waveform_cv -= lfo
+    lfo2.waveform_cv -= lfo
+
+
 tests = [
     test1,
     test2,
@@ -581,6 +614,7 @@ tests = [
     test14,
     test15,
     test16,
+    test17,
 ]
 
 if __name__ == "__main__":
@@ -602,14 +636,14 @@ if __name__ == "__main__":
     lfo1 = LFO(
         waveform="sine",
         speed=5,
-        sampling_rate=259,
+        sampling_rate=256,
         auto_srate="OFF",
         autoconnect=True,
     )
     lfo2 = LFO(
         waveform="square",
         speed=1,
-        sampling_rate=259,
+        sampling_rate=256,
         auto_srate="OFF",
         autoconnect=True,
     )
