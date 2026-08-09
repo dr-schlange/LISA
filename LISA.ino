@@ -35,10 +35,14 @@
   RP2040: - Optimize: Optimize Even More (-O3)
           - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and
   needed voice count
-          - Sample rate: 32000 (up to 12 voices in polyphonic mode depending on
-  the engine, 6 voices in unison mode) 44100 (up to 10 voices in polyphonic mode
-  depending on the engine,5 voices in unison mode) 48000 (up to 8 voices in
-  polyphonic mode depending on the engine, 4 voices in unison mode) 96000 (up to
+          - Sample rate:
+            * 32000 (up to 12 voices in polyphonic mode depending on
+  the engine, 6 voices in unison mode)
+            * 44100 (up to 10 voices in polyphonic mode
+  depending on the engine,5 voices in unison mode)
+            * 48000 (up to 8 voices in
+  polyphonic mode depending on the engine, 4 voices in unison mode)
+            * 96000 (up to
   4 voices in polyphonic mode depending on the engine, 2 voices in unison mode)
   RP2350:  (technically working but not yet tested myself)
          - Optimize: Optimize Even More (-O3)

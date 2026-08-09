@@ -38,6 +38,8 @@ using namespace stmlib;
 #define EXTRA_ACTIVE(flags) (((flags & 0b1100) >> 2) == 3)
 #define WTABLES_SNAPSHOT_ACTIVE(flags) (flags & 0b10000)
 #define LAP_TO_COMPLETE 2
+#define BLEND_K_MIN 1
+#define BLEND_K_MAX 2000
 
 class LiveWavetable {
 public:
@@ -199,7 +201,9 @@ public:
 
 public:
   inline void setBlendPosition(uint16_t pos16) {
-    // external_control_ = true;
+    if (!external_control_) {
+      return;
+    }
     if (laps_written_ < LAP_TO_COMPLETE) {
       return;
     }
@@ -221,7 +225,7 @@ public:
   inline void setAutoBlend(bool on) { external_control_ = !on; }
 
   static inline void setBlendK(uint16_t value) {
-    kStepsPerFade = constrain(value, 50, 1000);
+    kStepsPerFade = constrain(value, BLEND_K_MIN, BLEND_K_MAX);
     kLinearStep = 65536 / kStepsPerFade;
   }
 
@@ -238,9 +242,6 @@ private:
   }
 
   inline void refreshRenderBuffer() {
-    // if (!WTABLES_SNAPSHOT_ACTIVE(flags_) || !CIRCULAR_ACTIVE(flags_)) {
-    //   return;
-    // }
     if (external_control_) {
       if (laps_written_ >= LAP_TO_COMPLETE && laps_read_ >= LAP_TO_COMPLETE) {
         computeRenderBuffer();
