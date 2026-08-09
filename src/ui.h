@@ -162,7 +162,7 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
     // Level bar: from 0-255 to 0-31 (>>3 == /8), loose 1px, it's ok
     int bar_w = WavetableStreamingOscillator::getBufferLevel(b) >> 3;
     if (bar_w > 0) {
-      display.fillRect(xoff, 30, bar_w, 1, SCREEN_WHITE);
+      display.fillRect(xoff, 32, bar_w, 1, SCREEN_WHITE);
     }
 
     uint8_t wt_mode = WavetableStreamingOscillator::getTableMode(b);
