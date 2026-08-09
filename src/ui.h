@@ -45,7 +45,7 @@ static const uint8_t lisa_logo_bitmap[] PROGMEM = {
     0b00000000, 0b00001000, 0b00100000, 0b00000000};
 
 // Wavetables modes
-static const char mode_chars[] = {'C', 'S', 'M', 'E'};
+static const uint8_t mode_chars[] = {0xE4, 0xE9, 0xEA, 0xE3, 0xE5};
 
 struct UIState {
   int last_engine_draw;
@@ -149,7 +149,7 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
   int16_t bufs[4][257];
   WavetableStreamingOscillator::CopyBuffers(bufs);
 
-  for (int b = 0; b < 4; b++) {
+  for (uint8_t b = 0; b < 4; b++) {
     int xoff = b * 32;
     for (int i = 0; i < 31; i++) {
       int16_t s1 = bufs[b][i * 8];
@@ -162,29 +162,27 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
     // Level bar: from 0-255 to 0-31 (>>3 == /8), loose 1px, it's ok
     int bar_w = WavetableStreamingOscillator::getBufferLevel(b) >> 3;
     if (bar_w > 0) {
-      display.fillRect(xoff, 30, bar_w, 2, SCREEN_WHITE);
+      display.fillRect(xoff, 30, bar_w, 1, SCREEN_WHITE);
     }
 
     uint8_t wt_mode = WavetableStreamingOscillator::getTableMode(b);
     display.fillRect(xoff + 2, 1, 6, 8, SCREEN_BLACK);
     display.setTextSize(1);
     display.setTextColor(SCREEN_WHITE);
-    display.setCursor(xoff + 2, 1);
-    display.print(mode_chars[wt_mode]);
-  }
-
-  const uint8_t dash_height = 3;
-  const uint8_t gap_height = 3;
-  const uint8_t line_length = 32;
-  for (int b = 1; b < 4; b++) {
-    for (int y = 0; y < 32; y += (dash_height + gap_height)) {
-      int16_t current_dash = min(dash_height, line_length - y);
-      display.drawFastVLine(b * 32, y, current_dash, SCREEN_WHITE);
+    display.setCursor(xoff + 2, 2);
+    if (wt_mode == 0 && WavetableStreamingOscillator::snapshotModeActive(b)) {
+      display.write(mode_chars[4]);
+    } else {
+      display.write(mode_chars[wt_mode]);
     }
   }
 
+  for (int b = 1; b < 4; b++) {
+    display.drawFastVLine(b * 32, 0, 32, SCREEN_BLACK);
+  }
+
   // Lower half, normal scope (original one)
-  for (int i = 0; i < SCOPE_WIDTH - 1; i++) {
+  for (uint8_t i = 0; i < SCOPE_WIDTH - 1; i++) {
     int16_t y1 = 48 - ((uistate->scope_buffer_back[i] * 100) >> 15);
     int16_t y2 = 48 - ((uistate->scope_buffer_back[i + 1] * 100) >> 15);
     y1 = constrain(y1, 32, 63);
@@ -199,12 +197,20 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
   int dot_y = 60 - (int)(gstate->color.value * 9.f);
   display.drawPixel(dot_x, dot_y, SCREEN_WHITE);
 
-  if (WavetableStreamingOscillator::snapshotModeActive(0)) {
-    char snapmode[5] = "";
-    sprintf(snapmode, "[%d]",
-            WavetableStreamingOscillator::getSnapshotDepth(0));
-    display.setCursor(0, 57);
-    display.print(snapmode);
+  for (uint8_t t = 0, x = 1; t < 4; t++, x += 10) {
+    if (WavetableStreamingOscillator::snapshotModeActive(t) &&
+        WavetableStreamingOscillator::getTableMode(t) == 0) {
+      uint8_t depth = WavetableStreamingOscillator::getSnapshotDepth(t);
+      uint8_t read = WavetableStreamingOscillator::getReadFrame(t);
+      uint8_t write = WavetableStreamingOscillator::getWriteFrame(t);
+      for (uint8_t k = 0; k < depth; k++) {
+        display.fillRect(x + (k % 4) * 2, 62 - (k / 4) * 2, 2, 2, SCREEN_WHITE);
+      }
+      display.fillRect(x + ((read % 4) * 2), 62 - (read / 4) * 2, 2, 2,
+                       SCREEN_BLACK);
+      display.fillRect(x + ((write % 4) * 2), 62 - (write / 4) * 2, 2, 2,
+                       SCREEN_BLACK);
+    }
   }
   display.display();
   uistate->scope_ready = false;
@@ -291,14 +297,6 @@ void draw_engine_ui(RuntimeState *gstate, UIState *uistate) {
   display.display();
 }
 
-static inline void invert_rect(int x, int y, int w, int h) {
-  for (int j = y; j < y + h; j++) {
-    for (int i = x; i < x + w; i++) {
-      display.drawPixel(i, j, SCREEN_INVERSE);
-    }
-  }
-}
-
 static inline void draw_param(uint8_t x, uint8_t y, const char *name,
                               Parameter *p) {
   display.setCursor(x, y);
@@ -307,8 +305,9 @@ static inline void draw_param(uint8_t x, uint8_t y, const char *name,
     return;
   }
   display.print(name);
-  display.drawRect(x - 3, y - 1, 23, 10, p->screen_locked ? 0 : 1);
-  invert_rect(x - 2, y, p->value * 21, 8);
+  display.drawRect(x - 3, y - 1, 23, 10,
+                   p->screen_locked ? SCREEN_BLACK : SCREEN_WHITE);
+  display.fillRect(x - 2, y, p->value * 21, 8, SCREEN_INVERSE);
 }
 
 static inline void draw_all_parameters(UIState *uistate, RuntimeState *gstate) {

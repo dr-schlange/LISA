@@ -38,8 +38,8 @@ using namespace stmlib;
 #define EXTRA_ACTIVE(flags) (((flags & 0b1100) >> 2) == 3)
 #define WTABLES_SNAPSHOT_ACTIVE(flags) (flags & 0b10000)
 #define LAP_TO_COMPLETE 2
-#define BLEND_K_MIN 1
-#define BLEND_K_MAX 2000
+#define BLEND_K_MIN 10
+#define BLEND_K_MAX 1500
 
 class LiveWavetable {
 public:
@@ -84,6 +84,10 @@ public:
   inline bool snapshotModeActive() { return WTABLES_SNAPSHOT_ACTIVE(flags_); }
 
   inline void setWritePos(uint16_t pos) { write_pos_ = pos; }
+
+  inline uint8_t getReadFrame() { return laps_read_ % snapshots_depth_; }
+
+  inline uint8_t getWriteFrame() { return write_idx_; }
 
   inline uint8_t getMode() const { return (flags_ & FIELD_MODE) >> 2; }
 
@@ -280,7 +284,7 @@ private:
   bool external_control_ = false;
   volatile uint8_t read_idx_ = 0;
   volatile uint8_t write_idx_ = 1;
-  volatile uint8_t snapshots_depth_ = 4;
+  volatile uint8_t snapshots_depth_ = 8;
   uint32_t laps_written_ = 0; // total completed capture laps (monotonic)
   uint32_t laps_read_ = 0;    // lap the crossfade is currently fading into
   uint8_t last_write_idx_ = 0;
@@ -485,6 +489,12 @@ public:
   }
   inline static bool snapshotModeActive(uint8_t idx) {
     return tables_[idx].snapshotModeActive();
+  }
+  inline static uint8_t getWriteFrame(uint8_t idx) {
+    return tables_[idx].getWriteFrame();
+  }
+  inline static uint8_t getReadFrame(uint8_t idx) {
+    return tables_[idx].getReadFrame();
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setLiveMode(bool on) { live_ = on; }
