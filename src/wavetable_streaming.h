@@ -79,17 +79,25 @@ public:
     snapshots_depth_ = constrain(depth, 2, MAX_SNAPSHOTS);
   }
 
-  inline uint8_t getSnapshotDepth() { return snapshots_depth_; }
+  inline uint8_t getSnapshotDepth() const { return snapshots_depth_; }
 
-  inline bool snapshotModeActive() { return WTABLES_SNAPSHOT_ACTIVE(flags_); }
+  inline bool snapshotModeActive() const {
+    return WTABLES_SNAPSHOT_ACTIVE(flags_);
+  }
 
   inline void setWritePos(uint16_t pos) { write_pos_ = pos; }
 
-  inline uint8_t getReadFrame() { return laps_read_ % snapshots_depth_; }
+  inline uint8_t getReadFrame() const { return laps_read_ % snapshots_depth_; }
 
-  inline uint8_t getWriteFrame() { return write_idx_; }
+  inline uint8_t getWriteFrame() const { return write_idx_; }
 
   inline uint8_t getMode() const { return (flags_ & FIELD_MODE) >> 2; }
+
+  inline void setBlendDirection(int8_t direction) {
+    blend_direction_ = direction;
+  }
+
+  inline int8_t getBlendDirection() { return blend_direction_; }
 
   inline void pushSample(int16_t value) {
     if (FREEZE_ACTIVE(flags_)) {
@@ -233,10 +241,13 @@ public:
     kLinearStep = 65536 / kStepsPerFade;
   }
 
+  static inline uint16_t getBlendK() { return kStepsPerFade; }
+
 private:
   inline void computeRenderBuffer() {
     const uint8_t curIdx = (uint8_t)(laps_read_ % snapshots_depth_);
-    const uint8_t prevIdx = (uint8_t)((laps_read_ - 1) % snapshots_depth_);
+    const uint8_t prevIdx =
+        (uint8_t)((laps_read_ + blend_direction_) % snapshots_depth_);
     for (uint16_t i = 0; i < 257; ++i) {
       const int32_t prevv = buffers_[prevIdx][i];
       const int32_t curv = buffers_[curIdx][i];
@@ -289,6 +300,7 @@ private:
   uint32_t laps_read_ = 0;    // lap the crossfade is currently fading into
   uint8_t last_write_idx_ = 0;
   int16_t last_write_value_ = 0;
+  volatile int8_t blend_direction_ = -1;
 };
 
 // volatile int32_t LiveWavetable::kStepsPerFade = 300;
@@ -484,6 +496,15 @@ public:
       tables_[i].setSnapshotMode(activate);
     }
   }
+  inline static void setBlendDirection(int8_t direction) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      tables_[i].setBlendDirection(direction);
+    }
+  }
+  inline static int8_t getBlendDirection(uint8_t idx) {
+    return tables_[idx].getBlendDirection();
+  }
+  inline static int16_t getBlendK() { return LiveWavetable::getBlendK(); }
   inline static uint8_t getSnapshotDepth(uint8_t idx) {
     return tables_[idx].getSnapshotDepth();
   }

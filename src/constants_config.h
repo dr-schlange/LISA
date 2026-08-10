@@ -73,6 +73,7 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define MIDI_TIMBRE_MOD 16
 #define MIDI_COLOR_MOD 17
 #define MIDI_FM_SLEW 18
+#define MIDI_WT_BLEND_DIRECTION 92
 #define MIDI_WT_SNAPSHOT_DEPTH 93
 #define MIDI_WT_SNAPSHOT_ACTIVATE 94
 #define MIDI_FEAT_PEAK 95

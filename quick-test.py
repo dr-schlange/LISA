@@ -576,9 +576,9 @@ def test17(lisa, lfo1, lfo2):
     # lisa.wavetable.stream_table4 -= lfo2
 
     lisa.wavetable.mode_wt1 = "circular"
-    lisa.wavetable.mode_wt2 = "circular"
+    lisa.wavetable.mode_wt2 = "scroll"
     lisa.wavetable.mode_wt3 = "circular"
-    lisa.wavetable.mode_wt4 = "circular"
+    lisa.wavetable.mode_wt4 = "scroll"
     lisa.wavetable.reset_all_wt = "ON"
     lisa.wavetable.reset_all_wt = "OFF"
     lfo = LFO(
@@ -595,7 +595,7 @@ def test17(lisa, lfo1, lfo2):
     lisa.filter.cutoff = 55
 
     # lfo1.waveform_cv = lfo.scale()
-    lfo1.set_parameter("speed", 1)
+    lfo1.set_parameter("speed", 2)
     # lfo1.set_parameter("waveform", "sawtooth")
     #
     print("Activate snapshot mode and change sampling rate")
@@ -603,6 +603,7 @@ def test17(lisa, lfo1, lfo2):
     lfo1.set_parameter("sampling_rate", 300)
     lfo2.set_parameter("sampling_rate", 240)
 
+    lisa.wavetable.snapshots_depth = 10
     print("Waiting 10s...")
     time.sleep(10)
 
@@ -714,6 +715,14 @@ def test17(lisa, lfo1, lfo2):
     llfo.set_parameter("speed", 0.1)
     lisa.wavetable.blend_level = llfo
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+
+    print("Switching to backward blending")
+    lisa.wavetable.auto_blend_direction = "backward"
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 59, 41], duration=5)
+
+    print("Switching to forward blending")
+    lisa.wavetable.auto_blend_direction = "forward"
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 59, 41], duration=5)
 
     lfo.stop()
     llfo.stop()

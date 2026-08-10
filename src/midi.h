@@ -254,6 +254,9 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
       WavetableStreamingOscillator::setAllSnapshotBlendPosition(
           (uint16_t)((uint32_t)cc_value * 65535 / 127));
       break;
+    case MIDI_WT_BLEND_DIRECTION:
+      WavetableStreamingOscillator::setBlendDirection(cc_value >= 64 ? 1 : -1);
+      break;
     case MIDI_WT_LEVEL_TABLE1:
     case MIDI_WT_LEVEL_TABLE2:
     case MIDI_WT_LEVEL_TABLE3:

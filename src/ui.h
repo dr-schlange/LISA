@@ -197,7 +197,13 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
   int dot_y = 60 - (int)(gstate->color.value * 9.f);
   display.drawPixel(dot_x, dot_y, SCREEN_WHITE);
 
-  for (uint8_t t = 0, x = 1; t < 4; t++, x += 10) {
+  if (WavetableStreamingOscillator::snapshotModeActive(0) &&
+      WavetableStreamingOscillator::getTableMode(0) == 0) {
+    display.setCursor(1, 56);
+    display.write(
+        WavetableStreamingOscillator::getBlendDirection(0) > 0 ? 0xF4 : 0xF3);
+  }
+  for (uint8_t t = 0, x = 10; t < 4; t++, x += 10) {
     if (WavetableStreamingOscillator::snapshotModeActive(t) &&
         WavetableStreamingOscillator::getTableMode(t) == 0) {
       uint8_t depth = WavetableStreamingOscillator::getSnapshotDepth(t);
