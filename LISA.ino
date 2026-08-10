@@ -91,9 +91,8 @@ void __not_in_flash_func(update_audio)() {
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
     bool use_streaming =
         (runtime_state.engine_idx >= braids::MACRO_OSC_SHAPE_LAST);
-    if (use_streaming) {
-      voices.setLiveMode(use_streaming);
-    } else {
+    voices.setLiveMode(use_streaming);
+    if (!use_streaming) {
       voices.setEngine((braids::MacroOscillatorShape)runtime_state.engine_idx);
     }
     runtime_state.last_engine_idx = runtime_state.engine_idx;
