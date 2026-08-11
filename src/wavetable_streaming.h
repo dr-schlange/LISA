@@ -287,7 +287,7 @@ private:
   inline static volatile int32_t kStepsPerFade = 300;
   inline static volatile int32_t kLinearStep = 65536 / kStepsPerFade;
   volatile uint16_t write_pos_ = 0;
-  volatile uint8_t flags_ = 0b00000000;
+  volatile uint8_t flags_ = 0b00010000;
   volatile uint8_t level_ = 255; // fp8
   volatile int16_t buffers_[MAX_SNAPSHOTS][257];
   int16_t render_buf_[257];

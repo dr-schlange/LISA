@@ -569,6 +569,10 @@ def test16(lisa, lfo1, lfo2):
 def test17(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
     lisa.general.voice_mode = "poly"
+    lisa.wavetable.level_table1 = 64
+    lisa.wavetable.level_table2 = 127
+    lisa.wavetable.level_table3 = 15
+
 
     print("* Reset wavetables...")
     # lisa.wavetable.stream_table2 -= lfo1

@@ -159,10 +159,11 @@ inline void draw_live_scope(UIState *uistate, RuntimeState *gstate) {
       display.drawLine(xoff + i, y1, xoff + i + 1, y2, SCREEN_WHITE);
     }
 
-    // Level bar: from 0-255 to 0-31 (>>3 == /8), loose 1px, it's ok
-    int bar_w = WavetableStreamingOscillator::getBufferLevel(b) >> 3;
+    // Level bar: from 0-255 to 0-31 (>>3 == /16)
+    int bar_w = WavetableStreamingOscillator::getBufferLevel(b) >> 4;
     if (bar_w > 0) {
-      display.fillRect(xoff, 32, bar_w, 1, SCREEN_WHITE);
+      // display.fillRect(b * 10 + 50, 49, 8, bar_w, SCREEN_WHITE);
+      display.fillRect(b * 10 + 52, 66 - bar_w, 5, bar_w, SCREEN_WHITE);
     }
 
     uint8_t wt_mode = WavetableStreamingOscillator::getTableMode(b);
