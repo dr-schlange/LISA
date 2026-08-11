@@ -135,6 +135,9 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **71**        | Filter Resonance                                       |
 | **74**        | Filter Cutoff                                          |
 | **75**        | Filter Type                                            |
+| **92**        | Slug blending direction (\*\*\*)                       |
+| **93**        | Slug Depth (temporal memory) (\*\*\*)                  |
+| **94**        | Activates Sluggish Mode (\*\*\*)                       |
 | **95**        | Sends the peak envelope of the sound (per block)       |
 | **96**        | Wavetable 1 mix level (\*\*)                           |
 | **97**        | Wavetable 2 mix level (\*\*)                           |
@@ -145,6 +148,9 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **102**       | b3 (send CC only)                                      |
 | **103**       | b4 (send CC only)                                      |
 | **104**       | b5 (send CC only)                                      |
+| **105**       | Automatic sluggish factor (\*\*\*)                     |
+| **106**       | Sluggish factor (\*\*\*)                               |
+| **107**       | Sluggish level external control (\*\*\*)               |
 | **108**       | Wavetable 1 write index (\*\*)                         |
 | **109**       | Wavetable 2 write index (\*\*)                         |
 | **110**       | Wavetable 3 write index (\*\*)                         |
@@ -153,7 +159,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **113**       | Wavetable 2 mode - default is circular (\*\*)          |
 | **114**       | Wavetable 3 mode - default is circular (\*\*)          |
 | **115**       | Wavetable 4 mode - default is circular (\*\*)          |
-| **116**       | Activates the double buffering default false (\*\*)    |
+| **116**       | Activates double buffering default false *deprecated* (\*\*)    |
 | **117**       | Reset all wavetables to 0 (\*\*)                       |
 | **118**       | Reset write index on all wavetables (\*\*)             |
 | **119**       | Freezes wavetable 1 (\*\*)                             |
@@ -182,7 +188,9 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 - 126 -> resets LISA (app reset)
 - 1   -> pulls LISA current configuration (sends values of all known CC parameters)
 
-\*\* Note: those CCs are only used by the live wavetable engine (`LIVE`). 
+\*\* Note: those CCs are only used by the live wavetable engine (`LIVE`).
+
+\*\*\* Note: those CCs are only used by the live wavetable engine (`LIVE`) set in `Sluggish Mode`.
 
 ## Software Setup
 
