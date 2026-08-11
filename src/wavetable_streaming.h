@@ -266,18 +266,36 @@ private:
     if (laps_written_ < LAP_TO_COMPLETE) {
       return;
     }
-    if (laps_read_ < LAP_TO_COMPLETE) {
-      laps_read_ = LAP_TO_COMPLETE;
+    const bool forward = blend_direction_ < 0;
+
+    if (laps_read_ == 0) {
+      laps_read_ = forward ? LAP_TO_COMPLETE : (laps_written_ - 1);
       slew_ = 0;
     }
 
     int32_t s = (int32_t)slew_ + kLinearStep;
     if (s >= 65535) {
-      if (laps_read_ < laps_written_) {
-        ++laps_read_;
-        s = 0;
+      if (forward) {
+        if (laps_read_ < laps_written_) {
+          ++laps_read_;
+          s = 0;
+        } else {
+          s = 65535; // hold: waiting for new content
+        }
       } else {
-        s = 65535;
+        uint32_t oldest_safe = 1;
+        if (laps_written_ + 2 > snapshots_depth_) {
+          uint32_t computed = laps_written_ + 2 - snapshots_depth_;
+          if (computed > oldest_safe) {
+            oldest_safe = computed;
+          }
+        }
+        if (laps_read_ > oldest_safe) {
+          --laps_read_;
+        } else {
+          laps_read_ = laps_written_ - 1;
+        }
+        s = 0;
       }
     }
     slew_ = (uint16_t)s;
