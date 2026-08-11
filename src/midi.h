@@ -241,7 +241,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
           map(cc_value, 0, 127, 2, MAX_SNAPSHOTS));
       break;
     case MIDI_WT_SNAPSHOT_ACTIVATE:
-      WavetableStreamingOscillator::setSnapshotMode(cc_value >= 64);
+      WavetableStreamingOscillator::setSnapshotMode(cc_value < 64);
       break;
     case MIDI_WT_AUTO_BLEND_ACTIVATE:
       WavetableStreamingOscillator::setAllSnapshotAutoBlend(cc_value >= 64);
