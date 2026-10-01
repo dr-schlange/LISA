@@ -55,14 +55,14 @@ def teardown(lisa):
     stop_all_connected_devices()
 
 
-def play_sequence(lisa, notes, timing=0.5):
+def play_sequence(lisa, notes, timing=0.5, timing_on=0.5, timing_off=0.5):
     for note in notes:
         print("  note on", note)
         lisa.note_on(note)
-        time.sleep(timing)
+        time.sleep(timing_on or timing)
         print("  note off", note)
         lisa.note_off(note)
-        time.sleep(timing)
+        time.sleep(timing_off or timing)
 
 
 def play_cluster(lisa, notes, duration=4, off_at_once=False):
@@ -741,111 +741,100 @@ def test17(lisa, lfo1, lfo2):
     lisa.wavetable.sluggish_mode = "OFF"
 
 
+def set_ratio(lisa, ratios):
+    print("Set ratios", ratios)
+    for i, ratio in enumerate(ratios):
+        setattr(lisa.wavetable, f"phase_ratio_table{i}", ratio)
+
+
 def test18(lisa, lfo1, lfo2):
     print("Get back to non snapshot mode")
     lisa.wavetable.sluggish_mode = "OFF"
     lisa.general.voice_mode = "poly"
     lfo1.set_parameter("waveform", "sawtooth")
 
-    print("Test static ratio 1 2 3 4")
-    c1, c2, c3, c4 = (
-        Constant(value=0, autoconnect=True),
-        Constant(value=1024, autoconnect=True),
-        Constant(value=2048, autoconnect=True),
-        Constant(value=3072, autoconnect=True),
-    )
-    print("Constant", c2.value)
-    lisa.wavetable.phase_ratio_table1 = c1.value_cv.scale(-8192, 8192)
-    lisa.wavetable.phase_ratio_table2 = c2.value_cv.scale(-8192, 8192)
-    lisa.wavetable.phase_ratio_table3 = c3.value_cv.scale(-8192, 8192)
-    lisa.wavetable.phase_ratio_table4 = c4.value_cv.scale(-8192, 8192)
-
-    lisa.envelope.release = 70
+    set_ratio(lisa, [0, 2048, 4096, 6144])
     play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
 
-    print("Test static ratio  1, 1.004, 0.996, 1.01")
-    c1.set_parameter("value", 0)
-    c2.set_parameter("value", 4)
-    c3.set_parameter("value", -4)
-    c4.set_parameter("value", 10)
-
-    lisa.envelope.release = 70
+    set_ratio(lisa, [0, 1024, 2048, 3072])
     play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
 
-    print("Test static ratio 1 1.5 2 3")
-    c1.set_parameter("value", 0)
-    c2.set_parameter("value", 512)
-    c3.set_parameter("value", 1024)
-    c4.set_parameter("value", 2048)
-
-    lisa.envelope.release = 70
+    set_ratio(lisa, [0, 4, -4, 10])
     play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
 
-    print("Test static ratio  1, 2.756, 5.404, 8.933")
-    c1.set_parameter("value", 0)
-    c2.set_parameter("value", 1798)
-    c3.set_parameter("value", 4510)
-    c4.set_parameter("value", 8124)
-
-    lisa.envelope.release = 70
+    set_ratio(lisa, [0, 512, 1024, 2048])
     play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
 
-    print("Test static ratio  1, sqr2, sqr3, sqr5")
-    c1.set_parameter("value", 0)
-    c2.set_parameter("value", 424)
-    c3.set_parameter("value", 750)
-    c4.set_parameter("value", 1264)
+    set_ratio(lisa, [0, 1798, 4510, 8124])
+    play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
+    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
 
-    lisa.envelope.release = 70
+    set_ratio(lisa, [0, 424, 750, 1264])
     play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
 
 
 def test19(lisa, lfo1, lfo2):
-    print("Get back to non snapshot mode")
+    print("Get back to snapshot mode")
     lisa.wavetable.sluggish_mode = "ON"
     lisa.general.voice_mode = "poly"
-
-    print("Test moving ratio")
+    lisa.wavetable.reset_all_wt = "ON"
+    lisa.wavetable.reset_all_wt = "OFF"
+    # lisa.wavetable.stream_table2 -= lfo1
+    # lisa.wavetable.stream_table3 -= lfo2
+    print("Test moving offset")
     llfo = LFO(
         waveform="sine",
-        speed=0.1,
-        sampling_rate=256,
+        speed=0.2,
+        sampling_rate=255,
         auto_srate="OFF",
         autoconnect=True,
     )
-    c1, c2, c3, c4 = (
-        Constant(value=0, autoconnect=True),
-        Constant(value=1798, autoconnect=True),
-        Constant(value=4510, autoconnect=True),
-        Constant(value=8124, autoconnect=True),
-    )
     lfo1.set_parameter("waveform", "sawtooth")
-    lfo1.set_parameter("speed", "2")
+    lfo1.set_parameter("speed", "1.5")
+    lfo2.set_parameter("waveform", "half_wave_rectified_sine")
+    lfo2.set_parameter("speed", "2.7")
 
-    lisa.wavetable.phase_ratio_table1 = llfo.scale(-8192, 8192)
-    lisa.wavetable.phase_offset_table1 = (llfo + lfo2).scale(0, 1024)
-    lisa.wavetable.phase_ratio_table2 = c2.value_cv.scale(-8192, 8191)
-    lisa.wavetable.phase_ratio_table3 = c3.value_cv.scale(-8192, 8191)
-    lisa.wavetable.phase_ratio_table4 = c4.value_cv.scale(-8192, 8191)
-    lisa.envelope.release = 70
-    play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
-    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
-
-    print("Sweep offset")
-    lisa.wavetable.phase_ratio_table1 -= llfo
-    lisa.wavetable.phase_ratio_table1 = c1.value_cv.scale(-8192, 8191)
-    lisa.wavetable.phase_offset_table1 = llfo.scale(0, 1024)
-    lisa.wavetable.phase_ratio_table2 = c2.value_cv.scale(-8192, 8191)
-    lisa.wavetable.phase_ratio_table3 = c3.value_cv.scale(-8192, 8191)
-    lisa.wavetable.phase_ratio_table4 = c4.value_cv.scale(-8192, 8191)
-    lisa.envelope.release = 70
-    play_sequence(lisa, [54, 47, 42, 58], timing=0.5)
-    play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=5)
+    lisa.wavetable.phase_ratio_table1 = 0
+    lisa.wavetable.phase_ratio_table3 = 4567
+    lisa.wavetable.phase_ratio_table2 = 1024
+    lisa.wavetable.phase_offset_table3 = llfo.scale(0, 2048)
+    lisa.wavetable.hard_sync = "ON"
+    lisa.wavetable.phase_ratio_table4 = llfo.scale(1500, 7000)
+    # lisa.wavetable.mode_wt3 = "scroll"
+    lisa.envelope.release = 80
+    play_sequence(
+        lisa,
+        [
+            54,
+            47,
+            42,
+            58,
+            54,
+            47,
+            42,
+            58,
+            54,
+            47,
+            42,
+            58,
+            54,
+            47,
+            42,
+            58,
+            54,
+            47,
+            42,
+            58,
+        ],
+        timing_on=0.5,
+        timing_off=0.001,
+    )
+    play_cluster(lisa, [60, 45, 47, 53, 55], duration=50)
 
     lfo1.set_parameter("waveform", "sine")
     llfo.stop()

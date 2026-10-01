@@ -38,7 +38,7 @@ const char *const modes[] = {
 // Voices config (audio block and sample rate are related)
 #define MAX_VOICES 8
 #define AUDIO_BLOCK 32
-#define SAMPLE_RATE 48000
+#define SAMPLE_RATE 44100
 
 // Unison mode needs pairs voices
 static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");

@@ -225,9 +225,9 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
   - CPU Speed: 200-240mhz (Overclock) depending on the sample rate and needed voice count
   - Sample rate: 
     - 32000 (up to 12 voices depending on the engine, 6 voices in unison mode)
-    - 44100 (up to 10 voices depending on the engine, 5 voices in unison mode)
-    - 48000 (up to 8 voices depending on the engine, 4 voices in unison mode)
-    - 96000 (up to 4 voices depending on the engine, 2 voices in unison mode)
+    - 44100 (up to 10 voices depending on the engine, 5 voices in unison mode, definitely the recommended setting)
+    - 48000 (up to 8 voices depending on the engine, 4 voices in unison mode, but might have some unpleasant click sometimes depending on the amount of modulation you set on the phase ratio or offset)
+    - 96000 (up to 4 voices depending on the engine, 2 voices in unison mode, but might have some unpleasant click sometimes depending on the amount of modulation you set on the phase ratio or offset)
 * **RP2350:** - Optimize: Fast (-Ofast)
   - Sample rate: 48000
 

@@ -15,6 +15,7 @@
 - Reduced bundle/image size by building it for Pico instead of PicoW
 - New UI for the live mode
 - Add experimental new "Sluggish Mode" where wavetables are filled (from 2 to 16 tables can be saved), and blended between each other to give a nice evolving shape based on raw wavetable snaptshots.
+- Add phase ratio and phase offset control per wavetable
 
 ### Fixes
 
