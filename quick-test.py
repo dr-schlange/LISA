@@ -648,17 +648,17 @@ def test17(lisa, lfo1, lfo2):
     # fmt: on
 
     print("Change snapshots depth to min (wait 2s)...")
-    lisa.wavetable.snapshots_depth = 0
+    lisa.wavetable.slug_depth = 0
     lisa.wavetable.auto_blend_k = 10
     time.sleep(2)
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=10)
 
     print("Change snapshots depth to half...")
-    lisa.wavetable.snapshots_depth = 64
+    lisa.wavetable.slug_depth = 64
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=10)
 
     print("Change snapshots depth to max...")
-    lisa.wavetable.snapshots_depth = 127
+    lisa.wavetable.slug_depth = 127
     play_cluster(lisa, [60, 45, 47, 53, 55, 30, 80, 90], duration=10)
 
     # Other part
