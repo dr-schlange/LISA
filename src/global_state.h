@@ -188,6 +188,7 @@ struct RuntimeState {
 
   bool sustain_enabled;
   volatile bool filter_enabled;
+  volatile int16_t pitch_bend;
 
   bool show_saved_flag;
   unsigned long saved_start_time;
@@ -269,6 +270,7 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->cv_mod2_enabled = false;
   gstate->sustain_enabled = false;
   gstate->filter_enabled = true;
+  gstate->pitch_bend = 0;
   gstate->show_saved_flag = false;
   gstate->saved_start_time = 0;
   gstate->display_state = ENGINE_SELECT_MODE;

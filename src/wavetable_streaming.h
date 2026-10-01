@@ -37,6 +37,7 @@ using namespace stmlib;
 #define MANUAL_IDX_ACTIVE(flags) (((flags & 0b1100) >> 2) == 2)
 #define EXTRA_ACTIVE(flags) (((flags & 0b1100) >> 2) == 3)
 #define WTABLES_SNAPSHOT_ACTIVE(flags) (flags & 0b10000)
+#define WT_RATIO_ONE 1024 // table ratio fixed point Q10, 1024 == 1.0
 #define LAP_TO_COMPLETE 2
 #define BLEND_K_MIN 10
 #define BLEND_K_MAX 1500
@@ -200,6 +201,16 @@ public:
 
   inline uint8_t getLevel() { return level_; }
 
+  // table rate relative to the played pitch, Q10 (WT_RATIO_ONE == 1.0)
+  inline void setRatio(int32_t ratio_q10) { ratio_ = ratio_q10; }
+
+  inline int32_t getRatio() { return ratio_; }
+
+  // read position shift, 2^32 == one cycle (wraps)
+  inline void setOffset(int32_t phase_offset) { offset_ = phase_offset; }
+
+  inline int32_t getOffset() { return offset_; }
+
   inline void copyTable(int16_t dst[257]) {
     memcpy(dst, (const int16_t *)renderPointer(), 257 * sizeof(int16_t));
   }
@@ -307,6 +318,8 @@ private:
   volatile uint16_t write_pos_ = 0;
   volatile uint8_t flags_ = 0b00010000;
   volatile uint8_t level_ = 255; // fp8
+  volatile int32_t ratio_ = WT_RATIO_ONE;
+  volatile int32_t offset_ = 0;
   volatile int16_t buffers_[MAX_SNAPSHOTS][257];
   int16_t render_buf_[257];
   uint16_t slew_ = 65535; // 0 = fully laps_read_-1, 65535 = fully laps_read_
@@ -328,7 +341,7 @@ public:
   inline void Init(float sr) {
     braids::MacroOscillator::Init(sr);
     srFactor_ = 96000.f / sr;
-    phase_ = 0;
+    reset_phase();
     pitch_ = 0;
     p1_ = 0;
     p2_ = 0;
@@ -371,11 +384,16 @@ public:
     braids::MacroOscillator::set_parameters(p1, p2);
   }
 
-  inline void reset_phase() { phase_ = 0; }
+  inline void reset_phase() {
+    for (uint8_t i = 0; i < 4; ++i) {
+      phases_[i] = 0;
+    }
+    master_phase_ = 0;
+  }
 
   inline void Strike() {
     if (retrigger_) {
-      phase_ = 0;
+      reset_phase();
     }
     braids::MacroOscillator::Strike();
   }
@@ -389,15 +407,15 @@ public:
     RenderMixing(sync, buffer, size);
   }
 
-  inline int16_t ReadMixedSample(const int16_t *const waves[4], uint32_t phase,
-                                 int32_t lw1, int32_t lw2, int32_t lw3,
-                                 int32_t lw4) {
+  inline int16_t ReadMixedSample(const int16_t *const waves[4],
+                                 const uint32_t phases[4], int32_t lw1,
+                                 int32_t lw2, int32_t lw3, int32_t lw4) {
     // a + ((b - a) * static_cast<int32_t>(balance) >> 16);
 
-    int32_t mix = Interpolate824(waves[0], phase) * lw1 +
-                  Interpolate824(waves[1], phase) * lw2 +
-                  Interpolate824(waves[2], phase) * lw3 +
-                  Interpolate824(waves[3], phase) * lw4;
+    int32_t mix = Interpolate824(waves[0], phases[0]) * lw1 +
+                  Interpolate824(waves[1], phases[1]) * lw2 +
+                  Interpolate824(waves[2], phases[2]) * lw3 +
+                  Interpolate824(waves[3], phases[3]) * lw4;
     return mix >> 15;
   }
 
@@ -413,15 +431,49 @@ public:
     int32_t lw3 = (w3_ * (int32_t)tables_[2].getLevel()) >> 8;
     int32_t lw4 = (w4_ * (int32_t)tables_[3].getLevel()) >> 8;
 
-    uint32_t phase_increment = ComputePhaseIncrement(pitch_);
-    while (size--) {
-      phase_ += phase_increment;
-      if (*sync++) {
-        phase_ = 0;
-      }
-      *output++ =
-          ReadMixedSample(waves, phase_ + phase_offset_, lw1, lw2, lw3, lw4);
+    // Ratio is q10. Negative ratio make the table reading backward and 0
+    // freezes it
+    const uint32_t phase_increment = ComputePhaseIncrement(pitch_);
+    int32_t ratio[4];
+    uint32_t inc[4], offset[4], phase[4];
+    for (uint8_t i = 0; i < 4; ++i) {
+      ratio[i] = tables_[i].getRatio();
+      inc[i] = (uint32_t)(((int64_t)phase_increment * ratio[i]) >> 10);
+      offset[i] = (uint32_t)tables_[i].getOffset() + (uint32_t)phase_offset_;
+      phase[i] = phases_[i];
     }
+    const bool hard_sync = hard_sync_;
+    uint32_t master = master_phase_;
+    uint32_t phases[4];
+
+    while (size--) {
+      for (uint8_t i = 0; i < 4; ++i) {
+        phase[i] += inc[i];
+      }
+      // Master is the base increment, when it wraps all tables restart
+      const uint32_t next_master = master + phase_increment;
+      if (hard_sync && next_master < master) {
+        for (uint8_t i = 0; i < 4; ++i) {
+          phase[i] = (uint32_t)(((int64_t)next_master * ratio[i]) >> 10);
+        }
+      }
+      master = next_master;
+      if (*sync++) {
+        for (uint8_t i = 0; i < 4; ++i) {
+          phase[i] = 0;
+        }
+        master = 0;
+      }
+      for (uint8_t i = 0; i < 4; ++i) {
+        phases[i] = phase[i] + offset[i];
+      }
+      *output++ = ReadMixedSample(waves, phases, lw1, lw2, lw3, lw4);
+    }
+
+    for (uint8_t i = 0; i < 4; ++i) {
+      phases_[i] = phase[i];
+    }
+    master_phase_ = master;
   }
 
   // Used for UI/display, called from Core 0 only
@@ -536,6 +588,13 @@ public:
     return tables_[idx].getReadFrame();
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
+  inline static void setTableRatio(uint8_t idx, int32_t ratio_q10) {
+    tables_[idx].setRatio(ratio_q10);
+  }
+  inline static void setTableOffset(uint8_t idx, int32_t phase_offset) {
+    tables_[idx].setOffset(phase_offset);
+  }
+  inline static void setHardSync(bool on) { hard_sync_ = on; }
   inline static void setLiveMode(bool on) { live_ = on; }
   inline static bool isLiveMode() { return live_; }
 
@@ -564,8 +623,8 @@ private:
   int16_t w3_ = 0;
   int16_t w4_ = 0;
 
-  uint32_t phase_ = 0;
-  int32_t lpState_ = 0;
+  uint32_t phases_[4] = {0, 0, 0, 0};
+  uint32_t master_phase_ = 0;
   float srFactor_ = 1.f;
 
   // Shared across Cores
@@ -575,6 +634,7 @@ private:
   inline static volatile bool retrigger_ = false;
   inline static LiveWavetable tables_[4] = {};
   inline static volatile int32_t phase_offset_ = 0;
+  inline static volatile bool hard_sync_ = false;
 };
 
 // volatile uint8_t WavetableStreamingOscillator::write_buf_ = 0;

@@ -135,6 +135,7 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **71**        | Filter Resonance                                       |
 | **74**        | Filter Cutoff                                          |
 | **75**        | Filter Type                                            |
+| **91**        | Hard sync of the wavetable phases (>= 64: on, default off) (\*\*) |
 | **92**        | Slug blending direction (\*\*\*)                       |
 | **93**        | Slug Depth (temporal memory) (\*\*\*)                  |
 | **94**        | Activates Sluggish Mode (\*\*\*)                       |
@@ -174,6 +175,9 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **pitchweel** channel 2 | Streams a waveform for wavetetable 2 (\*\*)      |
 | **pitchweel** channel 3 | Streams a waveform for wavetetable 3 (\*\*)      |
 | **pitchweel** channel 4 | Streams a waveform for wavetetable 4 (\*\*)      |
+| **pitchwheel** channel 5 | Pitch bend, +-2 semitones, all engines          |
+| **pitchwheel** channels 6-9 | Phase ratio of wavetable 1-4 (\*\*\*\*)      |
+| **pitchwheel** channels 10-13 | Phase offset of wavetable 1-4 (\*\*\*\*)   |
 | **127**       | Reset USB to upload from IDE (WARNING: for dev mode)\* |
 
 CC#100-104 are sent by the button B or C depending on the row you are located in the **ALL PARAMETERS** mode. 
@@ -191,6 +195,12 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 \*\* Note: those CCs are only used by the live wavetable engine (`LIVE`).
 
 \*\*\* Note: those CCs are only used by the live wavetable engine (`LIVE`) set in `Sluggish Mode`.
+
+\*\*\*\* Note: in the live wavetable engine (`LIVE`), each wavetable has its own phase. Values are the raw 14-bit pitchwheel value (-8192..8191), and the default (centered, 0) keeps the previous behavior, all the wavetables on the same phase.
+
+- **Ratio:** the wavetable reads at `base increment * (1 + raw / 1024)`, range -7.0 to 9.0, 0 is 1.0. A negative ratio reads the wavetable backward, `-1024` freezes it. Different ratios make the wavetables drift apart.
+- **Offset:** shifts the wavetable read position by `raw / 16384` cycle (-0.5 to +0.5 cycle), added to the global offset of CC#125. It is a static shift, it only matters relative to the other wavetables (PWM-like), or at note-on.
+- **Hard sync:** a master phase runs at the played pitch, and when it wraps, each wavetable restarts at `master remainder * its ratio`. At ratio 1.0 it changes nothing, with ratios different from 1.0 it gives a classic sync-sweep timbre. Without sync, the phases are free.
 
 ## Software Setup
 

@@ -110,10 +110,11 @@ public:
 
   inline void render(int32_t mix[AUDIO_BLOCK], int16_t timbre, int16_t color,
                      int16_t timb_slew, int16_t color_slew, int16_t fm_slew,
-                     float unison_detune, int32_t attackCoef,
-                     int32_t releaseCoef, int32_t block_gain, int32_t cut_slew,
-                     int32_t res_slew, braids::SvfMode filter_type,
-                     int32_t dry_scale, int32_t wet_scale) {
+                     int16_t pitch_bend, float unison_detune,
+                     int32_t attackCoef, int32_t releaseCoef,
+                     int32_t block_gain, int32_t cut_slew, int32_t res_slew,
+                     braids::SvfMode filter_type, int32_t dry_scale,
+                     int32_t wet_scale) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
 
@@ -125,7 +126,8 @@ public:
     vel_smoothed_ += (int16_t)((int32_t)velocity - (int32_t)vel_smoothed_) >> 2;
 
     // 12 semitones * 128 (braids note scale unit)
-    int16_t oscpitch = pitch + (int16_t)(((int32_t)fm_slew * 12 * 128) >> 15);
+    int16_t oscpitch =
+        pitch + (int16_t)(((int32_t)fm_slew * 12 * 128) >> 15) + pitch_bend;
     if (is_secondary(flags)) {
       oscpitch += (int16_t)((unison_detune - 0.5f) * 128.0f);
     }
@@ -294,9 +296,10 @@ public:
 
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].render(mix, timb_q15, col_q15, timb_slew_, color_slew_,
-                        fm_slew_, gstate->unison_detune.value, attackCoef_,
-                        releaseCoef_, block_gain, cut_slew_, res_slew_,
-                        filter_type_, dry_scale, wet_scale);
+                        fm_slew_, gstate->pitch_bend,
+                        gstate->unison_detune.value, attackCoef_, releaseCoef_,
+                        block_gain, cut_slew_, res_slew_, filter_type_,
+                        dry_scale, wet_scale);
     }
   }
 

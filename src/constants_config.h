@@ -73,6 +73,7 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define MIDI_TIMBRE_MOD 16
 #define MIDI_COLOR_MOD 17
 #define MIDI_FM_SLEW 18
+#define MIDI_WT_HARD_SYNC 91
 #define MIDI_WT_BLEND_DIRECTION 92
 #define MIDI_WT_SNAPSHOT_DEPTH 93
 #define MIDI_WT_SNAPSHOT_ACTIVATE 94
@@ -109,6 +110,11 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define MIDI_WT_PHASE_OFFSET 125
 #define MIDI_WT_PHASE_RESET 126
 #define MIDI_DEV 127
+
+#define MIDI_PB_CH_PITCH_BEND 4
+#define MIDI_PB_CH_RATIO_FIRST 5
+#define MIDI_PB_CH_OFFSET_FIRST 9
+#define MIDI_PB_BEND_RANGE_UNITS 256 // 2 semitones * 128 (braids note scale)
 
 // Buttons, Encoders
 #define BUTTON_DEBOUNCE_MS 200

@@ -128,15 +128,39 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   if ((status & 0x80) == 0)
     return;
 
-  // Special case for MIDI channel and pitchwheel
-  if (WavetableStreamingOscillator::isLiveMode() &&
-      IS_MIDI_PITCHWHEEL(status) && MIDI_CHANNEL(status) >= 0 &&
-      MIDI_CHANNEL(status) <= 3) {
-    uint16_t raw = ((uint16_t)cc_value << 7) | pitch_or_cc; // 0–16383
-    int16_t sample = ((int32_t)raw - 8192) << 2;
-    WavetableStreamingOscillator::PushSampleInBuffer(MIDI_CHANNEL(status),
-                                                     sample);
-    return;
+  // Pitchwheel channel routing
+  if (IS_MIDI_PITCHWHEEL(status)) {
+    const uint8_t channel = MIDI_CHANNEL(status);
+    const int16_t raw = (int16_t)(((uint16_t)cc_value << 7) | pitch_or_cc) -
+                        8192; // -8192..8191
+    if (channel == MIDI_PB_CH_PITCH_BEND) {
+      gstate->pitch_bend = (int16_t)((raw * MIDI_PB_BEND_RANGE_UNITS) >> 13);
+      return;
+    }
+    if (WavetableStreamingOscillator::isLiveMode()) {
+      // wavetable samples, one channel per wavetable
+      if (channel < MIDI_PB_CH_PITCH_BEND) {
+        WavetableStreamingOscillator::PushSampleInBuffer(channel,
+                                                         (int16_t)(raw << 2));
+        return;
+      }
+      // ratio handling: ratio = 1 + raw / 1024 (midi value 0 -> 1.0), in Q10
+      if (channel >= MIDI_PB_CH_RATIO_FIRST &&
+          channel < MIDI_PB_CH_RATIO_FIRST + 4) {
+        WavetableStreamingOscillator::setTableRatio(
+            channel - MIDI_PB_CH_RATIO_FIRST, WT_RATIO_ONE + raw);
+        return;
+      }
+      // phase offset handling: midi value spreads over -0.5..+0.5 cycle (2^32 =
+      // one cycle)
+      if (channel >= MIDI_PB_CH_OFFSET_FIRST &&
+          channel < MIDI_PB_CH_OFFSET_FIRST + 4) {
+        WavetableStreamingOscillator::setTableOffset(
+            channel - MIDI_PB_CH_OFFSET_FIRST,
+            (int32_t)((uint32_t)(int32_t)raw << 18));
+        return;
+      }
+    }
   }
 
   if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1))
@@ -297,6 +321,9 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
       break;
     case MIDI_WT_PHASE_RESET:
       voices->enqueueResetPhases();
+      break;
+    case MIDI_WT_HARD_SYNC:
+      WavetableStreamingOscillator::setHardSync(cc_value >= 64);
       break;
     case MIDI_WT_FREEZE_TABLE1:
     case MIDI_WT_FREEZE_TABLE2:
