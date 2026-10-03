@@ -37,7 +37,7 @@ using namespace stmlib;
 #define MANUAL_IDX_ACTIVE(flags) (((flags & 0b1100) >> 2) == 2)
 #define EXTRA_ACTIVE(flags) (((flags & 0b1100) >> 2) == 3)
 #define WTABLES_SNAPSHOT_ACTIVE(flags) (flags & 0b10000)
-#define WT_RATIO_ONE 1024 // table ratio fixed point Q10, 1024 == 1.0
+#define WT_RATIO_ONE 65536 // table ratio fixed point Q16, 65536 == 1.0
 #define LAP_TO_COMPLETE 2
 #define BLEND_K_MIN 10
 #define BLEND_K_MAX 1500
@@ -201,8 +201,8 @@ public:
 
   inline uint8_t getLevel() { return level_; }
 
-  // table rate relative to the played pitch, Q10 (WT_RATIO_ONE == 1.0)
-  inline void setRatio(int32_t ratio_q10) { ratio_ = ratio_q10; }
+  // table rate relative to the played pitch, Q16 (WT_RATIO_ONE == 1.0)
+  inline void setRatio(int32_t ratio_q16) { ratio_ = ratio_q16; }
 
   inline int32_t getRatio() { return ratio_; }
 
@@ -431,14 +431,14 @@ public:
     int32_t lw3 = (w3_ * (int32_t)tables_[2].getLevel()) >> 8;
     int32_t lw4 = (w4_ * (int32_t)tables_[3].getLevel()) >> 8;
 
-    // Ratio is q10. Negative ratio make the table reading backward and 0
+    // Ratio is Q16. Negative ratio make the table reading backward and 0
     // freezes it
     const uint32_t phase_increment = ComputePhaseIncrement(pitch_);
     int32_t ratio[4];
     uint32_t inc[4], offset[4], phase[4];
     for (uint8_t i = 0; i < 4; ++i) {
       ratio[i] = tables_[i].getRatio();
-      inc[i] = (uint32_t)(((int64_t)phase_increment * ratio[i]) >> 10);
+      inc[i] = (uint32_t)(((int64_t)phase_increment * ratio[i]) >> 16);
       offset[i] = (uint32_t)tables_[i].getOffset() + (uint32_t)phase_offset_;
       phase[i] = phases_[i];
     }
@@ -454,7 +454,7 @@ public:
       const uint32_t next_master = master + phase_increment;
       if (hard_sync && next_master < master) {
         for (uint8_t i = 0; i < 4; ++i) {
-          phase[i] = (uint32_t)(((int64_t)next_master * ratio[i]) >> 10);
+          phase[i] = (uint32_t)(((int64_t)next_master * ratio[i]) >> 16);
         }
       }
       master = next_master;
@@ -588,8 +588,8 @@ public:
     return tables_[idx].getReadFrame();
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
-  inline static void setTableRatio(uint8_t idx, int32_t ratio_q10) {
-    tables_[idx].setRatio(ratio_q10);
+  inline static void setTableRatio(uint8_t idx, int32_t ratio_q16) {
+    tables_[idx].setRatio(ratio_q16);
   }
   inline static void setTableOffset(uint8_t idx, int32_t phase_offset) {
     tables_[idx].setOffset(phase_offset);

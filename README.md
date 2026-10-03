@@ -160,7 +160,6 @@ LISA responds to the following Control Change (CC) messages on the selected MIDI
 | **113**       | Wavetable 2 mode - default is circular (\*\*)          |
 | **114**       | Wavetable 3 mode - default is circular (\*\*)          |
 | **115**       | Wavetable 4 mode - default is circular (\*\*)          |
-| **116**       | Activates double buffering default false *deprecated* (\*\*)    |
 | **117**       | Reset all wavetables to 0 (\*\*)                       |
 | **118**       | Reset write index on all wavetables (\*\*)             |
 | **119**       | Freezes wavetable 1 (\*\*)                             |
@@ -198,7 +197,7 @@ In Nallely, you can remap each parameter `b1` to `b5` to any port of Nallely ses
 
 \*\*\*\* Note: in the live wavetable engine (`LIVE`), each wavetable has its own phase. Values are the raw 14-bit pitchwheel value (-8192..8191), and the default (centered, 0) keeps the previous behavior, all the wavetables on the same phase.
 
-- **Ratio:** the wavetable reads at `base increment * (1 + raw / 1024)`, range -7.0 to 9.0, 0 is 1.0. A negative ratio reads the wavetable backward, `-1024` freezes it. Different ratios make the wavetables drift apart.
+- **Ratio:** the wavetable reads at `base increment * (1 + raw / 1024)`, range -7.0 to 9.0, 0 is 1.0 (the HR protocol covers the same range with 16-bit values, `1 + raw / 4096`). A negative ratio reads the wavetable backward, `-1024` freezes it. Different ratios make the wavetables drift apart.
 - **Offset:** shifts the wavetable read position by `raw / 16384` cycle (-0.5 to +0.5 cycle), added to the global offset of CC#125. It is a static shift, it only matters relative to the other wavetables (PWM-like), or at note-on.
 - **Hard sync:** a master phase runs at the played pitch, and when it wraps, each wavetable restarts at `master remainder * its ratio`. At ratio 1.0 it changes nothing, with ratios different from 1.0 it gives a classic sync-sweep timbre. Without sync, the phases are free.
 

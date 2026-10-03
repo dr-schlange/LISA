@@ -1,7 +1,7 @@
 import nallely
 import numpy as np
 import sounddevice as sd
-from nallely.experimental.lisa_pico import Lisa as BaseLisa
+from nallely.lisa.lisa_pico import Lisa as BaseLisa
 
 # Display information to check for the soundcard to select later
 print(sd.query_devices())

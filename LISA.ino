@@ -68,6 +68,7 @@
 #include "src/encoder.h"
 #include "src/global_state.h"
 #include "src/midi.h"
+#include "src/hrprotocol.h"
 #include "src/features.h"
 #include "src/ui.h"
 #include "src/controls.h"
@@ -399,17 +400,17 @@ void handle_menu(RuntimeState *gstate) {
             (GlobalSettings)(((uint8_t)gstate->glob_settings_state) -
                              (SETTING_NUM + 1));
       } else {
+        // switch to the edit hidden state
         gstate->glob_settings_state =
             (GlobalSettings)(((uint8_t)gstate->glob_settings_state) +
-                             (SETTING_NUM +
-                              1)); // switch to the edit hidden state
+                             (SETTING_NUM + 1));
       }
       break;
     }
   }
 }
 
-// ===============================
+// ==============================
 // Setup and main loop for Core0
 // ==============================
 #if DEBUG
@@ -419,6 +420,12 @@ static inline void setup_debug_serial() { Serial.begin(115200); }
 static inline void setup_serial() {
   Serial1.setRX(MIDI_UART_RX);
   Serial1.begin(31250);
+}
+
+static inline void setup_USB() {
+  TinyUSBDevice.setManufacturerDescriptor("dr-schlange");
+  TinyUSBDevice.setProductDescriptor("LISA Synth");
+  TinyUSBDevice.setSerialDescriptor("NLYHW_00");
 }
 
 static inline void setup_pins() {
@@ -433,6 +440,8 @@ void setup() {
 #endif
   setup_LittleFS();
   setup_USB();
+  setup_MIDI();
+  setup_HR();
   setup_serial();
   setup_pins();
 #if USE_SCREEN
@@ -454,6 +463,7 @@ void loop() {
   handle_control(&runtime_state);
   handle_menu(&runtime_state);
   handle_MIDI(&runtime_state, &voices);
+  handle_HR(&runtime_state, &voices);
   // features_send(runtime_state.midi_ch);
 #if USE_SCREEN
   draw_ui(&runtime_state, &ui_state);
@@ -462,9 +472,9 @@ void loop() {
   yield();
 }
 
-//===============================
+// ==============================
 // Setup and main loop for Core1
-//===============================
+// ==============================
 
 static inline void setup_soundcard() {
   i2s_output.setFrequency(SAMPLE_RATE);

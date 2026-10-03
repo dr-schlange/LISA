@@ -24,18 +24,7 @@
 
 static Adafruit_USBD_MIDI usb_midi;
 
-static inline void setup_USB() {
-  TinyUSBDevice.setManufacturerDescriptor("dr-schlange");
-  TinyUSBDevice.setProductDescriptor("LISA Synth");
-  TinyUSBDevice.setSerialDescriptor("NLYHW_00");
-
-  usb_midi.begin();
-}
-
-static inline uint8_t norm_get_group(float value, uint8_t ngroup) {
-  int g = (int)(value * ngroup);
-  return (g >= ngroup) ? (ngroup - 1) : g;
-}
+static inline void setup_MIDI() { usb_midi.begin(); }
 
 static inline void send_midi_cc(uint8_t cc, uint8_t value, uint8_t channel) {
 #if USE_UART_MIDI
@@ -144,11 +133,11 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
                                                          (int16_t)(raw << 2));
         return;
       }
-      // ratio handling: ratio = 1 + raw / 1024 (midi value 0 -> 1.0), in Q10
+      // ratio handling: ratio = 1 + raw / 1024 (midi value 0 -> 1.0), in Q16
       if (channel >= MIDI_PB_CH_RATIO_FIRST &&
           channel < MIDI_PB_CH_RATIO_FIRST + 4) {
         WavetableStreamingOscillator::setTableRatio(
-            channel - MIDI_PB_CH_RATIO_FIRST, WT_RATIO_ONE + raw);
+            channel - MIDI_PB_CH_RATIO_FIRST, WT_RATIO_ONE + (raw << 6));
         return;
       }
       // phase offset handling: midi value spreads over -0.5..+0.5 cycle (2^32 =
@@ -303,9 +292,6 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
       WavetableStreamingOscillator::setWriteIndex(
           pitch_or_cc - MIDI_WT_INDEX_TABLE1, cc_value << 1);
       break;
-    case MIDI_WT_DOUBLE_BUFFER:
-      WavetableStreamingOscillator::setDoubleBuffer(cc_value >= 64);
-      break;
     case MIDI_WT_RESET_ALL_BUFFERS:
       WavetableStreamingOscillator::resetAllWavetables(cc_value >= 64);
       break;
@@ -338,7 +324,5 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
     }
     SCHEDULE_REFRESH(gstate);
     gstate->last_param_change = millis();
-  } else if (IS_MIDI_PITCHWHEEL(status)) {
-    // TODO for non live mode
   }
 }

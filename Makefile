@@ -11,7 +11,7 @@ $(BUILD_DIR)/rp2040.rp2040.rpipico/LISA.ino.uf2: $(SOURCES)
 	arduino-cli compile --export-binaries
 
 upload: $(BUILD_DIR)/rp2040.rp2040.rpipico/LISA.ino.uf2
-	-python -c "from nallely.experimental.lisa_pico import Lisa; Lisa().control_change(127, 127)"
+	-python -c "from nallely.lisa.lisa_pico import Lisa; lisa = Lisa(); lisa.control_change(127, 127); lisa.close()"
 	arduino-cli upload -p /run/media/$$USER/RPI-RP2
 
 fulltest: upload test

@@ -98,7 +98,6 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define MIDI_WT_MODE_TABLE2 113
 #define MIDI_WT_MODE_TABLE3 114
 #define MIDI_WT_MODE_TABLE4 115
-#define MIDI_WT_DOUBLE_BUFFER 116
 #define MIDI_WT_RESET_ALL_BUFFERS 117
 #define MIDI_WT_RESET_WRITE_IDX 118
 #define MIDI_WT_FREEZE_TABLE1 119
@@ -165,3 +164,8 @@ static_assert(MAX_VOICES % 2 == 0, "MAX_VOICES must be even for unison mode");
 #define DEBUG_PRINTLN(...)
 #define DEBUG_PRINT(...)
 #endif
+
+static inline uint8_t norm_get_group(float value, uint8_t ngroup) {
+  int g = (int)(value * ngroup);
+  return (g >= ngroup) ? (ngroup - 1) : g;
+}
