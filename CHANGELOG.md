@@ -23,6 +23,7 @@
 - UI refreshing too much in the menus
 - invert_rect now uses a better API (faster)
 - avoid multiple read of the ADC
+- lock/release issue on USB-MIDI (issue made visible with the introduction of the USB-HighResolution protocol)
 
 ## 0.2.0
 
