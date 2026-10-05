@@ -32,6 +32,7 @@ const char *const modes[] = {
 };
 
 #define DEBUG false
+#define DEBUG_FREEZE true
 
 #define USE_UART_MIDI 0 // 0 = USB MIDI, 1 = UART MIDI
 

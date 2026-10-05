@@ -12,6 +12,7 @@
 #include <pico/util/queue.h>
 #include <BRAIDS.h>
 #include "constants_config.h"
+#include "freezedebug.h"
 #include "wavetable_streaming.h"
 #include "global_state.h"
 // clang-format on
@@ -210,26 +211,31 @@ public:
 
   inline void enqueueNoteOn(int16_t pitch, int16_t velocity) {
     VoiceCommand cmd{CMD_NOTE_ON, pitch, velocity, false, VOICE_POLY};
+    FREEZE_STAGE(FZ_QUEUE_ADD);
     queue_try_add(&cmd_queue_, &cmd);
   }
 
   inline void enqueueNoteOff(int16_t pitch, bool sustain_enabled) {
     VoiceCommand cmd{CMD_NOTE_OFF, pitch, 0, sustain_enabled, VOICE_POLY};
+    FREEZE_STAGE(FZ_QUEUE_ADD);
     queue_try_add(&cmd_queue_, &cmd);
   }
 
   inline void enqueueSetMode(VoiceMode mode) {
     VoiceCommand cmd{CMD_SET_MODE, 0, 0, false, mode};
+    FREEZE_STAGE(FZ_QUEUE_ADD);
     queue_try_add(&cmd_queue_, &cmd);
   }
 
   inline void enqueueResetAllSustain() {
     VoiceCommand cmd{CMD_RESET_ALL_SUSTAIN, 0, 0, false, VOICE_POLY};
+    FREEZE_STAGE(FZ_QUEUE_ADD);
     queue_try_add(&cmd_queue_, &cmd);
   }
 
   inline void enqueueResetPhases() {
     VoiceCommand cmd{CMD_RESET_PHASES, 0, 0, false, VOICE_POLY};
+    FREEZE_STAGE(FZ_QUEUE_ADD);
     queue_try_add(&cmd_queue_, &cmd);
   }
 

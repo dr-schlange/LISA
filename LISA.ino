@@ -64,6 +64,7 @@
 #include <BRAIDS.h>
 #include <pico/stdlib.h>
 #include "src/constants_config.h"
+#include "src/freezedebug.h"
 #include "src/voices.h"
 #include "src/encoder.h"
 #include "src/global_state.h"
@@ -88,6 +89,7 @@ static I2S i2s_output(OUTPUT);
 
 // Audio engine
 void __not_in_flash_func(update_audio)() {
+  FREEZE_CORE1_TICK();
 
   if (runtime_state.engine_idx != runtime_state.last_engine_idx) {
     bool use_streaming =
@@ -434,6 +436,36 @@ static inline void setup_pins() {
   pinMode(ENCODER_SW, INPUT_PULLUP);
 }
 
+#if DEBUG_FREEZE
+// Shows on the screen (and on Serial) where core 0 was when the watchdog fired
+static inline void report_freeze() {
+  if (!FREEZE_WAS_WATCHDOG()) {
+    return;
+  }
+  const uint32_t word0 = FREEZE_READ_WORD0();
+  const uint8_t stage = word0 & 0xFF;
+  const uint32_t hr = FREEZE_READ_LAST_HR();
+  const uint32_t core1_delta = FREEZE_READ_CORE1_DELTA();
+  const char *name = stage < FZ_NUM_STAGES ? freeze_stage_names[stage] : "?";
+#if USE_SCREEN
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SCREEN_WHITE);
+  display.setCursor(0, 0);
+  display.println("WATCHDOG RESET");
+  display.printf("stage:%u %s\n", stage, name);
+  display.printf("midi:%02X %u %u\n", (unsigned)((word0 >> 8) & 0xFF),
+                 (unsigned)((word0 >> 16) & 0xFF), (unsigned)(word0 >> 24));
+  display.printf("hr cc:%u v:%u f:%u\n", (unsigned)(hr & 0xFF),
+                 (unsigned)((hr >> 8) & 0xFFFF), (unsigned)(hr >> 24));
+  display.printf("core1: %s (%lu)\n", core1_delta > 100 ? "alive" : "STUCK",
+                 (unsigned long)core1_delta);
+  display.display();
+  delay(15000);
+#endif
+}
+#endif
+
 void setup() {
 #if DEBUG
   setup_debug_serial();
@@ -448,27 +480,39 @@ void setup() {
   setup_display();
 #endif
   load_settings(&runtime_state);
+#if DEBUG_FREEZE
+  report_freeze();
+  FREEZE_START();
+#endif
   SET_SYSTEM_READY(&runtime_state);
 }
 
 void loop() {
+  FREEZE_FEED();
   if (!runtime_state.system_ready) {
     yield(); // Wait for Core 1 to finish DSP initialisation & init global state
     return;
   }
 
   // We need to update first the state for SW
+  FREEZE_STAGE(FZ_ENCODER);
   runtime_state.encoder_status = encoder_sw_status(&(runtime_state.encoder));
+  FREEZE_STAGE(FZ_SAVE);
   handle_save(&runtime_state);
+  FREEZE_STAGE(FZ_CONTROL);
   handle_control(&runtime_state);
+  FREEZE_STAGE(FZ_MENU);
   handle_menu(&runtime_state);
+  FREEZE_STAGE(FZ_MIDI);
   handle_MIDI(&runtime_state, &voices);
   handle_HR(&runtime_state, &voices);
   // features_send(runtime_state.midi_ch);
 #if USE_SCREEN
+  FREEZE_STAGE(FZ_UI);
   draw_ui(&runtime_state, &ui_state);
 #endif
 
+  FREEZE_STAGE(FZ_YIELD);
   yield();
 }
 

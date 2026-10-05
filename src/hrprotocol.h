@@ -12,9 +12,30 @@
 #include <Adafruit_TinyUSB.h>
 #include "voices.h"
 #include "constants_config.h"
+#include "freezedebug.h"
+#include "usblock.h"
 // clang-format on
 
 static Adafruit_USBD_CDC usb_hr;
+
+static inline int hr_dtr() {
+  acquire_usb_lock();
+  const int dtr = usb_hr.dtr();
+  release_usb_lock();
+  return dtr;
+}
+static inline int hr_available() {
+  acquire_usb_lock();
+  const int available = usb_hr.available();
+  release_usb_lock();
+  return available;
+}
+static inline int hr_read() {
+  acquire_usb_lock();
+  const int byte = usb_hr.read();
+  release_usb_lock();
+  return byte;
+}
 
 // Frame format
 // 8b => msgcount
@@ -36,12 +57,23 @@ typedef struct {
   uint8_t flags;
 } HRMessage;
 
-// Handshake
 static const uint8_t HR_HELLO[] = {'H', 'R', '0', '1'};
 static const uint8_t HR_READY[] = {'R', 'D', 'Y', '1'};
 
 static bool hr_handshake_done = false;
 static uint8_t hello_pos = 0;
+
+static uint8_t hr_count = 0;
+static bool hr_waiting_data = false;
+static uint8_t hr_messages_read = 0;
+
+static inline void reset_HR_state() {
+  hr_handshake_done = false;
+  hello_pos = 0;
+  hr_count = 0;
+  hr_waiting_data = false;
+  hr_messages_read = 0;
+}
 
 static inline void setup_HR() {
   usb_hr.setStringDescriptor("LISA HighResolution");
@@ -54,26 +86,28 @@ static inline void setup_HR() {
 }
 
 static inline void handle_HR_handshake() {
-  if (!usb_hr.dtr()) {
-    hr_handshake_done = false;
-    hello_pos = 0;
+  FREEZE_STAGE(FZ_HR_HANDSHAKE);
+  if (!hr_dtr()) {
+    reset_HR_state();
     return;
   }
   if (hr_handshake_done) {
     return;
   }
-  while (usb_hr.available()) {
-    uint8_t byte = usb_hr.read();
+  while (hr_available()) {
+    uint8_t byte = hr_read();
 
     if (byte == HR_HELLO[hello_pos]) {
       hello_pos++;
 
       if (hello_pos == sizeof(HR_HELLO)) {
+        acquire_usb_lock();
         usb_hr.write(HR_READY, sizeof(HR_READY));
         usb_hr.flush();
+        release_usb_lock();
 
+        reset_HR_state();
         hr_handshake_done = true;
-        hello_pos = 0;
         return;
       }
     } else {
@@ -83,9 +117,11 @@ static inline void handle_HR_handshake() {
 }
 
 static inline void parse_message(HRMessage *msg) {
-  msg->cc = usb_hr.read();
-  msg->value = ((uint16_t)usb_hr.read()) | ((uint16_t)usb_hr.read() << 8);
-  msg->flags = usb_hr.read();
+  msg->cc = hr_read();
+  const uint16_t lo = hr_read();
+  const uint16_t hi = hr_read();
+  msg->value = lo | (hi << 8);
+  msg->flags = hr_read();
 }
 
 static inline void route_message(RuntimeState *gstate, VoiceAllocator *voices,
@@ -96,34 +132,33 @@ static inline void handle_HR(RuntimeState *gstate, VoiceAllocator *voices) {
   if (!hr_handshake_done) {
     return;
   }
-  static uint8_t count = 0;
-  static bool waiting_data = false;
-  static uint8_t messages_read = 0;
 
-  if (!waiting_data) {
-    if (usb_hr.available() < 1) {
+  if (!hr_waiting_data) {
+    if (hr_available() < 1) {
       return;
     }
-    count = usb_hr.read();
-    if (count == 0) {
-      waiting_data = false;
+    hr_count = hr_read();
+    if (hr_count == 0) {
       return;
     }
-    waiting_data = true;
-    messages_read = 0;
+    hr_waiting_data = true;
+    hr_messages_read = 0;
   }
 
-  while (messages_read < count && usb_hr.available() >= 4) {
+  while (hr_messages_read < hr_count && hr_available() >= 4) {
     HRMessage msg;
 
+    FREEZE_STAGE(FZ_HR_READ);
     parse_message(&msg);
+    FREEZE_LAST_HR(&msg);
+    FREEZE_STAGE(FZ_HR_ROUTE);
     route_message(gstate, voices, &msg);
 
-    messages_read++;
+    hr_messages_read++;
   }
 
-  if (messages_read == count) {
-    waiting_data = false;
+  if (hr_messages_read == hr_count) {
+    hr_waiting_data = false;
   }
 }
 

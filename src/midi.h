@@ -13,6 +13,8 @@
 #include <Adafruit_TinyUSB.h>
 #include "voices.h"
 #include "constants_config.h"
+#include "freezedebug.h"
+#include "usblock.h"
 // clang-format on
 
 #define IS_MIDI_NOTE_OFF(status, value)                                        \
@@ -34,7 +36,9 @@ static inline void send_midi_cc(uint8_t cc, uint8_t value, uint8_t channel) {
 #else
   uint8_t packet[4] = {0x0B, // Cable 0, CIN = Control Change
                        (uint8_t)(0xB0 | (channel - 1)), cc, value};
+  acquire_usb_lock();
   usb_midi.writePacket(packet);
+  release_usb_lock();
 #endif
 }
 
@@ -93,7 +97,11 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   has_msg = true;
 #else // USB MIDI
   uint8_t packet[4];
-  if (!usb_midi.readPacket(packet))
+  FREEZE_STAGE(FZ_MIDI_READ);
+  acquire_usb_lock();
+  const bool got_packet = usb_midi.readPacket(packet);
+  release_usb_lock();
+  if (!got_packet)
     return;
 
   uint8_t cin = packet[0] & 0x0F;
@@ -104,6 +112,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   pitch_or_cc = packet[2];
   cc_value = packet[3];
   has_msg = true;
+  FREEZE_LAST_MIDI(status, pitch_or_cc, cc_value);
 #endif
 
   if (millis() - gstate->last_param_change >= 1000.f) {
@@ -119,6 +128,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
 
   // Pitchwheel channel routing
   if (IS_MIDI_PITCHWHEEL(status)) {
+    FREEZE_STAGE(FZ_MIDI_PITCHWHEEL);
     const uint8_t channel = MIDI_CHANNEL(status);
     const int16_t raw = (int16_t)(((uint16_t)cc_value << 7) | pitch_or_cc) -
                         8192; // -8192..8191
@@ -167,11 +177,13 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   }
 
   if (IS_MIDI_NOTE_OFF(status, cc_value)) {
+    FREEZE_STAGE(FZ_MIDI_NOTE_OFF);
     voices->enqueueNoteOff((int16_t)pitch_or_cc * 128, gstate->sustain_enabled);
     return;
   }
 
   if (IS_MIDI_NOTE_ON(status)) {
+    FREEZE_STAGE(FZ_MIDI_NOTE_ON);
     voices->enqueueNoteOn((int16_t)pitch_or_cc * 128,
                           (int16_t)((uint32_t)cc_value * 32767 / 127));
     return;
@@ -181,6 +193,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   VoiceMode mode;
   uint8_t wt_mode;
   if (IS_MIDI_CC(status)) {
+    FREEZE_STAGE(FZ_MIDI_CC);
     switch (pitch_or_cc) {
     case MIDI_VOICE_MODE:
       mode = (VoiceMode)midi_get_group(cc_value, NUM_VOICE_MODE);
