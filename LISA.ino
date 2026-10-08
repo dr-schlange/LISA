@@ -506,6 +506,11 @@ void loop() {
   FREEZE_STAGE(FZ_MIDI);
   handle_MIDI(&runtime_state, &voices);
   handle_HR(&runtime_state, &voices);
+  if (WavetableStreamingOscillator::isLiveMode()) {
+    WavetableStreamingOscillator::flushRenderBuffers();
+  } else {
+    WavetableStreamingOscillator::discardRenderBuffers();
+  }
   // features_send(runtime_state.midi_ch);
 #if USE_SCREEN
   FREEZE_STAGE(FZ_UI);

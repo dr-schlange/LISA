@@ -15,7 +15,6 @@
 using namespace stmlib;
 
 #define FIELD_FREEZE 0b1
-#define FIELD_DBUFF 0b10
 #define FIELD_MODE 0b1100
 #define MODE_CIRCULAR 0b00
 #define MODE_SCROLL 0b01
@@ -26,12 +25,11 @@ using namespace stmlib;
 // FLAGS
 //       +-------- wavetable snapshots active
 //       | +------ writing mode
-//       | |  +--- dbuffering active
+//       | |  +--- unused (was double buffering)
 //       | |  | +- freeze active
 //       | +- | |
 // 0b000 0 00 0 0
 #define FREEZE_ACTIVE(flags) (flags & 0b1)
-#define DBUFF_ACTIVE(flags) (flags & 0b10)
 #define CIRCULAR_ACTIVE(flags) (((flags & 0b1100) >> 2) == 0)
 #define SCROLL_ACTIVE(flags) (((flags & 0b1100) >> 2) == 1)
 #define MANUAL_IDX_ACTIVE(flags) (((flags & 0b1100) >> 2) == 2)
@@ -55,14 +53,6 @@ public:
   }
 
   inline void resetWriteIndex() { write_pos_ = 0; }
-
-  inline void setDoubleBuffer(bool on) {
-    if (on) {
-      flags_ |= FIELD_DBUFF;
-    } else {
-      flags_ &= ~FIELD_DBUFF;
-    }
-  }
 
   inline void setMode(uint8_t mode) {
     flags_ = (flags_ & ~FIELD_MODE) | (mode << 2);
@@ -151,29 +141,16 @@ public:
       buffers_[widx][255] = value;
       buffers_[widx][256] = buffers_[widx][0];
     } else {
+      // normal mode
       uint16_t pos = write_pos_;
-      if (DBUFF_ACTIVE(flags_)) {
-        // DBuffering
-        buffers_[write_idx_][pos] = value;
-        if (pos == 0) {
-          buffers_[write_idx_][256] = value;
-        }
-        if (++pos >= 256) {
-          pos = 0;
-          read_idx_ = write_idx_;
-          write_idx_ = 1 - write_idx_;
-        }
-      } else {
-        // normal mode
-        buffers_[widx][pos] = value;
-        if (pos == 0) {
-          buffers_[widx][256] = value;
-        }
-        if (++pos >= 256) {
-          pos = 0;
-          write_idx_ = (write_idx_ + 1) % snapshots_depth_;
-          ++laps_written_;
-        }
+      buffers_[widx][pos] = value;
+      if (pos == 0) {
+        buffers_[widx][256] = value;
+      }
+      if (++pos >= 256) {
+        pos = 0;
+        write_idx_ = (write_idx_ + 1) % snapshots_depth_;
+        ++laps_written_;
       }
       write_pos_ = pos;
     }
@@ -195,6 +172,7 @@ public:
     laps_written_ = 0;
     laps_read_ = 0;
     external_control_ = false;
+    render_dirty_ = false;
   }
 
   inline void setLevel(uint8_t level) { level_ = level; }
@@ -221,6 +199,16 @@ public:
     }
     return render_buf_;
   }
+
+  inline void flushRenderBuffer() {
+    if (render_dirty_) {
+      render_dirty_ = false;
+      computeRenderBuffer();
+    }
+  }
+
+  // Drops pending recompute when the LIVE engine is not selected
+  inline void discardRenderBuffer() { render_dirty_ = false; }
 
 public:
   inline void setBlendPosition(uint16_t pos16) {
@@ -270,7 +258,7 @@ private:
   inline void refreshRenderBuffer() {
     if (external_control_) {
       if (laps_written_ >= LAP_TO_COMPLETE && laps_read_ >= LAP_TO_COMPLETE) {
-        computeRenderBuffer();
+        render_dirty_ = true;
       }
       return;
     }
@@ -310,7 +298,7 @@ private:
       }
     }
     slew_ = (uint16_t)s;
-    computeRenderBuffer();
+    render_dirty_ = true;
   }
 
   inline static volatile int32_t kStepsPerFade = 300;
@@ -324,6 +312,7 @@ private:
   int16_t render_buf_[257];
   uint16_t slew_ = 65535; // 0 = fully laps_read_-1, 65535 = fully laps_read_
   bool external_control_ = false;
+  bool render_dirty_ = false; // marks if render_buf_ is outdated
   volatile uint8_t read_idx_ = 0;
   volatile uint8_t write_idx_ = 1;
   volatile uint8_t snapshots_depth_ = 8;
@@ -486,11 +475,6 @@ public:
   inline static void PushSampleInBuffer(uint8_t idx, int16_t value) {
     tables_[idx].pushSample(value);
   }
-  inline static void setDoubleBuffer(bool on) {
-    for (uint8_t i = 0; i < 4; ++i) {
-      tables_[i].setDoubleBuffer(on);
-    }
-  }
 
   // ===
   // Other public API for the live wavetable mode
@@ -586,6 +570,16 @@ public:
   }
   inline static uint8_t getReadFrame(uint8_t idx) {
     return tables_[idx].getReadFrame();
+  }
+  inline static void flushRenderBuffers() {
+    for (uint8_t i = 0; i < 4; ++i) {
+      tables_[i].flushRenderBuffer();
+    }
+  }
+  inline static void discardRenderBuffers() {
+    for (uint8_t i = 0; i < 4; ++i) {
+      tables_[i].discardRenderBuffer();
+    }
   }
   inline static void setPhaseOffset(int32_t offset) { phase_offset_ = offset; }
   inline static void setTableRatio(uint8_t idx, int32_t ratio_q16) {
