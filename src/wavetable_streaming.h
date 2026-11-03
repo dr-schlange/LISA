@@ -80,7 +80,7 @@ public:
 
   inline uint8_t getReadFrame() const { return laps_read_ % snapshots_depth_; }
 
-  inline uint8_t getWriteFrame() const { return write_idx_; }
+  inline uint8_t getWriteFrame() const { return writeIdx(); }
 
   inline uint8_t getMode() const { return (flags_ & FIELD_MODE) >> 2; }
 
@@ -96,7 +96,7 @@ public:
     }
     uint8_t widx;
     if (WTABLES_SNAPSHOT_ACTIVE(flags_) && CIRCULAR_ACTIVE(flags_)) {
-      widx = write_idx_;
+      widx = writeIdx();
     } else {
       widx = read_idx_;
     }
@@ -149,7 +149,6 @@ public:
       }
       if (++pos >= 256) {
         pos = 0;
-        write_idx_ = (write_idx_ + 1) % snapshots_depth_;
         ++laps_written_;
       }
       write_pos_ = pos;
@@ -171,6 +170,7 @@ public:
     slew_ = 65535; // settled, nothing to fade from
     laps_written_ = 0;
     laps_read_ = 0;
+    holding_ = false;
     external_control_ = false;
     render_dirty_ = false;
   }
@@ -229,6 +229,7 @@ public:
       frac = (uint16_t)(scaled & 0xFFFF);
     }
     laps_read_ = LAP_TO_COMPLETE + seg;
+    holding_ = false;
     slew_ = frac;
     computeRenderBuffer();
   }
@@ -248,11 +249,23 @@ private:
     const uint8_t prevIdx =
         (uint8_t)((laps_read_ + blend_direction_) % snapshots_depth_);
     for (uint16_t i = 0; i < 257; ++i) {
-      const int32_t prevv = buffers_[prevIdx][i];
+      const int32_t prevv = holding_ ? hold_buf_[i] : buffers_[prevIdx][i];
       const int32_t curv = buffers_[curIdx][i];
       render_buf_[i] =
           (int16_t)(prevv + (((curv - prevv) * (int32_t)slew_) >> 16));
     }
+  }
+
+  inline uint8_t writeIdx() const {
+    return (laps_written_ + 1) % snapshots_depth_;
+  }
+
+  inline void jumpTo(uint32_t target) {
+    computeRenderBuffer();
+    memcpy(hold_buf_, render_buf_, sizeof(hold_buf_));
+    holding_ = true;
+    laps_read_ = target;
+    slew_ = 0;
   }
 
   inline void refreshRenderBuffer() {
@@ -272,11 +285,20 @@ private:
       slew_ = 0;
     }
 
+    const int32_t depth = snapshots_depth_;
+    const int32_t oldest =
+        forward ? (int32_t)laps_written_ + (holding_ ? 2 : 3) - depth
+                : (int32_t)laps_written_ + 2 - depth;
+    if ((int32_t)laps_read_ < oldest) {
+      jumpTo(forward ? laps_written_ : laps_written_ - 1);
+    }
+
     int32_t s = (int32_t)slew_ + kLinearStep;
     if (s >= 65535) {
       if (forward) {
         if (laps_read_ < laps_written_) {
           ++laps_read_;
+          holding_ = false;
           s = 0;
         } else {
           s = 65535; // hold: waiting for new content
@@ -291,8 +313,9 @@ private:
         }
         if (laps_read_ > oldest_safe) {
           --laps_read_;
+          holding_ = false;
         } else {
-          laps_read_ = laps_written_ - 1;
+          jumpTo(laps_written_ - 1);
         }
         s = 0;
       }
@@ -310,13 +333,14 @@ private:
   volatile int32_t offset_ = 0;
   volatile int16_t buffers_[MAX_SNAPSHOTS][257];
   int16_t render_buf_[257];
+  int16_t hold_buf_[257]; // previous frame (for circular lap write)
+  bool holding_ = false;  // fade starts from hold_buf_ instead of a frame
   uint16_t slew_ = 65535; // 0 = fully laps_read_-1, 65535 = fully laps_read_
   bool external_control_ = false;
   bool render_dirty_ = false; // marks if render_buf_ is outdated
   volatile uint8_t read_idx_ = 0;
-  volatile uint8_t write_idx_ = 1;
   volatile uint8_t snapshots_depth_ = 8;
-  uint32_t laps_written_ = 0; // total completed capture laps (monotonic)
+  uint32_t laps_written_ = 0; // total completed capture laps
   uint32_t laps_read_ = 0;    // lap the crossfade is currently fading into
   uint8_t last_write_idx_ = 0;
   int16_t last_write_value_ = 0;

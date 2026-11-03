@@ -6,7 +6,7 @@ from nallely import LFO, VirtualDevice, VirtualParameter, on, stop_all_connected
 
 backend = os.getenv("LISA_IMPL", "HW")
 if backend == "HW":
-    from nallely.experimental.lisa_pico import Lisa
+    from nallely.lisa.lisa_pico import Lisa
 
     print("!! Loaded HW implementation")
 elif backend == "SW":
@@ -536,7 +536,7 @@ def test15(lisa, lfo1, lfo2):
             60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
             60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
         ],
-        timing=0.02,
+        timing_on=0.02, timing_off=0.02
     )
     # fmt: on
     lfo.stop()
@@ -643,7 +643,7 @@ def test17(lisa, lfo1, lfo2):
             60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
             60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
         ],
-        timing=0.02,
+        timing_on=0.02, timing_off=0.02
     )
     # fmt: on
 
@@ -716,7 +716,7 @@ def test17(lisa, lfo1, lfo2):
             60, 38, 47, 55, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
             60, 38, 47, 54, 33, 43, 36, 55, 60, 38, 47, 50, 33, 43, 36, 55,
         ],
-        timing=0.02,
+        timing_on=0.02, timing_off=0.02
     )
     # fmt: on
 
