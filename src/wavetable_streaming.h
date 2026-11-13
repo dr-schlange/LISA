@@ -417,7 +417,7 @@ public:
       return;
     }
 
-    RenderMixing(sync, buffer, size);
+    RenderMixing(buffer, size);
   }
 
   inline int16_t ReadMixedSample(const int16_t *const waves[4],
@@ -432,7 +432,7 @@ public:
     return mix >> 15;
   }
 
-  inline void RenderMixing(const uint8_t *sync, int16_t *output, size_t size) {
+  inline void RenderMixing(int16_t *output, size_t size) {
     const int16_t *waves[4];
     for (uint8_t i = 0; i < 4; ++i) {
       waves[i] = tables_[i].renderPointer();
@@ -471,12 +471,6 @@ public:
         }
       }
       master = next_master;
-      if (*sync++) {
-        for (uint8_t i = 0; i < 4; ++i) {
-          phase[i] = 0;
-        }
-        master = 0;
-      }
       for (uint8_t i = 0; i < 4; ++i) {
         phases[i] = phase[i] + offset[i];
       }
