@@ -17,6 +17,7 @@
 - Add experimental new "Sluggish Mode" where wavetables are filled (from 2 to 16 tables can be saved), and blended between each other to give a nice evolving shape based on raw wavetable snaptshots.
 - Add phase ratio and phase offset control per wavetable
 - Add new higher resolution protocol to have 16bits resolution values for CC and Pitchwheel instead of 7bits and 14bits
+- LISA is now also an USB audio microphone, so once plugged via USB, you could entirely remove the PCM-1502 module and record/listen directly from the host (tested on linux, but should work for macos, not sure for windows though)
 
 ### Fixes
 

@@ -69,6 +69,8 @@
 #include "src/encoder.h"
 #include "src/global_state.h"
 #include "src/midi.h"
+#define USB_AUDIO_SKETCH
+#include "src/usb_audio.h"
 #include "src/hrprotocol.h"
 #include "src/features.h"
 #include "src/ui.h"
@@ -124,6 +126,7 @@ void __not_in_flash_func(update_audio)() {
     frames[i] = ((uint32_t)(uint16_t)s_left << 16) | (uint16_t)s_right;
   }
   i2s_output.write((const uint8_t *)frames, sizeof(frames));
+  usb_audio_push(frames);
 }
 
 void handle_menu(RuntimeState *gstate) {
@@ -475,6 +478,7 @@ void setup() {
   setup_LittleFS();
   setup_USB();
   setup_MIDI();
+  setup_usb_audio();
   setup_HR();
   setup_serial();
   setup_pins();

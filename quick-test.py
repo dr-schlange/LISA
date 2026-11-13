@@ -840,7 +840,50 @@ def test19(lisa, lfo1, lfo2):
     llfo.stop()
 
 
-def test20(lisa, lfo1, lfo2): ...
+def test20(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.general.gain = 64
+    lisa.general.master_volume = 64
+    lisa.general.voice_mode = "poly"
+    lisa.filter.cutoff = 55
+    notes = [40, 43, 47, 50, 54, 57, 61, 64]
+    print("* Hold 8 notes, no timbre/color modulation for 3s")
+    for note in notes:
+        lisa.note_on(note, velocity=127)
+    time.sleep(3)
+
+    for rate in (259, 512, 1024, 2048, 44100):
+        for speed in (1, 4, 10, 25):
+            print(
+                f"* Timbre/color LFOs at {speed} Hz and {speed * 1.5} Hz, "
+                f"sampling rate {rate}, 20s"
+            )
+            timbre_lfo = LFO(
+                waveform="sine", speed=speed, sampling_rate=rate, auto_srate="OFF"
+            )
+            if rate > 512:
+                wave = "triangle"
+            else:
+                wave = "sine"
+            color_lfo = LFO(
+                waveform=wave,
+                speed=speed * 1.5,
+                sampling_rate=rate,
+                auto_srate="OFF",
+            )
+            timbre_lfo.start()
+            color_lfo.start()
+            lisa.modulation.timbre = timbre_lfo.scale(32, 90)
+            lisa.modulation.color = color_lfo.scale(90, 32)
+            time.sleep(20)
+            timbre_lfo.stop()
+            color_lfo.stop()
+            lisa.modulation.timbre.disconnect_incoming_links()
+            lisa.modulation.color.disconnect_incoming_links()
+
+    lisa.modulation.timbre = 64
+    lisa.modulation.color = 64
+    lisa.force_all_notes_off()
 
 
 tests = [
@@ -863,6 +906,7 @@ tests = [
     test17,
     test18,
     test19,
+    test20,
 ]
 
 if __name__ == "__main__":

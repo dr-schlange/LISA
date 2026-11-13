@@ -8,7 +8,7 @@ all: compile
 compile: $(BUILD_DIR)/rp2040.rp2040.rpipico/LISA.ino.uf2
 
 $(BUILD_DIR)/rp2040.rp2040.rpipico/LISA.ino.uf2: $(SOURCES)
-	arduino-cli compile --export-binaries
+	arduino-cli compile --export-binaries --build-property "build.extra_flags=-include \"$(CURDIR)/src/usb_audio.h\""
 
 upload: $(BUILD_DIR)/rp2040.rp2040.rpipico/LISA.ino.uf2
 	-python -c "from nallely.lisa.lisa_pico import Lisa; lisa = Lisa(); lisa.control_change(127, 127); lisa.close()"
