@@ -116,12 +116,14 @@ void __not_in_flash_func(update_audio)() {
       ((pan_t - pan_slew) * 2048) >> 15; // 2048 = (int32_t)(0.0625f * 32767.f)
   const uint8_t idx = (uint8_t)((pan_slew * 63) >> 15);
 
+  static uint32_t frames[AUDIO_BLOCK];
   for (int i = 0; i < AUDIO_BLOCK; i++) {
     int16_t s = constrain(mix[i], -32767, 32767);
     int16_t s_left = (int16_t)(((int32_t)s * braids::wav_sine[64 - idx]) >> 15);
     int16_t s_right = (int16_t)(((int32_t)s * braids::wav_sine[idx]) >> 15);
-    i2s_output.write16(s_left, s_right);
+    frames[i] = ((uint32_t)(uint16_t)s_left << 16) | (uint16_t)s_right;
   }
+  i2s_output.write((const uint8_t *)frames, sizeof(frames));
 }
 
 void handle_menu(RuntimeState *gstate) {
