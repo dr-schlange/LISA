@@ -37,6 +37,30 @@ Features added in **LISA**:
 - **Attenuator Mode** Select the min, center, max of a range with the buttons, restricting the range of values that will be received by MIDI. MIDI CC value targetting a button is then scaled on this new range, allowing for finer grain definition (planned).
 - **Nallely deep integration** Send/receive messages via websocket to a running Nallely session to route the signal to whatever target you want with float precision in the message sent/received (planned).
 
+## How LISA and Nallely fit together
+
+LISA is a sound engine.
+[Nallely](https://github.com/dr-schlange/nallely-midi) is a brain that talks to it.
+They are two separate machines.
+LISA works alone, using all default BRAIDS engine, but it was built to be driven by a brain, especially for the LIVE engine.
+
+<!--
+```
+ sensors, sequencers, LFOs, Forth             real-time, never waits
+ Nallely (Linux box, Python)    ------#>    LISA (RP2040)
+ flexible, asynchronous, can be late  USB     voices, filters, wavetables
+                                   MIDI / HR  audio out: I2S or USB
+```-->
+
+- **LISA** owns everything that has to be on time: voices, envelopes, filters, wavetables, audio output. Nothing slow runs there.
+- **Nallely** owns everything that can be late: LFOs, sequencers, signals from sensors, scripts. It has no global clock and is not synchronized with LISA's audio, so the two drift, and that is intended. The sound never waits for the brain.
+- **The link** is USB: regular MIDI, and the [HR protocol](#hr-protocol-high-resolution) for 16-bit values.
+
+A modular rack splits one synth into modules joined by cables. Here the split is one level higher: one module is the whole sound engine, and the rest of the rack is software. The cables carry messages and low-rate signals, and one of their destinations is the content of the wavetables.
+
+The control side doesn't only turn knobs as it would for a regular MIDI or CV synth, it can also writes the waveform the engine plays or more.
+A 1 Hz LFO in Python can draw one cycle of a wavetable, and LISA plays it as a note (see [LIVE engine: wavetables](#live-engine-live-dynamic-wavetable-scanner)), or it can be patched to the notes of the LISA as a sequence of notes, or patched to regular parameters (cutoff, release, detune, gain, etc).
+
 ## LIVE engine: Live Dynamic Wavetable Scanner
 
 The `LIVE` engine plays 4 wavetables of 256 points each.
