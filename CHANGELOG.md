@@ -19,6 +19,7 @@
 - Add new higher resolution protocol to have 16bits resolution values for CC and Pitchwheel instead of 7bits and 14bits
 - LISA is now also an USB audio microphone, so once plugged via USB, you could entirely remove the PCM-1502 module and record/listen directly from the host (tested on linux, but should work for macos, not sure for windows though)
 - Add stereo spread and different placement mode for voices.
+- LISA v0.3.0 needs [Nallely](https://github.com/dr-schlange/nallely-midi) >= 0.7.0 to use the HR protocol and all the features introduced in this version (stereo spread, phase ratio/offset, sluggish mode parameters). Without Nallely, everything stays reachable with regular MIDI.
 
 ### Fixes
 
