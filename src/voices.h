@@ -79,6 +79,14 @@ struct VoiceCommand {
 
 static uint32_t global_age = 0;
 
+enum SpreadMode : uint8_t {
+  SPREAD_INDEX,    // voice N always at position N
+  SPREAD_NOTE,     // low notes left, high notes right
+  SPREAD_RANDOM,   // new random position per note
+  SPREAD_PINGPONG, // each note on the other side of the previous one
+  SPREAD_MODES
+};
+
 class Voice {
 public:
   WavetableStreamingOscillator osc;
@@ -87,6 +95,7 @@ public:
   int16_t velocity;
   int16_t env;
   uint32_t age;
+  int32_t pos = 0; // stereo position set at note on, Q15 -32767..32767
 
   Voice() {
     flags = 0b00000000;
@@ -109,13 +118,14 @@ public:
     age = global_age++;
   }
 
-  inline void render(int32_t mix[AUDIO_BLOCK], int16_t timbre, int16_t color,
-                     int16_t timb_slew, int16_t color_slew, int16_t fm_slew,
-                     int16_t pitch_bend, float unison_detune,
-                     int32_t attackCoef, int32_t releaseCoef,
-                     int32_t block_gain, int32_t cut_slew, int32_t res_slew,
-                     braids::SvfMode filter_type, int32_t dry_scale,
-                     int32_t wet_scale) {
+  inline void render(int32_t mix_l[AUDIO_BLOCK], int32_t mix_r[AUDIO_BLOCK],
+                     int16_t timbre, int16_t color, int16_t timb_slew,
+                     int16_t color_slew, int16_t fm_slew, int16_t pitch_bend,
+                     float unison_detune, int32_t attackCoef,
+                     int32_t releaseCoef, int32_t block_gain, int32_t cut_slew,
+                     int32_t res_slew, braids::SvfMode filter_type,
+                     int32_t dry_scale, int32_t wet_scale, int32_t gain_l,
+                     int32_t gain_r) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
 
@@ -184,7 +194,9 @@ public:
       const int32_t filtered =
           ((dry_sample * dry_scale) >> 15) + ((wet_sample * wet_scale) >> 15);
 
-      mix[i] += (filtered * amp) >> 15;
+      const int32_t v = (filtered * amp) >> 15;
+      mix_l[i] += (v * gain_l) >> 15;
+      mix_r[i] += (v * gain_r) >> 15;
     }
   }
 
@@ -205,6 +217,7 @@ public:
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].osc.Init(SAMPLE_RATE);
       reset_active(voices_[v].flags);
+      gain_l_[v] = gain_r_[v] = 32767;
     }
     queue_init(&cmd_queue_, sizeof(VoiceCommand), VOICE_CMD_QUEUE_DEPTH);
   }
@@ -239,7 +252,10 @@ public:
     queue_try_add(&cmd_queue_, &cmd);
   }
 
-  inline void renderAllVoices(int32_t mix[AUDIO_BLOCK]) {
+  inline void renderAllVoices(int32_t mix_l[AUDIO_BLOCK],
+                              int32_t mix_r[AUDIO_BLOCK]) {
+    spread_mode_ = midi_get_group((uint8_t)(gstate_->spread_mode.value * 127.f),
+                                  SPREAD_MODES);
     VoiceCommand cmd;
     while (queue_try_remove(&cmd_queue_, &cmd)) {
       applyCommand(cmd);
@@ -300,12 +316,27 @@ public:
     const int32_t dry_scale = 32767 - mix_slew_;
     const int32_t wet_scale = mix_slew_;
 
+    spread_slew_ +=
+        (((int32_t)(gstate->spread.value * 32767.f) - spread_slew_) * 1638) >>
+        15;
+
     for (int v = 0; v < MAX_VOICES; v++) {
-      voices_[v].render(mix, timb_q15, col_q15, timb_slew_, color_slew_,
-                        fm_slew_, gstate->pitch_bend,
+      const int32_t base =
+          spread_mode_ == SPREAD_INDEX
+              ? ((2 * v - (MAX_VOICES - 1)) * 32767) / (MAX_VOICES - 1)
+              : voices_[v].pos;
+      const int32_t pos = (base * spread_slew_) >> 15;
+      const int32_t idx = 32 + ((pos * 32 + 16384) >> 15); // 0..64
+      gain_l_[v] +=
+          (((braids::wav_sine[64 - idx] * 46341) >> 15) - gain_l_[v]) * 3277 >>
+          15;
+      gain_r_[v] +=
+          (((braids::wav_sine[idx] * 46341) >> 15) - gain_r_[v]) * 3277 >> 15;
+      voices_[v].render(mix_l, mix_r, timb_q15, col_q15, timb_slew_,
+                        color_slew_, fm_slew_, gstate->pitch_bend,
                         gstate->unison_detune.value, attackCoef_, releaseCoef_,
                         block_gain, cut_slew_, res_slew_, filter_type_,
-                        dry_scale, wet_scale);
+                        dry_scale, wet_scale, gain_l_[v], gain_r_[v]);
     }
   }
 
@@ -336,6 +367,12 @@ private:
   int32_t cut_slew_ = 0;
   int32_t res_slew_ = 0;
   int32_t mix_slew_ = 0;
+  int32_t spread_slew_ = 0;
+  int32_t gain_l_[MAX_VOICES];
+  int32_t gain_r_[MAX_VOICES];
+  uint8_t spread_mode_ = SPREAD_INDEX;
+  uint32_t rng_ = 1;
+  int32_t pingpong_ = 32767;
   braids::SvfMode filter_type_ = braids::SVF_MODE_LP;
   float last_filter_type_knob_ = -1.f;
 
@@ -443,10 +480,29 @@ private:
     return oldest;
   }
 
+  inline void placeVoice(Voice *voice, int16_t pitch) {
+    switch (spread_mode_) {
+    case SPREAD_NOTE: // pitch is note * 128, +-24 semitones around note 60
+      voice->pos = constrain((((pitch >> 7) - 60) * 32767) / 24, -32767, 32767);
+      break;
+    case SPREAD_RANDOM:
+      rng_ = rng_ * 1664525u + 1013904223u;
+      voice->pos = constrain((int32_t)(rng_ >> 16) - 32768, -32767, 32767);
+      break;
+    case SPREAD_PINGPONG:
+      pingpong_ = -pingpong_;
+      voice->pos = pingpong_;
+      break;
+    default:
+      break;
+    }
+  }
+
   inline Voice *allocateOldestVoice(int16_t pitch, int16_t velocity) {
     int i = findFreeVoice(pitch);
     Voice *voice = voices_ + i;
     voice->setup(pitch, velocity);
+    placeVoice(voice, pitch);
     return voice;
   }
 
@@ -495,6 +551,8 @@ private:
     Voice *secondary = primary + 1;
     primary->setup(pitch, velocity);
     secondary->setup(pitch, velocity);
+    placeVoice(primary, pitch);
+    secondary->pos = primary->pos;
     set_secondary(secondary->flags);
     return primary;
   }
@@ -532,6 +590,7 @@ private:
     }
 
     head->setup(pitch, velocity);
+    placeVoice(head, pitch);
   }
 
   inline void freeVoiceMono(bool sustained) {

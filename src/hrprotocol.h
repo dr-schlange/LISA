@@ -49,7 +49,7 @@ static inline int hr_read() {
 #define IS_BIPOLAR(flags) ((flags & 0b01) == 1)
 
 #define UNIPOLAR_FLOAT(value) (value / 65535.0f)
-#define BIPOLAR_FLOAT(value) (((float)msg->value / 32767.5f) - 1.0f)
+#define BIPOLAR_FLOAT(value) ((value / 32767.5f) - 1.0f)
 
 typedef struct {
   uint8_t cc;
@@ -236,10 +236,13 @@ static inline void route_message(RuntimeState *gstate, VoiceAllocator *voices,
     gstate->color_mod.value = UNIPOLAR_FLOAT(msg->value);
     break;
   case MIDI_UNISON_DETUNE:
-    gstate->unison_detune.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->unison_detune.value = BIPOLAR_FLOAT(msg->value);
     break;
   case MIDI_PANNING:
-    gstate->panning.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->panning.value = BIPOLAR_FLOAT(msg->value);
+    break;
+  case MIDI_SPREAD:
+    gstate->spread.value = UNIPOLAR_FLOAT(msg->value);
     break;
   case MIDI_WT_AUTO_BLEND_K:
     WavetableStreamingOscillator::setBlendK(

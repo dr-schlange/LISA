@@ -18,6 +18,7 @@
 - Add phase ratio and phase offset control per wavetable
 - Add new higher resolution protocol to have 16bits resolution values for CC and Pitchwheel instead of 7bits and 14bits
 - LISA is now also an USB audio microphone, so once plugged via USB, you could entirely remove the PCM-1502 module and record/listen directly from the host (tested on linux, but should work for macos, not sure for windows though)
+- Add stereo spread and different placement mode for voices.
 
 ### Fixes
 

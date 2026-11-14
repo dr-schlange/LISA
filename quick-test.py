@@ -1,3 +1,4 @@
+import itertools
 import os
 import sys
 import time
@@ -886,6 +887,231 @@ def test20(lisa, lfo1, lfo2):
     lisa.force_all_notes_off()
 
 
+## Now generating test cases (trasheable) via LLM
+
+
+# Stereo spread by voice index: voice 0 left ... voice 7 right
+def test21(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.filter.cutoff = 55
+    lisa.envelope.release = 70
+    lisa.general.voice_mode = "poly"
+    lisa.general.spread = 0
+
+    print("* Poly, 8 notes held, spread 0 -> 127 -> 0 over ~19s")
+    for note in [40, 43, 47, 50, 54, 57, 61, 64]:
+        lisa.note_on(note, velocity=127)
+    for value in [*range(0, 128, 2), *range(127, -1, -2)]:
+        lisa.general.spread = value
+        time.sleep(0.15)
+    lisa.force_all_notes_off()
+    time.sleep(2)
+
+    print("* Mono, same melody at spread 0, 64, 127: notes hop between voices")
+    lisa.general.voice_mode = "mono"
+    for spread in (0, 64, 127):
+        print(f"  spread {spread}")
+        lisa.general.spread = spread
+        play_sequence(
+            lisa, [48, 55, 52, 60, 55, 64, 60, 67], timing_on=0.3, timing_off=0.2
+        )
+        time.sleep(2)
+
+    lisa.general.spread = 0
+    lisa.general.voice_mode = "poly"
+
+
+SPREAD_MODES = ["voice_index", "note", "random", "ping_pong"]
+
+
+# Stereo spread modes: jumpy melody in poly, mono and unison, plus a chord
+# (not in mono, where the round-robin makes a chord meaningless)
+def test22(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.filter.cutoff = 55
+    lisa.envelope.release = 70
+    lisa.general.detune = 90
+    lisa.general.spread = 127
+    melody = [36, 84, 48, 72, 60, 43, 79, 55]
+    chord = [48, 55, 60, 67]
+    for voice_mode in ("poly", "mono", "unison"):
+        lisa.general.voice_mode = voice_mode
+        for name in SPREAD_MODES:
+            lisa.general.spread_mode = name
+            print(f"* {voice_mode}, position by {name}: melody")
+            play_sequence(lisa, melody, timing_on=0.3, timing_off=0.2)
+            time.sleep(1.5)
+            if voice_mode != "mono":
+                print(f"* {voice_mode}, position by {name}: chord")
+                play_cluster(lisa, chord, duration=3, off_at_once=True)
+                time.sleep(1.5)
+
+    lisa.general.spread_mode = "voice_index"
+    lisa.general.spread = 0
+    lisa.general.voice_mode = "poly"
+
+
+# LFO on the spread at growing speed, 8 notes held, in each position mode
+def test23(lisa, lfo1, lfo2):
+    lisa.force_all_notes_off()
+    lisa.filter.cutoff = 55
+    lisa.envelope.release = 70
+    lisa.general.voice_mode = "poly"
+    lisa.general.spread = 0
+
+    # Slow sweep of the global pan for the whole test, on top of the spread
+    pan_lfo = LFO(waveform="sine", speed=0.2, sampling_rate=259, auto_srate="OFF")
+    pan_lfo.start()
+    lisa.general.panning = pan_lfo.scale(0, 127)
+    chord = [36, 43, 50, 57, 62, 69, 76, 84]
+    for name in SPREAD_MODES:
+        lisa.general.spread_mode = name
+        for note in chord:
+            lisa.note_on(note, velocity=127)
+        for speed in (0.5, 1, 5, 10, 20, 50):
+            rate = max(259, int(speed * 20))
+            print(f"* {name}: LFO on the spread at {speed} Hz, rate {rate}, 8s")
+            spread_lfo = LFO(
+                waveform="sine", speed=speed, sampling_rate=rate, auto_srate="OFF"
+            )
+            spread_lfo.start()
+            lisa.general.spread = spread_lfo.scale(0, 127)
+            time.sleep(8)
+            spread_lfo.stop()
+            lisa.general.spread.disconnect_incoming_links()
+        lisa.force_all_notes_off()
+        lisa.general.spread = 0
+        time.sleep(1.5)
+
+    pan_lfo.stop()
+    lisa.general.panning.disconnect_incoming_links()
+    lisa.general.panning = 64
+    lisa.general.spread_mode = "voice_index"
+
+
+def run_pan_lfo(lisa, speed, seconds, play=time.sleep):
+    rate = max(259, int(speed * 20))
+    pan_lfo = LFO(waveform="sine", speed=speed, sampling_rate=rate, auto_srate="OFF")
+    pan_lfo.start()
+    lisa.general.panning = pan_lfo.scale(0, 127)
+    play(seconds)
+    pan_lfo.stop()
+    lisa.general.panning.disconnect_incoming_links()
+
+
+# 8 notes held, global pan LFO stepping through speeds, first mono then spread
+def pan_scan(lisa, speeds, seconds):
+    lisa.force_all_notes_off()
+    lisa.filter.cutoff = 55
+    lisa.envelope.release = 70
+    lisa.general.voice_mode = "poly"
+    lisa.general.spread_mode = "voice_index"
+
+    chord = [36, 43, 50, 57, 62, 69, 76, 84]
+    for spread in (0, 127):
+        lisa.general.spread = spread
+        for note in chord:
+            lisa.note_on(note, velocity=127)
+        for speed in speeds:
+            print(f"* spread {spread}: LFO on the pan at {speed} Hz")
+            run_pan_lfo(lisa, speed, seconds)
+        lisa.force_all_notes_off()
+        time.sleep(1.5)
+
+    lisa.general.panning = 64
+    lisa.general.spread = 0
+
+
+def test24(lisa, lfo1, lfo2):
+    pan_scan(lisa, (0.8, 6, 10, 20, 50), 8)
+
+
+# Pan LFO between 6 and 10 Hz in every voice mode and position mode, spread 127.
+# Poly and unison hold a chord (4 notes in unison, a pair of voices each), mono
+# loops a line so the notes keep changing voice. About 7.5 minutes.
+def test25(lisa, lfo1, lfo2):
+    chords = {
+        "poly": [36, 43, 50, 57, 62, 69, 76, 84],
+        "unison": [36, 50, 62, 76],
+    }
+    line = [36, 84, 48, 72, 60, 43, 79, 55]
+
+    def play_line(seconds):
+        end = time.time() + seconds
+        for note in itertools.cycle(line):
+            if time.time() >= end:
+                break
+            lisa.note_on(note, velocity=127)
+            time.sleep(0.3)
+            lisa.note_off(note)
+            time.sleep(0.2)
+
+    lisa.force_all_notes_off()
+    lisa.filter.cutoff = 55
+    lisa.envelope.release = 70
+    lisa.general.detune = 90
+    lisa.general.spread = 127
+    for voice_mode in ("poly", "mono", "unison"):
+        lisa.general.voice_mode = voice_mode
+        for name in SPREAD_MODES:
+            lisa.general.spread_mode = name
+            for note in chords.get(voice_mode, []):
+                lisa.note_on(note, velocity=127)
+            for speed in (6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10):
+                print(f"* {voice_mode}, position by {name}: pan LFO at {speed} Hz")
+                if voice_mode == "mono":
+                    run_pan_lfo(lisa, speed, 4, play=play_line)
+                else:
+                    run_pan_lfo(lisa, speed, 4)
+            lisa.force_all_notes_off()
+            time.sleep(1.5)
+
+    lisa.general.panning = 64
+    lisa.general.spread_mode = "voice_index"
+    lisa.general.spread = 0
+    lisa.general.voice_mode = "poly"
+
+
+# Position modes on a fast looping melody, then three chord changes under a
+# spread LFO (0 to medium). Release at maximum: notes and chords pile up.
+# About 2.5 min.
+def test26(lisa, lfo1, lfo2):
+    # 8 notes looping: a repeated pitch goes back to its own voice, none is stolen
+    melody = [48, 67, 51, 63, 55, 60, 58, 70] * 8
+    chords = [[48, 55, 60, 63], [44, 51, 56, 60], [46, 53, 58, 62]]
+
+    lisa.force_all_notes_off()
+    lisa.filter.cutoff = 55
+    lisa.general.voice_mode = "poly"
+    for name in SPREAD_MODES:
+        lisa.general.spread_mode = name
+        lisa.general.spread = 127
+        lisa.envelope.release = 127
+
+        print(f"* {name}: fast melody")
+        play_sequence(lisa, melody, timing_on=0.1, timing_off=0.05)
+
+        print(f"* {name}: chord changes, LFO on the spread")
+        spread_lfo = LFO(
+            waveform="sine", speed=0.25, sampling_rate=259, auto_srate="OFF"
+        )
+        spread_lfo.start()
+        lisa.general.spread = spread_lfo.scale(0, 64)
+        for chord in chords:
+            play_cluster(lisa, chord, duration=8, off_at_once=True)
+        spread_lfo.stop()
+        lisa.general.spread.disconnect_incoming_links()
+
+        # Short release for a moment, otherwise the tails run into the next mode
+        lisa.envelope.release = 0
+        lisa.force_all_notes_off()
+        time.sleep(1)
+
+    lisa.envelope.release = 70
+    lisa.general.spread_mode = "voice_index"
+    lisa.general.spread = 0
+
+
 tests = [
     test1,
     test2,
@@ -907,6 +1133,12 @@ tests = [
     test18,
     test19,
     test20,
+    test21,
+    test22,
+    test23,
+    test24,
+    test25,
+    test26,
 ]
 
 if __name__ == "__main__":

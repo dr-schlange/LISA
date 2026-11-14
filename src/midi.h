@@ -165,8 +165,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   if (MIDI_CHANNEL(status) != (gstate->midi_ch - 1))
     return;
 
-  // --- Special CC64 sustain handling ---
-  if (IS_MIDI_CC(status) && pitch_or_cc == 64) {
+  if (IS_MIDI_CC(status) && pitch_or_cc == MIDI_SUSTAIN) {
     if (cc_value >= 64) {
       gstate->sustain_enabled = true;
     } else {
@@ -248,6 +247,12 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
       break;
     case MIDI_PANNING:
       gstate->panning.value = cc_value / 127.f;
+      break;
+    case MIDI_SPREAD:
+      gstate->spread.value = cc_value / 127.f;
+      break;
+    case MIDI_SPREAD_MODE:
+      gstate->spread_mode.value = cc_value / 127.f;
       break;
     case MIDI_DEV:
       switch (cc_value) {

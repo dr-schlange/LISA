@@ -216,6 +216,8 @@ struct RuntimeState {
   Parameter filter_type;
   Parameter gain;
   Parameter fm_slew;
+  Parameter spread;
+  Parameter spread_mode;
   ExtParameter unison_detune;
   ExtParameter panning;
 
@@ -299,6 +301,8 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->filter_type = ParameterNew(POT_A, MIDI_FILTER_TYPE, 0.f);
   gstate->gain = ParameterNew(POT_B, MIDI_GAIN, 0.25f);
   gstate->fm_slew = ParameterNew(POT_C, MIDI_FM_SLEW, 0.05f);
+  gstate->spread = ParameterNew(POT_C, MIDI_SPREAD, 0.f);
+  gstate->spread_mode = ParameterNew(POT_C, MIDI_SPREAD_MODE, 0.f);
   gstate->unison_detune = ExtParameterNew(POT_C, MIDI_UNISON_DETUNE, 0.55f);
   gstate->panning = ExtParameterNew(POT_C, MIDI_PANNING, 0.5f);
 
@@ -309,6 +313,7 @@ static inline void init_global_state(RuntimeState *gstate) {
   gstate->system_ready = false;
 }
 
+// locks only parameters which have a binding towards physical buttons
 static inline void lock_all_parameters(RuntimeState *gstate, bool status) {
   gstate->timbre.screen_locked = status;
   gstate->color.screen_locked = status;

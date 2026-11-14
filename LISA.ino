@@ -103,14 +103,17 @@ void __not_in_flash_func(update_audio)() {
     runtime_state.last_engine_idx = runtime_state.engine_idx;
   }
 
-  int32_t mix[AUDIO_BLOCK] = {0};
+  static int32_t mix_l[AUDIO_BLOCK];
+  static int32_t mix_r[AUDIO_BLOCK];
+  memset(mix_l, 0, sizeof(mix_l));
+  memset(mix_r, 0, sizeof(mix_r));
 
-  voices.renderAllVoices(mix);
+  voices.renderAllVoices(mix_l, mix_r);
 
 #if USE_SCREEN
-  scope_fill(&ui_state, mix, runtime_state.oscilloscope_enabled);
+  scope_fill(&ui_state, mix_l, runtime_state.oscilloscope_enabled);
 #endif
-  // features_compute_peak(mix, AUDIO_BLOCK);
+  // features_compute_peak(mix_l, AUDIO_BLOCK);
 
   static int32_t pan_slew = (int32_t)(runtime_state.panning.value * 32767.f);
   const int32_t pan_t = (int32_t)(runtime_state.panning.value * 32767.f);
@@ -120,9 +123,10 @@ void __not_in_flash_func(update_audio)() {
 
   static uint32_t frames[AUDIO_BLOCK];
   for (int i = 0; i < AUDIO_BLOCK; i++) {
-    int16_t s = constrain(mix[i], -32767, 32767);
-    int16_t s_left = (int16_t)(((int32_t)s * braids::wav_sine[64 - idx]) >> 15);
-    int16_t s_right = (int16_t)(((int32_t)s * braids::wav_sine[idx]) >> 15);
+    const int16_t sl = constrain(mix_l[i], -32767, 32767);
+    const int16_t sr = constrain(mix_r[i], -32767, 32767);
+    int16_t s_left = (int16_t)(((int32_t)sl * braids::wav_sine[64 - idx]) >> 15);
+    int16_t s_right = (int16_t)(((int32_t)sr * braids::wav_sine[idx]) >> 15);
     frames[i] = ((uint32_t)(uint16_t)s_left << 16) | (uint16_t)s_right;
   }
   i2s_output.write((const uint8_t *)frames, sizeof(frames));
