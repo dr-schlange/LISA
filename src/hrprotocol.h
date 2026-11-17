@@ -48,8 +48,7 @@ static inline int hr_read() {
 #define IS_UNIPOLAR(flags) ((flags & 0b01) == 0)
 #define IS_BIPOLAR(flags) ((flags & 0b01) == 1)
 
-#define UNIPOLAR_FLOAT(value) (value / 65535.0f)
-#define BIPOLAR_FLOAT(value) ((value / 32767.5f) - 1.0f)
+#define HR_NORMALIZED(value) (value / 65535.0f)
 
 typedef struct {
   uint8_t cc;
@@ -200,49 +199,49 @@ static inline void route_message(RuntimeState *gstate, VoiceAllocator *voices,
   }
   switch (msg->cc) {
   case MIDI_GAIN:
-    gstate->gain.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->gain.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_MASTER_VOL:
-    gstate->master_volume.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->master_volume.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_TIMBRE:
-    gstate->timbre.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->timbre.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_COLOR:
-    gstate->color.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->color.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_ATTACK:
-    gstate->env_attack.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->env_attack.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_RELEASE:
-    gstate->env_release.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->env_release.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_RESONANCE:
-    gstate->resonance.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->resonance.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_CUTOFF:
-    gstate->cutoff.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->cutoff.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_FM_MOD:
-    gstate->fm_mod.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->fm_mod.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_FM_SLEW:
-    gstate->fm_slew.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->fm_slew.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_TIMBRE_MOD:
-    gstate->timbre_mod.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->timbre_mod.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_COLOR_MOD:
-    gstate->color_mod.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->color_mod.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_UNISON_DETUNE:
-    gstate->unison_detune.value = BIPOLAR_FLOAT(msg->value);
+    gstate->unison_detune.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_PANNING:
-    gstate->panning.value = BIPOLAR_FLOAT(msg->value);
+    gstate->panning.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_SPREAD:
-    gstate->spread.value = UNIPOLAR_FLOAT(msg->value);
+    gstate->spread.value = HR_NORMALIZED(msg->value);
     break;
   case MIDI_WT_AUTO_BLEND_K:
     WavetableStreamingOscillator::setBlendK(
