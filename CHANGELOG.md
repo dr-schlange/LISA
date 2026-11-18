@@ -26,6 +26,7 @@
 - UI refreshing too much in the menus
 - invert_rect now uses a better API (faster)
 - avoid multiple read of the ADC
+- filter cutoff: the upper half of the knob/CC range had no effect and the lower part was not audible, the whole range now sweeps a wider range
 - lock/release issue on USB-MIDI (issue made visible with the introduction of the USB-HighResolution protocol)
 
 ## 0.2.0

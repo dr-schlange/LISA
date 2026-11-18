@@ -17,6 +17,10 @@
 #include "global_state.h"
 // clang-format on
 
+#define CUTOFF_MIN_INDEX 35
+#define CUTOFF_MIN (CUTOFF_MIN_INDEX * 128)
+#define CUTOFF_SPAN (128 * 128 - 1 - CUTOFF_MIN)
+
 #define VOICE_ACTIVE 0b00000001
 #define VOICE_LAST_TRIG 0b00000010
 #define VOICE_SUSTAINED 0b00000100
@@ -129,7 +133,8 @@ public:
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
 
-    filter_.set_frequency((int16_t)cut_slew);
+    filter_.set_frequency(
+        (int16_t)(CUTOFF_MIN + ((cut_slew * CUTOFF_SPAN) >> 15)));
     filter_.set_resonance((int16_t)res_slew);
     filter_.set_mode(filter_type);
 

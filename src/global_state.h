@@ -283,7 +283,7 @@ static inline void init_global_state(RuntimeState *gstate) {
 
   gstate->timbre = ExtParameterNew(POT_A, MIDI_TIMBRE, 0.4f);
   gstate->color = ExtParameterNew(POT_B, MIDI_COLOR, 0.3f);
-  gstate->cutoff = ExtParameterNew(POT_C, MIDI_CUTOFF, 0.5f);
+  gstate->cutoff = ExtParameterNew(POT_C, MIDI_CUTOFF, 1.0f);
   gstate->resonance = ExtParameterNew(POT_B, MIDI_RESONANCE, 0.25f);
   gstate->timbre_mod = ExtParameterNew(POT_B, MIDI_TIMBRE_MOD, 0.f);
   gstate->color_mod = ExtParameterNew(POT_B, MIDI_COLOR_MOD, 0.f);

@@ -231,7 +231,7 @@ inline void load_settings(RuntimeState *gstate) {
   gstate->color.value = doc["color"] | 0.3f;
   gstate->timbre_mod.value = doc["tmod"] | 0.0f;
   gstate->color_mod.value = doc["cmod"] | 0.0f;
-  gstate->cutoff.value = doc["ctf"] | 0.5f;
+  gstate->cutoff.value = doc["ctf"] | 1.0f;
   gstate->resonance.value = doc["rsn"] | 0.25f;
   gstate->filter_type.value = doc["flttype"] | 0.f;
   gstate->midi_ch = doc["ch"] | 1;
