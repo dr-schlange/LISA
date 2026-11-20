@@ -91,6 +91,24 @@ enum SpreadMode : uint8_t {
   SPREAD_MODES
 };
 
+struct RenderParams {
+  int16_t timbre;
+  int16_t color;
+  int16_t timb_slew;
+  int16_t color_slew;
+  int16_t fm_slew;
+  int16_t pitch_bend;
+  float unison_detune;
+  int32_t attack_coef;
+  int32_t release_coef;
+  int32_t block_gain;
+  int32_t cut_slew;
+  int32_t res_slew;
+  braids::SvfMode filter_type;
+  int32_t dry_scale;
+  int32_t wet_scale;
+};
+
 class Voice {
 public:
   WavetableStreamingOscillator osc;
@@ -99,7 +117,7 @@ public:
   int16_t velocity;
   int16_t env;
   uint32_t age;
-  int32_t pos = 0; // stereo position set at note on, Q15 -32767..32767
+  int32_t pos = 0;
 
   Voice() {
     flags = 0b00000000;
@@ -123,33 +141,28 @@ public:
   }
 
   inline void render(int32_t mix_l[AUDIO_BLOCK], int32_t mix_r[AUDIO_BLOCK],
-                     int16_t timbre, int16_t color, int16_t timb_slew,
-                     int16_t color_slew, int16_t fm_slew, int16_t pitch_bend,
-                     float unison_detune, int32_t attackCoef,
-                     int32_t releaseCoef, int32_t block_gain, int32_t cut_slew,
-                     int32_t res_slew, braids::SvfMode filter_type,
-                     int32_t dry_scale, int32_t wet_scale, int32_t gain_l,
-                     int32_t gain_r) {
+                     const RenderParams &p, int32_t gain_l, int32_t gain_r) {
     if (!is_active(flags) && !is_sustained(flags) && env < ENV_EPSILON_Q15)
       return;
 
     filter_.set_frequency(
-        (int16_t)(CUTOFF_MIN + MUL_Q15(cut_slew, CUTOFF_SPAN)));
-    filter_.set_resonance((int16_t)res_slew);
-    filter_.set_mode(filter_type);
+        (int16_t)(CUTOFF_MIN + MUL_Q15(p.cut_slew, CUTOFF_SPAN)));
+    filter_.set_resonance((int16_t)p.res_slew);
+    filter_.set_mode(p.filter_type);
 
     // >> 2 == * 0.25
     vel_smoothed_ += (int16_t)((int32_t)velocity - (int32_t)vel_smoothed_) >> 2;
 
     // 12 semitones * 128 (braids note scale unit)
-    int16_t oscpitch = pitch + (int16_t)MUL_Q15(fm_slew, 12 * 128) + pitch_bend;
+    int16_t oscpitch =
+        pitch + (int16_t)MUL_Q15(p.fm_slew, 12 * 128) + p.pitch_bend;
     if (is_secondary(flags)) {
-      oscpitch += (int16_t)((unison_detune - 0.5f) * 128.0f);
+      oscpitch += (int16_t)((p.unison_detune - 0.5f) * 128.0f);
     }
     osc.set_pitch(oscpitch);
 
-    int32_t t = constrain((int32_t)timbre + (int32_t)timb_slew, 0, Q15_ONE);
-    int32_t m = constrain((int32_t)color + (int32_t)color_slew, 0, Q15_ONE);
+    int32_t t = constrain((int32_t)p.timbre + (int32_t)p.timb_slew, 0, Q15_ONE);
+    int32_t m = constrain((int32_t)p.color + (int32_t)p.color_slew, 0, Q15_ONE);
     osc.set_parameters((int16_t)t, (int16_t)m);
 
     if (is_active(flags) && !is_last_trig(flags))
@@ -174,7 +187,7 @@ public:
       coef = kRetriggerCoef;
     } else {
       envTarget = (is_active(flags) || is_sustained(flags)) ? Q15_ONE : 0;
-      coef = envTarget ? attackCoef : releaseCoef;
+      coef = envTarget ? p.attack_coef : p.release_coef;
     }
     const int32_t envTarget_hires = (int32_t)envTarget << ENV_HIRES_BITS;
 
@@ -190,12 +203,12 @@ public:
         reset_retriggering(flags);
       }
 
-      const int32_t amp = MUL_Q15(MUL_Q15(env, vel_smoothed_), block_gain);
+      const int32_t amp = MUL_Q15(MUL_Q15(env, vel_smoothed_), p.block_gain);
 
       const int32_t dry_sample = buffer_[i];
       const int32_t wet_sample = filter_.Process(dry_sample);
       const int32_t filtered =
-          MUL_Q15(dry_sample, dry_scale) + MUL_Q15(wet_sample, wet_scale);
+          MUL_Q15(dry_sample, p.dry_scale) + MUL_Q15(wet_sample, p.wet_scale);
 
       const int32_t v = MUL_Q15(filtered, amp);
       mix_l[i] += MUL_Q15(v, gain_l);
@@ -318,6 +331,22 @@ public:
     const int32_t dry_scale = Q15_ONE - mix_slew_;
     const int32_t wet_scale = mix_slew_;
 
+    render_params_ = {timb_q15,
+                      col_q15,
+                      timb_slew_,
+                      color_slew_,
+                      fm_slew_,
+                      gstate->pitch_bend,
+                      gstate->unison_detune.value,
+                      attackCoef_,
+                      releaseCoef_,
+                      block_gain,
+                      cut_slew_,
+                      res_slew_,
+                      filter_type_,
+                      dry_scale,
+                      wet_scale};
+
     SLEW_Q15(spread_slew_, Q15(gstate->spread.value), SLEW_COEF_FAST);
     for (int v = 0; v < MAX_VOICES; v++) {
       const int32_t base =
@@ -330,11 +359,7 @@ public:
                SLEW_COEF_GAIN);
       SLEW_Q15(gain_r_[v], MUL_Q15(braids::wav_sine[idx], SQRT2_Q15),
                SLEW_COEF_GAIN);
-      voices_[v].render(mix_l, mix_r, timb_q15, col_q15, timb_slew_,
-                        color_slew_, fm_slew_, gstate->pitch_bend,
-                        gstate->unison_detune.value, attackCoef_, releaseCoef_,
-                        block_gain, cut_slew_, res_slew_, filter_type_,
-                        dry_scale, wet_scale, gain_l_[v], gain_r_[v]);
+      voices_[v].render(mix_l, mix_r, render_params_, gain_l_[v], gain_r_[v]);
     }
   }
 
@@ -366,6 +391,7 @@ private:
   int32_t res_slew_ = 0;
   int32_t mix_slew_ = 0;
   int32_t spread_slew_ = 0;
+  RenderParams render_params_;
   int32_t gain_l_[MAX_VOICES];
   int32_t gain_r_[MAX_VOICES];
   uint8_t spread_mode_ = SPREAD_INDEX;
