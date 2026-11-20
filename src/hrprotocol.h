@@ -168,7 +168,7 @@ static inline void route_message(RuntimeState *gstate, VoiceAllocator *voices,
     const uint8_t channel = msg->cc;
     const int16_t raw = (int32_t)msg->value - 32768;
     if (channel == MIDI_PB_CH_PITCH_BEND) {
-      gstate->pitch_bend = (int16_t)((raw * MIDI_PB_BEND_RANGE_UNITS) >> 15);
+      gstate->pitch_bend = (int16_t)MUL_Q15(raw, MIDI_PB_BEND_RANGE_UNITS);
       return;
     }
     if (WavetableStreamingOscillator::isLiveMode()) {

@@ -10,7 +10,17 @@
 #define SETTINGS_FILE "/lisa_settings.json"
 
 #define Q15_ONE 32767
+#define Q15_HALF 16384
+#define SQRT2_Q15 46341
 #define Q15(x) ((int32_t)((x) * 32767.f))
+#define MUL_Q15(a, b) (((int32_t)(a) * (int32_t)(b)) >> 15)
+
+#define SLEW_Q15(state, target, coef)                                          \
+  ((state) += MUL_Q15((int32_t)(target) - (int32_t)(state), coef))
+#define SLEW_COEF_FAST 1638 // 0.05f * 32767
+#define SLEW_COEF_SLOW 327  // 0.01f * 32767
+#define SLEW_COEF_GAIN 3277 // 0.1f * 32767
+#define SLEW_COEF_PAN 2048  // 0.0625f * 32767 (rounded up to 1/16)
 
 const char *const engine_names[] = {
     "CSAW", "/\\-_", "//-_",  "FOLD", "uuuu", "SUB-", "SUB/", "SYN-", "SYN/",

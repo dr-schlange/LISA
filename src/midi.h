@@ -184,7 +184,7 @@ static inline void handle_MIDI(RuntimeState *gstate, VoiceAllocator *voices) {
   if (IS_MIDI_NOTE_ON(status)) {
     FREEZE_STAGE(FZ_MIDI_NOTE_ON);
     voices->enqueueNoteOn((int16_t)pitch_or_cc * 128,
-                          (int16_t)((uint32_t)cc_value * 32767 / 127));
+                          (int16_t)((uint32_t)cc_value * Q15_ONE / 127));
     return;
   }
 

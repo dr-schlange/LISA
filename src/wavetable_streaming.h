@@ -379,21 +379,21 @@ public:
 
     // pull towards the middle
     // strength: >>1 = mild, >>2 = stronger
-    t = 16384 + ((t - 16384) >> 1);
-    m = 16384 + ((m - 16384) >> 1);
+    t = Q15_HALF + ((t - Q15_HALF) >> 1);
+    m = Q15_HALF + ((m - Q15_HALF) >> 1);
 
     // nonlinear curves the corners
-    t = (t * t) >> 15;
-    m = (m * m) >> 15;
+    t = MUL_Q15(t, t);
+    m = MUL_Q15(m, m);
 
     // bilinear mapping
     int32_t inv_t = Q15_ONE - t;
     int32_t inv_m = Q15_ONE - m;
 
-    w1_ = (inv_t * inv_m) >> 15;
-    w2_ = (t * inv_m) >> 15;
-    w3_ = (inv_t * m) >> 15;
-    w4_ = (t * m) >> 15;
+    w1_ = MUL_Q15(inv_t, inv_m);
+    w2_ = MUL_Q15(t, inv_m);
+    w3_ = MUL_Q15(inv_t, m);
+    w4_ = MUL_Q15(t, m);
 
     braids::MacroOscillator::set_parameters(p1, p2);
   }

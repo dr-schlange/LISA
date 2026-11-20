@@ -115,18 +115,17 @@ void __not_in_flash_func(update_audio)() {
 #endif
   // features_compute_peak(mix_l, AUDIO_BLOCK);
 
-  static int32_t pan_slew = (int32_t)(runtime_state.panning.value * 32767.f);
-  const int32_t pan_t = (int32_t)(runtime_state.panning.value * 32767.f);
-  pan_slew +=
-      ((pan_t - pan_slew) * 2048) >> 15; // 2048 = (int32_t)(0.0625f * 32767.f)
-  const uint8_t idx = (uint8_t)((pan_slew * 63) >> 15);
+  static int32_t pan_slew = Q15(runtime_state.panning.value);
+  const int32_t pan_t = Q15(runtime_state.panning.value);
+  SLEW_Q15(pan_slew, pan_t, SLEW_COEF_PAN);
+  const uint8_t idx = (uint8_t)MUL_Q15(pan_slew, 63);
 
   static uint32_t frames[AUDIO_BLOCK];
   for (int i = 0; i < AUDIO_BLOCK; i++) {
-    const int16_t sl = constrain(mix_l[i], -32767, 32767);
-    const int16_t sr = constrain(mix_r[i], -32767, 32767);
-    int16_t s_left = (int16_t)(((int32_t)sl * braids::wav_sine[64 - idx]) >> 15);
-    int16_t s_right = (int16_t)(((int32_t)sr * braids::wav_sine[idx]) >> 15);
+    const int16_t sl = constrain(mix_l[i], -Q15_ONE, Q15_ONE);
+    const int16_t sr = constrain(mix_r[i], -Q15_ONE, Q15_ONE);
+    int16_t s_left = (int16_t)MUL_Q15(sl, braids::wav_sine[64 - idx]);
+    int16_t s_right = (int16_t)MUL_Q15(sr, braids::wav_sine[idx]);
     frames[i] = ((uint32_t)(uint16_t)s_left << 16) | (uint16_t)s_right;
   }
   i2s_output.write((const uint8_t *)frames, sizeof(frames));

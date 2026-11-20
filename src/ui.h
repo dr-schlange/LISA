@@ -551,9 +551,9 @@ static inline void scope_fill(UIState *uistate, int32_t *mix, bool enabled) {
   static int32_t scopeSmooth = 0;
   if (!enabled || uistate->scope_ready)
     return;
-  const int32_t factor = (int32_t)(0.25f * 32767.f);
+  const int32_t factor = Q15(0.25f);
   for (int i = 0; i < AUDIO_BLOCK; i += 4) {
-    scopeSmooth += ((mix[i] - scopeSmooth) * factor) >> 15;
+    SLEW_Q15(scopeSmooth, mix[i], factor);
     uistate->scope_buffer_front[scope_idx++] = scopeSmooth;
     if (scope_idx >= SCOPE_WIDTH) {
       memcpy((void *)uistate->scope_buffer_back,

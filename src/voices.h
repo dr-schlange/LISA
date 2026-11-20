@@ -21,14 +21,6 @@
 #define CUTOFF_MIN (CUTOFF_MIN_INDEX * 128)
 #define CUTOFF_SPAN (128 * 128 - 1 - CUTOFF_MIN)
 
-// One-pole slew of an integer state towards a target, coef is Q15
-// (fraction of the remaining distance per block).
-#define SLEW_Q15(state, target, coef)                                          \
-  ((state) += (((int32_t)(target) - (int32_t)(state)) * (coef)) >> 15)
-#define SLEW_COEF_FAST 1638 // 0.05f * 32767
-#define SLEW_COEF_SLOW 327  // 0.01f * 32767
-#define SLEW_COEF_GAIN 3277 // 0.1f * 32767
-
 #define VOICE_ACTIVE 0b00000001
 #define VOICE_LAST_TRIG 0b00000010
 #define VOICE_SUSTAINED 0b00000100
@@ -142,7 +134,7 @@ public:
       return;
 
     filter_.set_frequency(
-        (int16_t)(CUTOFF_MIN + ((cut_slew * CUTOFF_SPAN) >> 15)));
+        (int16_t)(CUTOFF_MIN + MUL_Q15(cut_slew, CUTOFF_SPAN)));
     filter_.set_resonance((int16_t)res_slew);
     filter_.set_mode(filter_type);
 
@@ -150,8 +142,7 @@ public:
     vel_smoothed_ += (int16_t)((int32_t)velocity - (int32_t)vel_smoothed_) >> 2;
 
     // 12 semitones * 128 (braids note scale unit)
-    int16_t oscpitch =
-        pitch + (int16_t)(((int32_t)fm_slew * 12 * 128) >> 15) + pitch_bend;
+    int16_t oscpitch = pitch + (int16_t)MUL_Q15(fm_slew, 12 * 128) + pitch_bend;
     if (is_secondary(flags)) {
       oscpitch += (int16_t)((unison_detune - 0.5f) * 128.0f);
     }
@@ -199,17 +190,16 @@ public:
         reset_retriggering(flags);
       }
 
-      const int32_t amp =
-          (((int32_t)env * (int32_t)vel_smoothed_) >> 15) * block_gain >> 15;
+      const int32_t amp = MUL_Q15(MUL_Q15(env, vel_smoothed_), block_gain);
 
       const int32_t dry_sample = buffer_[i];
       const int32_t wet_sample = filter_.Process(dry_sample);
       const int32_t filtered =
-          ((dry_sample * dry_scale) >> 15) + ((wet_sample * wet_scale) >> 15);
+          MUL_Q15(dry_sample, dry_scale) + MUL_Q15(wet_sample, wet_scale);
 
-      const int32_t v = (filtered * amp) >> 15;
-      mix_l[i] += (v * gain_l) >> 15;
-      mix_r[i] += (v * gain_r) >> 15;
+      const int32_t v = MUL_Q15(filtered, amp);
+      mix_l[i] += MUL_Q15(v, gain_l);
+      mix_r[i] += MUL_Q15(v, gain_r);
     }
   }
 
@@ -276,8 +266,7 @@ public:
 
     const RuntimeState *gstate = gstate_;
     const int32_t block_gain =
-        (int32_t)(gstate->master_volume.value * gstate->gain.value /
-                  MAX_VOICES * 32767.0f);
+        Q15(gstate->master_volume.value * gstate->gain.value / MAX_VOICES);
     float atk_knob = gstate->env_attack.value;
     float rel_knob = gstate->env_release.value;
     if (atk_knob != last_atk_) {
@@ -333,13 +322,13 @@ public:
     for (int v = 0; v < MAX_VOICES; v++) {
       const int32_t base =
           spread_mode_ == SPREAD_INDEX
-              ? ((2 * v - (MAX_VOICES - 1)) * 32767) / (MAX_VOICES - 1)
+              ? ((2 * v - (MAX_VOICES - 1)) * Q15_ONE) / (MAX_VOICES - 1)
               : voices_[v].pos;
-      const int32_t pos = (base * spread_slew_) >> 15;
+      const int32_t pos = MUL_Q15(base, spread_slew_);
       const int32_t idx = 32 + ((pos * 32 + 16384) >> 15); // 0..64
-      SLEW_Q15(gain_l_[v], (braids::wav_sine[64 - idx] * 46341) >> 15,
+      SLEW_Q15(gain_l_[v], MUL_Q15(braids::wav_sine[64 - idx], SQRT2_Q15),
                SLEW_COEF_GAIN);
-      SLEW_Q15(gain_r_[v], (braids::wav_sine[idx] * 46341) >> 15,
+      SLEW_Q15(gain_r_[v], MUL_Q15(braids::wav_sine[idx], SQRT2_Q15),
                SLEW_COEF_GAIN);
       voices_[v].render(mix_l, mix_r, timb_q15, col_q15, timb_slew_,
                         color_slew_, fm_slew_, gstate->pitch_bend,
@@ -467,7 +456,7 @@ private:
     if (abs_diff < ABS_DIFF2_EPSILON_Q15)
       current = target;
     else
-      current += (int16_t)(((int32_t)diff * (int32_t)coefficient) >> 15);
+      current += (int16_t)MUL_Q15(diff, coefficient);
   }
 
   inline int findFreeVoice(int16_t pitch) {
@@ -492,11 +481,12 @@ private:
   inline void placeVoice(Voice *voice, int16_t pitch) {
     switch (spread_mode_) {
     case SPREAD_NOTE: // pitch is note * 128, +-24 semitones around note 60
-      voice->pos = constrain((((pitch >> 7) - 60) * 32767) / 24, -32767, 32767);
+      voice->pos =
+          constrain((((pitch >> 7) - 60) * Q15_ONE) / 24, -Q15_ONE, Q15_ONE);
       break;
     case SPREAD_RANDOM:
       rng_ = rng_ * 1664525u + 1013904223u;
-      voice->pos = constrain((int32_t)(rng_ >> 16) - 32768, -32767, 32767);
+      voice->pos = constrain((int32_t)(rng_ >> 16) - 32768, -Q15_ONE, Q15_ONE);
       break;
     case SPREAD_PINGPONG:
       pingpong_ = -pingpong_;
