@@ -9,6 +9,9 @@
 #define LISA_VERSION "v0.3.0"
 #define SETTINGS_FILE "/lisa_settings.json"
 
+#define Q15_ONE 32767
+#define Q15(x) ((int32_t)((x) * 32767.f))
+
 const char *const engine_names[] = {
     "CSAW", "/\\-_", "//-_",  "FOLD", "uuuu", "SUB-", "SUB/", "SYN-", "SYN/",
     "//x3", "-_x3",  "/\\x3", "SIx3", "RING", "////", "//uu", "TOY*", "ZLPF",

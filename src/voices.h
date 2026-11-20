@@ -21,6 +21,14 @@
 #define CUTOFF_MIN (CUTOFF_MIN_INDEX * 128)
 #define CUTOFF_SPAN (128 * 128 - 1 - CUTOFF_MIN)
 
+// One-pole slew of an integer state towards a target, coef is Q15
+// (fraction of the remaining distance per block).
+#define SLEW_Q15(state, target, coef)                                          \
+  ((state) += (((int32_t)(target) - (int32_t)(state)) * (coef)) >> 15)
+#define SLEW_COEF_FAST 1638 // 0.05f * 32767
+#define SLEW_COEF_SLOW 327  // 0.01f * 32767
+#define SLEW_COEF_GAIN 3277 // 0.1f * 32767
+
 #define VOICE_ACTIVE 0b00000001
 #define VOICE_LAST_TRIG 0b00000010
 #define VOICE_SUSTAINED 0b00000100
@@ -149,8 +157,8 @@ public:
     }
     osc.set_pitch(oscpitch);
 
-    int32_t t = constrain((int32_t)timbre + (int32_t)timb_slew, 0, 32767);
-    int32_t m = constrain((int32_t)color + (int32_t)color_slew, 0, 32767);
+    int32_t t = constrain((int32_t)timbre + (int32_t)timb_slew, 0, Q15_ONE);
+    int32_t m = constrain((int32_t)color + (int32_t)color_slew, 0, Q15_ONE);
     osc.set_parameters((int16_t)t, (int16_t)m);
 
     if (is_active(flags) && !is_last_trig(flags))
@@ -174,7 +182,7 @@ public:
       envTarget = 0;
       coef = kRetriggerCoef;
     } else {
-      envTarget = (is_active(flags) || is_sustained(flags)) ? 32767 : 0;
+      envTarget = (is_active(flags) || is_sustained(flags)) ? Q15_ONE : 0;
       coef = envTarget ? attackCoef : releaseCoef;
     }
     const int32_t envTarget_hires = (int32_t)envTarget << ENV_HIRES_BITS;
@@ -222,7 +230,7 @@ public:
     for (int v = 0; v < MAX_VOICES; v++) {
       voices_[v].osc.Init(SAMPLE_RATE);
       reset_active(voices_[v].flags);
-      gain_l_[v] = gain_r_[v] = 32767;
+      gain_l_[v] = gain_r_[v] = Q15_ONE;
     }
     queue_init(&cmd_queue_, sizeof(VoiceCommand), VOICE_CMD_QUEUE_DEPTH);
   }
@@ -291,26 +299,26 @@ public:
       last_rel_ = rel_knob;
     }
     int16_t fm_mod = (gstate->midi_enabled || !gstate->cv_mod1_enabled)
-                         ? (int16_t)(gstate->fm_mod.value * 32767.f)
+                         ? (int16_t)Q15(gstate->fm_mod.value)
                          : 0;
-    int16_t fm_slew_coef = (int16_t)(gstate->fm_slew.value * 0.06f * 32767.f);
+    int16_t fm_slew_coef = (int16_t)Q15(gstate->fm_slew.value * 0.06f);
     if (fm_slew_coef < 1)
       fm_slew_coef = 1; // never let a low fm_slew setting freeze tracking
     applyStableSlew(fm_slew_, fm_mod, fm_slew_coef);
-    applyStableSlew(timb_slew_, (int16_t)(gstate->timbre_mod.value * 32767.f),
+    applyStableSlew(timb_slew_, (int16_t)Q15(gstate->timbre_mod.value),
                     TIMB_COLOR_SLEW_COEF_Q15);
-    applyStableSlew(color_slew_, (int16_t)(gstate->color_mod.value * 32767.f),
+    applyStableSlew(color_slew_, (int16_t)Q15(gstate->color_mod.value),
                     TIMB_COLOR_SLEW_COEF_Q15);
-    int16_t timb_q15 = (int16_t)(gstate->timbre.value * 32767.f);
-    int16_t col_q15 = (int16_t)(gstate->color.value * 32767.f);
+    int16_t timb_q15 = (int16_t)Q15(gstate->timbre.value);
+    int16_t col_q15 = (int16_t)Q15(gstate->color.value);
 
-    const int32_t cut_t = (int32_t)(gstate->cutoff.value * 32767.f);
-    const int32_t res_t = (int32_t)(gstate->resonance.value * 32767.f);
-    const int32_t mix_t = gstate->filter_enabled ? 32767 : 0;
+    const int32_t cut_t = Q15(gstate->cutoff.value);
+    const int32_t res_t = Q15(gstate->resonance.value);
+    const int32_t mix_t = gstate->filter_enabled ? Q15_ONE : 0;
 
-    cut_slew_ += ((cut_t - cut_slew_) * 1638) >> 15; // 1638 = 0.05f * 32767
-    res_slew_ += ((res_t - res_slew_) * 1638) >> 15;
-    mix_slew_ += ((mix_t - mix_slew_) * 327) >> 15; // 327 = 0.01f * 32767
+    SLEW_Q15(cut_slew_, cut_t, SLEW_COEF_FAST);
+    SLEW_Q15(res_slew_, res_t, SLEW_COEF_FAST);
+    SLEW_Q15(mix_slew_, mix_t, SLEW_COEF_SLOW);
 
     if (gstate->filter_type.value != last_filter_type_knob_) {
       filter_type_ =
@@ -318,13 +326,10 @@ public:
       last_filter_type_knob_ = gstate->filter_type.value;
     }
 
-    const int32_t dry_scale = 32767 - mix_slew_;
+    const int32_t dry_scale = Q15_ONE - mix_slew_;
     const int32_t wet_scale = mix_slew_;
 
-    spread_slew_ +=
-        (((int32_t)(gstate->spread.value * 32767.f) - spread_slew_) * 1638) >>
-        15;
-
+    SLEW_Q15(spread_slew_, Q15(gstate->spread.value), SLEW_COEF_FAST);
     for (int v = 0; v < MAX_VOICES; v++) {
       const int32_t base =
           spread_mode_ == SPREAD_INDEX
@@ -332,11 +337,10 @@ public:
               : voices_[v].pos;
       const int32_t pos = (base * spread_slew_) >> 15;
       const int32_t idx = 32 + ((pos * 32 + 16384) >> 15); // 0..64
-      gain_l_[v] +=
-          (((braids::wav_sine[64 - idx] * 46341) >> 15) - gain_l_[v]) * 3277 >>
-          15;
-      gain_r_[v] +=
-          (((braids::wav_sine[idx] * 46341) >> 15) - gain_r_[v]) * 3277 >> 15;
+      SLEW_Q15(gain_l_[v], (braids::wav_sine[64 - idx] * 46341) >> 15,
+               SLEW_COEF_GAIN);
+      SLEW_Q15(gain_r_[v], (braids::wav_sine[idx] * 46341) >> 15,
+               SLEW_COEF_GAIN);
       voices_[v].render(mix_l, mix_r, timb_q15, col_q15, timb_slew_,
                         color_slew_, fm_slew_, gstate->pitch_bend,
                         gstate->unison_detune.value, attackCoef_, releaseCoef_,
@@ -377,7 +381,7 @@ private:
   int32_t gain_r_[MAX_VOICES];
   uint8_t spread_mode_ = SPREAD_INDEX;
   uint32_t rng_ = 1;
-  int32_t pingpong_ = 32767;
+  int32_t pingpong_ = Q15_ONE;
   braids::SvfMode filter_type_ = braids::SVF_MODE_LP;
   float last_filter_type_knob_ = -1.f;
 

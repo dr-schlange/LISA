@@ -116,42 +116,43 @@ struct ExtParameter {
     .extended = true, .value = val_, .last_value = (uint8_t)val_,              \
     .smoothed = val_, .gpio = gpio_, .screen_locked = false,                   \
     .resolution_mode = RES_CATCHUP, .midi_cc = midi_cc_, .mode = POT_NORMAL,   \
-    .locked = false, .kinetic = {                                              \
-      .mass =                                                                  \
-          {                                                                    \
-              .extended = false,                                               \
-              .value = 0.2f,                                                   \
-              .last_value = (uint8_t)0.2f,                                     \
-              .smoothed = 0.2f,                                                \
-              .gpio = gpio_,                                                   \
-              .screen_locked = false,                                          \
-              .resolution_mode = RES_CATCHUP,                                  \
-          },                                                                   \
-      .damping =                                                               \
-          {                                                                    \
-              .extended = false,                                               \
-              .value = 0.4f,                                                   \
-              .last_value = (uint8_t)0.4,                                      \
-              .smoothed = 0.4f,                                                \
-              .gpio = gpio_,                                                   \
-              .screen_locked = false,                                          \
-              .resolution_mode = RES_CATCHUP,                                  \
-          },                                                                   \
-      .stiffness =                                                             \
-          {                                                                    \
-              .extended = false,                                               \
-              .value = 0.4f,                                                   \
-              .last_value = (uint8_t)0.4f,                                     \
-              .smoothed = 0.4f,                                                \
-              .gpio = gpio_,                                                   \
-              .screen_locked = false,                                          \
-              .resolution_mode = RES_CATCHUP,                                  \
-          },                                                                   \
-      .last_pos = 0.f,                                                         \
-      .velocity = 0.f,                                                         \
-      .last_update_time = 0,                                                   \
-      .last_move_time = 0,                                                     \
-      .last_midi_send = 0,                                                     \
+    .locked = false,                                                           \
+    .kinetic = {                                                               \
+        .mass =                                                                \
+            {                                                                  \
+                .extended = false,                                             \
+                .value = 0.2f,                                                 \
+                .last_value = (uint8_t)0.2f,                                   \
+                .smoothed = 0.2f,                                              \
+                .gpio = gpio_,                                                 \
+                .screen_locked = false,                                        \
+                .resolution_mode = RES_CATCHUP,                                \
+            },                                                                 \
+        .damping =                                                             \
+            {                                                                  \
+                .extended = false,                                             \
+                .value = 0.4f,                                                 \
+                .last_value = (uint8_t)0.4,                                    \
+                .smoothed = 0.4f,                                              \
+                .gpio = gpio_,                                                 \
+                .screen_locked = false,                                        \
+                .resolution_mode = RES_CATCHUP,                                \
+            },                                                                 \
+        .stiffness =                                                           \
+            {                                                                  \
+                .extended = false,                                             \
+                .value = 0.4f,                                                 \
+                .last_value = (uint8_t)0.4f,                                   \
+                .smoothed = 0.4f,                                              \
+                .gpio = gpio_,                                                 \
+                .screen_locked = false,                                        \
+                .resolution_mode = RES_CATCHUP,                                \
+            },                                                                 \
+        .last_pos = 0.f,                                                       \
+        .velocity = 0.f,                                                       \
+        .last_update_time = 0,                                                 \
+        .last_move_time = 0,                                                   \
+        .last_midi_send = 0,                                                   \
     }                                                                          \
   }
 

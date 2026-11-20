@@ -9,6 +9,7 @@
 #include <cstring>
 #include "braids/macro_oscillator.h"
 #include "braids/resources.h"
+#include "constants_config.h"
 #include "stmlib/utils/dsp.h"
 // clang-format on
 
@@ -386,8 +387,8 @@ public:
     m = (m * m) >> 15;
 
     // bilinear mapping
-    int32_t inv_t = 32767 - t;
-    int32_t inv_m = 32767 - m;
+    int32_t inv_t = Q15_ONE - t;
+    int32_t inv_m = Q15_ONE - m;
 
     w1_ = (inv_t * inv_m) >> 15;
     w2_ = (t * inv_m) >> 15;

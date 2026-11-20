@@ -145,7 +145,8 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
   if (ctrl == AUDIO20_CS_CTRL_SAM_FREQ) {
     if (req->bRequest == AUDIO20_CS_REQ_CUR) {
       static uint32_t rate = USB_AUDIO_RATE;
-      // Not tud_control_xfer: TinyUSB takes the rate for packet sizing from here
+      // Not tud_control_xfer: TinyUSB takes the rate for packet sizing from
+      // here
       return tud_audio_buffer_and_schedule_control_xfer(rhport, req, &rate,
                                                         sizeof(rate));
     }
@@ -162,8 +163,8 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport,
   return false;
 }
 
-// Core 1, once per block. frames[] is (left << 16) | right, USB wants L,R pairs.
-// Only fills the FIFO (no lock), the USB IRQ on core 0 drains it.
+// Core 1, once per block. frames[] is (left << 16) | right, USB wants L,R
+// pairs. Only fills the FIFO (no lock), the USB IRQ on core 0 drains it.
 static __force_inline void usb_audio_push(const uint32_t frames[AUDIO_BLOCK]) {
   static int16_t pcm[AUDIO_BLOCK * 2];
   // The FIFO is overwritable: skip the block rather than overwrite data the USB
